@@ -132,7 +132,6 @@ fn testCountModels() {
 fn countModels(ctx: &z3::Context,formula: z3::ast::Bool, varsList: Vec<z3::ast::Int>) -> i32 {
     let mut count = 0;
 
-
     let solver = Solver::new(&ctx);
 
     solver.assert(&formula);
@@ -140,11 +139,11 @@ fn countModels(ctx: &z3::Context,formula: z3::ast::Bool, varsList: Vec<z3::ast::
 
     loop {
          if count > 1 {
-             break 0;
+             break;
          }
 
          if solver.check() != SatResult::Sat {
-             break 0;
+             break;
          }
 
          assert_eq!(solver.check(), SatResult::Sat);
@@ -152,26 +151,30 @@ fn countModels(ctx: &z3::Context,formula: z3::ast::Bool, varsList: Vec<z3::ast::
          let model = solver.get_model().unwrap();
          println!("model: \n{}", model);
 
-         // testing only; not needed due to previous line in production.
-         /*
+         // testing only; not needed due to previous line in production?
          for var in varsList.iter() {
              let v = model.eval(var, true).unwrap().as_i64().unwrap();
              println!("{} -> {}", var, v);
          }
-         */
 
+         let mut newVarConstraints = vec![];
+         let mut newVarConstraintsP = vec![];
 
-         // todo: this assumes *every* variables has a different value in the new model; this is too restrictive
          for var in varsList.iter() {
-             let v = model.eval(var, true).unwrap().as_i64().unwrap();
-             solver.assert(
-                    &z3::ast::Bool::<'_>::or(&ctx,
-                        &[&var.gt( &ast::Int::from_i64(ctx, v)), &var.lt( &ast::Int::from_i64(ctx, v))]
-                    ));
-            println!("{} -> {}", var, v);
+            let v = model.eval(var, true).unwrap().as_i64().unwrap();
+            let s1 = var.gt( &ast::Int::from_i64(ctx, v));
+            let s2 = var.lt( &ast::Int::from_i64(ctx, v));
+            newVarConstraints.push(s1);
+            newVarConstraints.push(s2);
          }
+         for var in newVarConstraints.iter() {
+             newVarConstraintsP.push(var);
+         }
+
+         solver.assert(&z3::ast::Bool::or(&ctx, &newVarConstraintsP));
 
          count = count + 1;
     }
 
+     count
 }
