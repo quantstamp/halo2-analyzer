@@ -48,6 +48,7 @@ impl<F: FieldExt> FibonacciChip<F> {
 
             println!("{:?}", vec![s.clone() * (a.clone() + b.clone() - c.clone())]);
             vec![s * (a + b - c)]
+            //[Product(Selector(Selector(0, true)), Sum(Sum(Advice { query_index: 0, column_index: 0, rotation: Rotation(0) }, Advice { query_index: 1, column_index: 1, rotation: Rotation(0) }), Negated(Advice { query_index: 2, column_index: 2, rotation: Rotation(0) })))]
         });
 
         FibonacciConfig {
