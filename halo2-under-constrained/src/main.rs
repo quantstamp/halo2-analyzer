@@ -10,6 +10,12 @@ use halo2_proofs::dev::MockProver;
 use halo2_proofs::pasta::Fp as Fr;
 use halo2_proofs::poly::Rotation;
 use halo2_proofs::{circuit::Layouter, circuit::SimpleFloorPlanner, plonk::*};
+use halo2_proof::pasta::PrimeFieldBits;
+
+extern crate z3;
+
+use z3::ast::{Ast, Bool};
+use z3::*;
 
 // public input x
 // prove that I know its bit decomposition b0, b1
@@ -51,48 +57,72 @@ impl Default for PlayCircuit<Fr> {
 
 trait FMCheck {
     fn extract_constraints(cs: &ConstraintSystem<Fr>);
-    fn decompose_expression(poly: &Expression<Fr>);
+    fn decompose_expression(poly: &Expression<Fr>, ctx: &mut z3::Context);
 }
 impl FMCheck for PlayCircuit<Fr> {
     fn extract_constraints(cs: &ConstraintSystem<Fr>) {
         //adding constraints
+        let mut ctx = z3::Context::new(&cfg);
         for gate in &cs.gates {
             // println!("All polys in Gate {:?}",gate.polys);
             for poly in &gate.polys {
                 // println!("Expression poly {:?}",poly);
-                Self::decompose_expression(&poly);
+                Self::decompose_expression( &poly, &mut ctx);
             }
         }
+        println!("{:?}", ctx);
     }
-    fn decompose_expression(poly: &Expression<Fr>) {
+    fn decompose_expression(poly: &Expression<Fr>, ctx: &mut z3::Context) -> Option<ast::Int> {
         match &poly {
-            Expression::Constant(a) => println!("constant {:?}",a),
-            Expression::Selector(a) => println!("selector {:?}",a),
-            Expression::Fixed { .. } => println!("fixed {:?}",poly),
-            Expression::Advice { .. } => println!("advice {:?}", poly),
-            Expression::Instance { .. } => println!("instance {:?}", poly),
+            Expression::Constant(a) => {
+                println!("constant {:?}",a);
+                Some(ast::Int::from_i64(ctx, a.to_le_bits()[0]))
+            },
+            Expression::Selector(a) => {
+                println!("selector {:?}",a);
+                Some(ast::Int::new_const(ctx, format!("{:?}", a)))
+            },
+            Expression::Fixed { .. } => {
+                println!("fixed {:?}",poly);
+                Some(())
+            },
+            Expression::Advice { .. } => {
+                println!("advice {:?}", poly);
+                Some(ast::Int::new_const(ctx, format!("{:?}", a)))
+            },
+            Expression::Instance { .. } => {
+                println!("instance {:?}", poly);
+                Some(ast::Int::new_const(ctx, format!("{:?}", a)))
+            },
             Expression::Negated(_poly) => {
                 println!("negated");
                 println!("decomposing poly:");
-                Self::decompose_expression(&_poly);
+                let a = Self::decompose_expression(&_poly, ctx).unwrap();
+                some(a)
             }
             Expression::Sum(a, b) => {
                 println!("sum {:?}, {:?}", a, b);
                 println!("decomposing a:");
-                Self::decompose_expression(a);
+                let a_var = Self::decompose_expression(a, ctx).unwrap();
                 println!("decomposing b:");
-                Self::decompose_expression(b);
+                let b_var = Self::decompose_expression(b, ctx).unwrap();
+                let c_var = ast::Int::add(ctx, &[&a_var, &b_var]);
+                Some(c_var)
             }
             Expression::Product(a, b) => {
                 println!("product {:?}, {:?}", a, b);
                 println!("decomposing a:");
-                Self::decompose_expression(a);
+                let a_var = Self::decompose_expression(a, ctx).unwrap();
                 println!("decomposing b:");
-                Self::decompose_expression(b);
+                let b_var = Self::decompose_expression(b, ctx).unwrap();
+                let c_var = ast::Int::mul(ctx, &[&a_var, &b_var]);
+                Some(c_var)
             }
             Expression::Scaled(_poly, _) => {
                 println!("scaled");
-                Self::decompose_expression(&_poly);
+                let a = Self::decompose_expression(&_poly, ctx);
+                Some(a)
+                //TODO: figure out WTF this does.
             }
         }
     }
