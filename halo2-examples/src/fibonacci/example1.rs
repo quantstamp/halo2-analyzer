@@ -46,7 +46,7 @@ impl<F: FieldExt> FibonacciChip<F> {
             let b = meta.query_advice(col_b, Rotation::cur());
             let c = meta.query_advice(col_c, Rotation::cur());
 
-            println!("{:?}", vec![s.clone() * (a.clone() + b.clone() - c.clone())]);
+            // println!("{:?}", vec![s.clone() * (a.clone() + b.clone() - c.clone())]);
             vec![s * (a + b - c)]
             //[Product(Selector(Selector(0, true)), Sum(Sum(Advice { query_index: 0, column_index: 0, rotation: Rotation(0) }, Advice { query_index: 1, column_index: 1, rotation: Rotation(0) }), Negated(Advice { query_index: 2, column_index: 2, rotation: Rotation(0) })))]
         });
@@ -155,7 +155,12 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
     }
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
-        FibonacciChip::configure(meta)
+        let cfg = FibonacciChip::configure(meta);
+        for gate in &meta.gates{
+            println!("{:?}",gate.polys);
+        }
+        cfg
+        
     }
 
     fn synthesize(
@@ -175,7 +180,6 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
         }
 
         chip.expose_public(layouter.namespace(|| "out"), &prev_c, 2)?;
-
         Ok(())
     }
 }
