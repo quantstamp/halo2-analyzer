@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use env_logger;
 
+use halo2_proofs::pasta::group::ff::{PrimeField, PrimeFieldBits};
 use log;
 
 use halo2_proofs::arithmetic::Field;
@@ -9,8 +10,7 @@ use halo2_proofs::circuit::Value;
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::pasta::Fp as Fr;
 use halo2_proofs::poly::Rotation;
-use halo2_proofs::{circuit::Layouter, circuit::SimpleFloorPlanner, plonk::*};
-use halo2_proof::pasta::PrimeFieldBits;
+use halo2_proofs::{circuit::Layouter,circuit::SimpleFloorPlanner, plonk::*};
 
 extern crate z3;
 
@@ -23,6 +23,8 @@ struct PlayCircuit<F> {
     _ph: PhantomData<F>,
     b0: F,
     b1: F,
+    z3Config: z3::Config,
+    z3Context: z3::Context,
 }
 
 #[derive(Clone)]
@@ -37,100 +39,142 @@ pub struct PlayCircuitConfig<F: Field> {
 
 impl<F: Field> PlayCircuit<F> {
     fn new(b0: F, b1: F) -> Self {
+        let z3Config = z3::Config::new();
+        let z3Context = z3::Context::new(&z3Config);
         PlayCircuit {
             _ph: PhantomData,
             b0,
             b1,
+            z3Config,
+            z3Context,
         }
     }
 }
 
 impl Default for PlayCircuit<Fr> {
     fn default() -> Self {
+        let z3Config = z3::Config::new();
+        let z3Context = z3::Context::new(&z3Config);
         PlayCircuit {
             _ph: PhantomData,
             b0: Fr::one(),
             b1: Fr::one(),
+            z3Config,
+            z3Context,
         }
     }
 }
 
 trait FMCheck {
-    fn extract_constraints(cs: &ConstraintSystem<Fr>);
-    fn decompose_expression(poly: &Expression<Fr>, ctx: &mut z3::Context);
+    fn extract_constraints(z3Context: &z3::Context, cs: &ConstraintSystem<Fr>);
+    fn decompose_expression<'a>(
+        z3Context: &z3::Context,
+        poly: &Expression<Fr>,
+    ) -> Option<ast::Int<'a>>;
 }
-impl FMCheck for PlayCircuit<Fr> {
-    fn extract_constraints(cs: &ConstraintSystem<Fr>) {
+
+impl FMCheck for FMCheckFloorPlanner {
+    fn extract_constraints(z3Context: &z3::Context, cs: &ConstraintSystem<Fr>) {
         //adding constraints
-        let mut ctx = z3::Context::new(&cfg);
+        // let cfg = Config::new();
+        // let mut ctx = z3::Context::new(&cfg);
         for gate in &cs.gates {
             // println!("All polys in Gate {:?}",gate.polys);
             for poly in &gate.polys {
                 // println!("Expression poly {:?}",poly);
-                Self::decompose_expression( &poly, &mut ctx);
+                Self::decompose_expression(z3Context, &poly);
             }
         }
-        println!("{:?}", ctx);
+        println!("{:?}", z3Context);
     }
-    fn decompose_expression(poly: &Expression<Fr>, ctx: &mut z3::Context) -> Option<ast::Int> {
+    fn decompose_expression<'a>(
+        z3Context: &z3::Context,
+        poly: &Expression<Fr>,
+    ) -> Option<ast::Int<'a>> {
+        //TODO: Fix life time error 
         match &poly {
             Expression::Constant(a) => {
-                println!("constant {:?}",a);
-                Some(ast::Int::from_i64(ctx, a.to_le_bits()[0]))
-            },
+                println!("constant {:?}", a);
+                // Some(ast::Int::from_i64(
+                //     &z3Context,
+                //     i64::from(a.clone().to_repr()[0]),
+                // ))
+                unimplemented!();
+            }
             Expression::Selector(a) => {
-                println!("selector {:?}",a);
-                Some(ast::Int::new_const(ctx, format!("{:?}", a)))
-            },
+                println!("selector {:?}", a);
+                unimplemented!();
+                // Some(ast::Int::new_const(z3Context, format!("{:?}", a)))
+            }
             Expression::Fixed { .. } => {
-                println!("fixed {:?}",poly);
-                Some(())
-            },
+                println!("fixed {:?}", poly);
+                unimplemented!("Implement this!");
+            }
             Expression::Advice { .. } => {
                 println!("advice {:?}", poly);
-                Some(ast::Int::new_const(ctx, format!("{:?}", a)))
-            },
+                // Some(ast::Int::new_const(z3Context, format!("{:?}", poly)))
+                unimplemented!();
+            }
             Expression::Instance { .. } => {
                 println!("instance {:?}", poly);
-                Some(ast::Int::new_const(ctx, format!("{:?}", a)))
-            },
+                // Some(ast::Int::new_const(z3Context, format!("{:?}", poly)))
+                unimplemented!();
+            }
             Expression::Negated(_poly) => {
                 println!("negated");
                 println!("decomposing poly:");
-                let a = Self::decompose_expression(&_poly, ctx).unwrap();
-                some(a)
+                let a = Self::decompose_expression(z3Context, &_poly).unwrap();
+                Some(a)
             }
             Expression::Sum(a, b) => {
                 println!("sum {:?}, {:?}", a, b);
                 println!("decomposing a:");
-                let a_var = Self::decompose_expression(a, ctx).unwrap();
+                let a_var = Self::decompose_expression(z3Context, a).unwrap();
                 println!("decomposing b:");
-                let b_var = Self::decompose_expression(b, ctx).unwrap();
-                let c_var = ast::Int::add(ctx, &[&a_var, &b_var]);
-                Some(c_var)
+                let b_var = Self::decompose_expression(z3Context, b).unwrap();
+                let c_var = ast::Int::add(z3Context, &[&a_var, &b_var]);
+                // Some(c_var)
+                unimplemented!();
             }
             Expression::Product(a, b) => {
                 println!("product {:?}, {:?}", a, b);
                 println!("decomposing a:");
-                let a_var = Self::decompose_expression(a, ctx).unwrap();
+                let a_var = Self::decompose_expression(z3Context, a).unwrap();
                 println!("decomposing b:");
-                let b_var = Self::decompose_expression(b, ctx).unwrap();
-                let c_var = ast::Int::mul(ctx, &[&a_var, &b_var]);
-                Some(c_var)
+                let b_var = Self::decompose_expression(z3Context, b).unwrap();
+                let c_var = ast::Int::mul(z3Context, &[&a_var, &b_var]);
+                // Some(c_var)
+                unimplemented!();
             }
             Expression::Scaled(_poly, _) => {
                 println!("scaled");
-                let a = Self::decompose_expression(&_poly, ctx);
-                Some(a)
+                let a = Self::decompose_expression(z3Context, &_poly);
+                a
                 //TODO: figure out WTF this does.
             }
         }
     }
 }
 
+struct FMCheckFloorPlanner;
+
+impl FloorPlanner for FMCheckFloorPlanner {
+    fn synthesize<F: Field, CS: Assignment<F>, C: Circuit<F>>(
+        cs: &mut CS,
+        circuit: &C,
+        config: C::Config,
+        constants: Vec<Column<Fixed>>,
+    ) -> Result<(), Error> {
+        // Do any fancy shit you want
+        println!("Custom floor planner engaged!!");
+        SimpleFloorPlanner::synthesize(cs, circuit, config, constants)
+    }
+}
+
 impl Circuit<Fr> for PlayCircuit<Fr> {
     type Config = PlayCircuitConfig<Fr>;
-    type FloorPlanner = SimpleFloorPlanner;
+    type FloorPlanner = FMCheckFloorPlanner;
+    
 
     fn without_witnesses(&self) -> Self {
         Self::default()
@@ -176,9 +220,6 @@ impl Circuit<Fr> for PlayCircuit<Fr> {
             s,
         };
 
-        //hook constraint extractor
-        Self::extract_constraints(meta);
-
         cfg
     }
 
@@ -220,7 +261,7 @@ impl Circuit<Fr> for PlayCircuit<Fr> {
 async fn main() {
     env_logger::init();
 
-    let circuit = PlayCircuit::<Fr>::new(Fr::from(3), Fr::from(1));
+    let circuit = PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
 
     let k = 5;
 
