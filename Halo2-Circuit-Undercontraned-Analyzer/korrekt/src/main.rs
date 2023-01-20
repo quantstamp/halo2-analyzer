@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fmt::format;
 use std::marker::PhantomData;
+use std::ops::Neg;
 
 use halo2_proofs::arithmetic::FieldExt;
 use halo2_proofs::circuit::{Layouter, Value};
@@ -219,7 +220,8 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 // unimplemented!();
             }
             Expression::Negated(_poly) => {
-                let (result,v) = Self::decompose_expression(z3_context, &_poly);
+                let (r,v) = Self::decompose_expression(z3_context, &_poly);
+                let result = Some(r.unwrap().neg());
                 (Some(result).unwrap(),v)
             }
             Expression::Sum(a, b) => {
