@@ -190,8 +190,8 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                let n = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
-                let m = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let n = format!("Fixed-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let m = format!("Fixed-{}-{}-{:?}",*query_index,*column_index,*rotation);
                 let result = Some(ast::Int::new_const(z3_context, n));
                 let v = [ast::Int::new_const(z3_context, m)];
                 (result,v.to_vec())
@@ -212,8 +212,8 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                let n = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
-                let m = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let n = format!("Instance-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let m = format!("Instance-{}-{}-{:?}",*query_index,*column_index,*rotation);
                 let result = Some(ast::Int::new_const(z3_context, n));
                 let v = [ast::Int::new_const(z3_context, m)];
                 (result,v.to_vec())
