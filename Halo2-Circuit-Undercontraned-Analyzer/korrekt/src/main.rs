@@ -174,9 +174,9 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 result
             }
             Expression::Selector(a) => {
-                unimplemented!();
-                //let result = Some(ast::Int::new_const(z3_context, format!("{:?}", &a)));
-                //result
+                //unimplemented!();
+                let result = Some(ast::Int::new_const(z3_context, format!("{:?}", &a)));
+                result
             }
             // Expression::Fixed { .. } => {
             //     println!("fixed {:?}", poly);
@@ -187,7 +187,7 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                print!("Fixed query_index:  {}", *query_index);
+                println!("Fixed query_index:  {}", *query_index);
                 let result = Some(ast::Int::new_const(z3_context, format!("{:?}", poly)));
                 result
                 },
@@ -196,7 +196,7 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                print!("Advice query_index:  {}", *query_index);
+                println!("Advice query_index:  {}", *query_index);
                 let result = Some(ast::Int::new_const(z3_context, format!("{:?}", poly)));
                 result
             }
@@ -205,7 +205,7 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                print!("Instance query_index:  {}", *query_index);
+                println!("Instance query_index:  {}", *query_index);
                 // Some(ast::Int::new_const(z3_context, format!("{:?}", poly)))
                 unimplemented!();
             }
@@ -255,6 +255,83 @@ impl<F: FieldExt> Analyzer<F> {
             log: vec![],
         }
     }
+    fn analyze_unsed_custom_gates(&mut self) {
+        for gate in self.cs.gates.iter() {
+            let mut used = false;
+
+            // is this gate identically zero over regions?
+            'region_search : for region in self.layouter.regions.iter() { 
+                let selectors = HashSet::from_iter(region.selectors().into_iter());
+                for poly in gate.polynomials() {
+                    let res = abstract_expr::eval_abstract(poly, &selectors);
+                    if res != AbsResult::Zero {
+                        used = true;
+                        break 'region_search
+                    }
+                }
+            }
+
+            //
+            if !used {
+                self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name()));
+            }
+        }
+    }
+
+    /// Detects unused columns
+    fn analyze_unused_columns(&mut self) {
+        for (column, rotation) in self.cs.advice_queries.iter().cloned() {
+            let mut used = false;
+
+            for gate in self.cs.gates.iter() {
+                for poly in gate.polynomials() {
+                    let advices = abstract_expr::extract_columns(poly);
+                    if advices.contains(&(column.into(), rotation)) {
+                        used = true;
+                    }
+                }
+            }
+
+            if !used {
+                self.log.push(format!("unused column: {:?}", column));
+            }
+        }
+    }
+
+    /// Detect assigned but unconstrained cells:
+    /// (does it occur in a not-identially zero polynomial in the region?)
+    /// (if not almost certainly a bug)
+    fn analyze_unconstrained_cells(&mut self) {
+        for region in self.layouter.regions.iter() {
+            let selectors = HashSet::from_iter(region.selectors().into_iter());
+
+            for (reg_column, rotation) in region.columns.iter().cloned() {
+                let mut used = false;
+
+                match reg_column {
+                    RegionColumn::Selector(_) => continue,
+                    RegionColumn::Column(column) => {
+                        for gate in self.cs.gates.iter() {
+                            for poly in gate.polynomials() {
+                                let advices = abstract_expr::extract_columns(poly);
+                                let eval = abstract_expr::eval_abstract(poly, &selectors);
+
+                                column.index();
+                                
+                                if eval != AbsResult::Zero && advices.contains(&(column.into(), rotation)) {
+                                    used = true;
+                                }
+                            }
+                        }
+                    }
+                };
+
+                if !used {
+                    self.log.push(format!("unconstrained cell in \"{}\" region: {:?} (rotation: {:?}) -- very likely a bug.", region.name,  reg_column, rotation));
+                }
+            }
+        }
+    }
 
     fn analyze_underconstrained(&mut self) {
         for gate in self.cs.gates.iter() {
@@ -286,7 +363,9 @@ fn main() {
     //let z3Context = z3::Context::new(&z3Config);
 
     // println!("{:#?}", analyzer);
-
+    analyzer.analyze_unused_columns();
+    analyzer.analyze_unsed_custom_gates();
+    analyzer.analyze_unconstrained_cells();
     analyzer.analyze_underconstrained();
     //testCountModels(&z3Context);
     //testCountModels1();
