@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::fmt::format;
 use std::marker::PhantomData;
 
 use halo2_proofs::arithmetic::FieldExt;
@@ -8,7 +9,7 @@ use halo2_proofs::plonk::Error;
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
 };
-use halo2_proofs::poly::Rotation;
+use halo2_proofs::poly::{Rotation};
 
 use halo2_proofs::circuit::layouter::RegionColumn;
 use halo2_proofs::circuit::SimpleFloorPlanner;
@@ -156,14 +157,14 @@ trait FMCheck<'a, F: FieldExt> {
     fn decompose_expression(
         z3Context: &'a z3::Context,
         poly: &Expression<F>,
-    ) -> Option<ast::Int<'a>>;
+    ) -> (Option<ast::Int<'a>>,Vec<ast::Int<'a>>);
 }
 
 impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
     fn decompose_expression(
         z3_context: &'a z3::Context,
         poly: &Expression<F>,
-    ) -> Option<ast::Int<'a>> {
+    ) -> (Option<ast::Int<'a>>,Vec<ast::Int<'a>>) {
         match &poly {
             Expression::Constant(a) => {
                 let result = Some(ast::Int::from_i64(
@@ -171,12 +172,13 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                     i64::from(a.get_lower_32()), //*** Ask Them */
                 ));
 
-                result
+                (result,vec![])
             }
             Expression::Selector(a) => {
                 //unimplemented!();
                 let result = Some(ast::Int::new_const(z3_context, format!("{:?}", &a)));
-                result
+                let v = [ast::Int::new_const(z3_context, format!("{:?}", &a))];
+                (result,v.to_vec())
             }
             // Expression::Fixed { .. } => {
             //     println!("fixed {:?}", poly);
@@ -187,43 +189,52 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                println!("Fixed query_index:  {}", *query_index);
-                let result = Some(ast::Int::new_const(z3_context, format!("{:?}", poly)));
-                result
-                },
+                let n = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let m = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let result = Some(ast::Int::new_const(z3_context, n));
+                let v = [ast::Int::new_const(z3_context, m)];
+                (result,v.to_vec())
+            },
             Expression::Advice {
                 query_index,
                 column_index,
                 rotation,
             } => {
-                println!("Advice query_index:  {}", *query_index);
-                let result = Some(ast::Int::new_const(z3_context, format!("{:?}", poly)));
-                result
+                let n = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let m = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let result = Some(ast::Int::new_const(z3_context, n));
+                let v = [ast::Int::new_const(z3_context, m)];
+                (result,v.to_vec())
             }
             Expression::Instance {
                 query_index,
                 column_index,
                 rotation,
             } => {
-                println!("Instance query_index:  {}", *query_index);
-                // Some(ast::Int::new_const(z3_context, format!("{:?}", poly)))
-                unimplemented!();
+                let n = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let m = format!("Advic-{}-{}-{:?}",*query_index,*column_index,*rotation);
+                let result = Some(ast::Int::new_const(z3_context, n));
+                let v = [ast::Int::new_const(z3_context, m)];
+                (result,v.to_vec())
+                // unimplemented!();
             }
             Expression::Negated(_poly) => {
-                let result = Some(Self::decompose_expression(z3_context, &_poly).unwrap());
-                result
+                let (result,v) = Self::decompose_expression(z3_context, &_poly);
+                (Some(result).unwrap(),v)
             }
             Expression::Sum(a, b) => {
-                let a_var = Self::decompose_expression(z3_context, a).unwrap();
-                let b_var = Self::decompose_expression(z3_context, b).unwrap();
-                let result = Some(ast::Int::add(z3_context, &[&a_var, &b_var]));
-                result
+                let (a_var,mut a_v) = Self::decompose_expression(z3_context, a);
+                let (b_var,mut b_v) = Self::decompose_expression(z3_context, b);
+                let result = Some(ast::Int::add(z3_context, &[&a_var.unwrap(), &b_var.unwrap()]));
+                a_v.append(&mut b_v);
+                (result,a_v)
             }
             Expression::Product(a, b) => {
-                let a_var = Self::decompose_expression(z3_context, a).unwrap();
-                let b_var = Self::decompose_expression(z3_context, b).unwrap();
-                let result = Some(ast::Int::mul(z3_context, &[&a_var, &b_var]));
-                result
+                let (a_var,mut a_v) = Self::decompose_expression(z3_context, a);
+                let (b_var,mut b_v) = Self::decompose_expression(z3_context, b);
+                let result = Some(ast::Int::mul(z3_context, &[&a_var.unwrap(), &b_var.unwrap()]));
+                a_v.append(&mut b_v);
+                (result,a_v)
             }
             Expression::Scaled(_poly, _) => {
                 let result = Self::decompose_expression(z3_context, &_poly);
@@ -334,22 +345,22 @@ impl<F: FieldExt> Analyzer<F> {
     }
 
     fn analyze_underconstrained(&mut self) {
+        let z3Config = z3::Config::new();
+        let z3Context = z3::Context::new(&z3Config);
+        let mut formula_conj: Vec<Option<z3::ast::Bool>>=vec![];
+        let vars_list: Vec<ast::Int<>> = vec![];
+        let zero = ast::Int::from_i64(&z3Context, 0);
         for gate in self.cs.gates.iter() {
             for poly in &gate.polys {
-                println!("****************************************************************************************************************");
-                println!("Expression poly {:?}", poly);
-                println!("****************************************************************************************************************");
-                let z3Config = z3::Config::new();
-                let z3Context = z3::Context::new(&z3Config);
+                
                 // let vars_list: Vec<z3::ast::Int> = [].to_vec();
-                println!("#####################################################################################################");
-                let formula = Self::decompose_expression(&z3Context, poly);
-                println!("#####################################################################################################");
-                //testCountModels(&z3Context,formula,vars_list);
-                // break;
-            }
-            //break;
+                let (formula,vars_list) = Self::decompose_expression(&z3Context, poly);
+                formula_conj.push(Some(formula.unwrap()._eq(&zero)));
+           }
         }
+        let mut formula_n: ast::Bool;// = Some(ast::Bool::from_bool(&z3Context, true));
+        testCountModels(&z3Context,formula_conj,vars_list);
+
     }
 
     fn log(&self) -> &[String] {
@@ -371,7 +382,7 @@ fn main() {
     //testCountModels1();
 }
 
-fn testCountModels(ctx: &z3::Context, formula: Option<z3::ast::Int>, varsList: Vec<z3::ast::Int>) {
+fn testCountModels(ctx: &z3::Context, formulas: Vec<Option<z3::ast::Bool>>, varsList: Vec<z3::ast::Int>) {
     let solver = Solver::new(&ctx);
 
     //    h*(a+b)+(1-h)(a*b) - o  = 0
@@ -380,17 +391,19 @@ fn testCountModels(ctx: &z3::Context, formula: Option<z3::ast::Int>, varsList: V
 
     let zero = ast::Int::from_i64(&ctx, 0);
 
-    let finalCount = countModels(&ctx, formula.unwrap()._eq(&zero), varsList);
+    let finalCount = countModels(&ctx, formulas, varsList);
     println!("Final count: {}", finalCount);
 }
 
-fn countModels(ctx: &z3::Context, formula: z3::ast::Bool, varsList: Vec<z3::ast::Int>) -> i32 {
+fn countModels(ctx: &z3::Context, formulas: Vec<Option<z3::ast::Bool>>, varsList: Vec<z3::ast::Int>) -> i32 {
     let mut count = 0;
 
     let solver = Solver::new(&ctx);
-
-    solver.assert(&formula);
-    println!("Going to check... {}", &formula);
+    for f in formulas.clone(){
+        solver.assert(&f.unwrap().clone());
+    }
+    
+    println!("Going to check... {:?}", &formulas);
 
     loop {
         if count > 1 {
