@@ -350,18 +350,19 @@ impl<F: FieldExt> Analyzer<F> {
         let z3Config = z3::Config::new();
         let z3Context = z3::Context::new(&z3Config);
         let mut formula_conj: Vec<Option<z3::ast::Bool>>=vec![];
-        let vars_list: Vec<ast::Int<>> = vec![];
+        let mut vars_list: HashSet<ast::Int<>> = Default::default();
         let zero = ast::Int::from_i64(&z3Context, 0);
         for gate in self.cs.gates.iter() {
             for poly in &gate.polys {
-                
-                // let vars_list: Vec<z3::ast::Int> = [].to_vec();
-                let (formula,vars_list) = Self::decompose_expression(&z3Context, poly);
+                let (formula,mut v) = Self::decompose_expression(&z3Context, poly);
+                let v: HashSet<ast::Int<>> = HashSet::from_iter(v.iter().cloned());
+                vars_list.extend(v);
                 formula_conj.push(Some(formula.unwrap()._eq(&zero)));
            }
         }
-        let mut formula_n: ast::Bool;// = Some(ast::Bool::from_bool(&z3Context, true));
-        testCountModels(&z3Context,formula_conj,vars_list);
+        println!("vars_list:{:?}",vars_list);
+        let mut v = Vec::from_iter(vars_list);
+        testCountModels(&z3Context,formula_conj,v);
 
     }
 
@@ -405,7 +406,7 @@ fn countModels(ctx: &z3::Context, formulas: Vec<Option<z3::ast::Bool>>, varsList
         solver.assert(&f.unwrap().clone());
     }
     
-    println!("Going to check... {:?}", &formulas);
+    println!("Going to check... {:?}", &solver);
 
     loop {
         if count > 1 {
@@ -423,8 +424,9 @@ fn countModels(ctx: &z3::Context, formulas: Vec<Option<z3::ast::Bool>>, varsList
         println!("model end");
 
         // testing only; not needed due to previous line in production?
+        println!("varsList");
+
         for var in varsList.iter() {
-            println!("varsList");
             let v = model.eval(var, true).unwrap().as_i64().unwrap();
             println!("{} -> {}", var, v);
         }
