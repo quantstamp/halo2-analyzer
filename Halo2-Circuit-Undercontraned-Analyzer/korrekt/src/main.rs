@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::marker::PhantomData;
-use std::ops::Neg;
+use std::ops::{Index, Neg};
 
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::pasta::Fp as Fr;
@@ -9,7 +9,7 @@ use halo2_proofs::pasta::Fp as Fr;
 use halo2_proofs::arithmetic::FieldExt;
 use halo2_proofs::circuit::{Layouter, Value};
 use halo2_proofs::pasta::Fp;
-use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::{Error, Any};
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
 };
@@ -84,7 +84,7 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
 
         // def gates
         meta.create_gate("b0_binary_check", |meta| {
-            let a = meta.query_advice(b1, Rotation::cur());
+            let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b0 * (1-b0)
@@ -367,10 +367,27 @@ impl<F: FieldExt> Analyzer<F> {
     }
 
     fn analyze_underconstrained(&mut self, t: Fp) {
-        //println!("layouter: {:?}",self.layouter);
-        //println!("ConstraintSystem: {:?}",self.cs);
+
         let z3_config = z3::Config::new();
         let z3_context = z3::Context::new(&z3_config);
+        let mut instance_cols_vec = vec![];
+
+        //let v = [ast::Int::new_const(&z3_context, m)];
+
+        for col in self.cs.permutation.columns.iter() {
+            let c_type = format!("{:?}",col.column_type());
+            if c_type == "Advice"{
+                instance_cols_vec.push(ast::Int::new_const(
+                    &z3_context,
+                    format!("A{}", col.index()),
+                ));
+            }
+        }
+
+        let mut instance_cols = HashSet::from_iter(instance_cols_vec.iter().cloned());
+
+        //let instance_col = ast::Int::new_const(&z3_context, "A2");
+
         let mut formula_conj: Vec<Option<z3::ast::Bool>> = vec![];
         let mut vars_list: HashSet<ast::Int> = Default::default();
         let zero = ast::Int::from_i64(&z3_context, 0);
@@ -383,9 +400,8 @@ impl<F: FieldExt> Analyzer<F> {
                 formula_conj.push(Some(formula.unwrap()._eq(&zero)));
             }
         }
-        println!("vars_list:{:?}", vars_list);
         let v = Vec::from_iter(vars_list);
-        test_count_models(&z3_context, formula_conj, v);
+        test_count_models(&z3_context, formula_conj, v, instance_cols);
     }
 
     fn log(&self) -> &[String] {
@@ -402,7 +418,6 @@ fn main() {
     let public_input = Fr::from(3);
     //mockprover verify passes
     let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]);
-    //println!("{:?}",prover);
     // analyzer.analyze_unused_columns();
     // analyzer.analyze_unsed_custom_gates();
     // analyzer.analyze_unconstrained_cells();
@@ -414,6 +429,7 @@ fn test_count_models(
     ctx: &z3::Context,
     formulas: Vec<Option<z3::ast::Bool>>,
     vars_list: Vec<z3::ast::Int>,
+    instance_cols: HashSet<ast::Int>,
 ) {
     //let solver = Solver::new(&ctx);
 
@@ -422,14 +438,12 @@ fn test_count_models(
     // solver.assert(&x.gt(&y)); // old; for reference
 
     //let zero = ast::Int::from_i64(&ctx, 0);
-    
-    let instance_col = ast::Int::new_const(ctx, "A2");
 
-    let result = control_uniqueness(&ctx, formulas, vars_list,instance_col );
+    let result = control_uniqueness(&ctx, formulas, vars_list, instance_cols);
     if (!result) {
         println!("The circuit is underConstrained");
     } else {
-        println!("The circuit is not underConstrained");
+        println!("The circuit is NOT underConstrained");
     }
 }
 fn control_uniqueness(
@@ -437,7 +451,7 @@ fn control_uniqueness(
     formulas: Vec<Option<z3::ast::Bool>>,
     vars_list: Vec<z3::ast::Int>, //,
     //instance_index: usize,
-    Instance_col: ast::Int
+    instance_cols: HashSet<ast::Int>,
 ) -> bool {
     let mut result = true;
 
@@ -446,14 +460,12 @@ fn control_uniqueness(
         solver.assert(&f.unwrap().clone());
     }
 
-    println!("solver:{:?}", solver);
 
     let mut count = 0;
     while solver.check() == SatResult::Sat {
         count += 1;
 
         let model = solver.get_model().unwrap();
-        println!("Initial Modl: {:?}", model);
 
         let solver1 = Solver::new(&ctx);
         for f in formulas.clone() {
@@ -463,20 +475,14 @@ fn control_uniqueness(
         let mut nvcp10 = vec![];
         for var in vars_list.iter() {
             let v = model.eval(var, true).unwrap().as_i64().unwrap();
-            //println!("{} -> {}", var, v);
             let s1 = var._eq(&ast::Int::from_i64(ctx, v));
-            //println!("s1:{:?}",s1);
             nvc10.push(s1);
-
-            //println!("solver:{:?}",solver);
         }
         for var in nvc10.iter() {
             nvcp10.push(var);
         }
-        //solver1.assert(&z3::ast::Bool::and(&ctx, &nvcp10));
         solver1.check_assumptions(&nvc10);
         let model = solver1.get_model().unwrap();
-        println!("Same Model: {:?}", model);
 
         let mut i = 0;
         let mut nvc_p1 = vec![];
@@ -486,8 +492,8 @@ fn control_uniqueness(
 
         for i in 0..vars_list.len() {
             let var = &vars_list[i];
-            if (var.eq(&Instance_col)) {
-                println!("it is how var is: {}",var);
+            if (instance_cols.contains(var)) {
+                //if (var.eq(&instance_col)) {
                 let v = model.eval(var, true).unwrap().as_i64().unwrap();
                 let s1 = var._eq(&ast::Int::from_i64(ctx, v));
                 nvc1.push(s1);
@@ -508,14 +514,13 @@ fn control_uniqueness(
 
         let or_of_others = z3::ast::Bool::or(&ctx, &nvc_p2);
         nvc_p1.push(&or_of_others);
-        println!("nvc_p1:{:?}", nvc_p1);
         solver1.assert(&z3::ast::Bool::and(&ctx, &nvc_p1));
         solver1.check();
 
-        if (!solver1.get_model().is_none()) {
-            let model1 = solver1.get_model().unwrap();
-            println!("New Model: {:?}", model1);
-        }
+        // if (!solver1.get_model().is_none()) {
+        //     let model1 = solver1.get_model().unwrap();
+        //     println!("New Model: {:?}", model1);
+        // }
 
         if solver1.check() == SatResult::Sat {
             println!("Here Is An Example:");
