@@ -217,7 +217,6 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                println!("Instanceeeeddddddddddddddddddddddddddddddddddddddddd");
                 let n = format!(
                     "Instance-{}-{}-{:?}",
                     *query_index, *column_index, *rotation
@@ -393,7 +392,6 @@ impl<F: FieldExt> Analyzer<F> {
         let zero = ast::Int::from_i64(&z3_context, 0);
         for gate in self.cs.gates.iter() {
             for poly in &gate.polys {
-                //println!("poly:{:?}",poly);
                 let (formula, v) = Self::decompose_expression(&z3_context, poly);
                 let v: HashSet<ast::Int> = HashSet::from_iter(v.iter().cloned());
                 vars_list.extend(v);
@@ -539,12 +537,8 @@ fn control_uniqueness(
 
         for var in vars_list.iter() {
             let v = model.eval(var, true).unwrap().as_i64().unwrap();
-            //println!("{} -> {}", var, v);
             let s1 = !var._eq(&ast::Int::from_i64(ctx, v));
-            //println!("s1:{:?}",s1);
             new_var_constraints.push(s1);
-
-            //println!("solver:{:?}",solver);
         }
         for var in new_var_constraints.iter() {
             new_var_constraints_p.push(var);
@@ -552,7 +546,7 @@ fn control_uniqueness(
         solver.assert(&z3::ast::Bool::or(&ctx, &new_var_constraints_p));
 
         println!("count: {}", count);
-        if (!result || count > 10) {
+        if (!result || count > 10000) {
             break;
         }
     }
