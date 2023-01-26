@@ -84,7 +84,7 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
 
         // def gates
         meta.create_gate("b0_binary_check", |meta| {
-            let a = meta.query_advice(b0, Rotation::cur());
+            let a = meta.query_advice(b1, Rotation::cur());
             let dummy = meta.query_selector(s);
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b0 * (1-b0)
@@ -474,6 +474,10 @@ fn control_uniqueness(
         solver1.check_assumptions(&nvc10);
         let model = solver1.get_model().unwrap();
 
+        println!("Model to be checked:");
+        println!("{:?}", model);
+
+
         let mut i = 0;
         let mut nvc_p1 = vec![];
         let mut nvc_p2 = vec![];
@@ -513,10 +517,10 @@ fn control_uniqueness(
         // }
 
         if solver1.check() == SatResult::Sat {
-            println!("Here Is An Example:");
             if (!solver1.get_model().is_none()) {
                 let model1 = solver1.get_model().unwrap();
-                println!("New Model: {:?}", model1);
+                println!("equivalent model with same instance column:");
+                println!("{:?}", model1);
             }
             result = false;
             break;
