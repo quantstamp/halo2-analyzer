@@ -365,7 +365,7 @@ impl<F: FieldExt> Analyzer<F> {
         }
     }
 
-    fn analyze_underconstrained(&mut self, t: Fp) {
+    fn analyze_underconstrained(&mut self) {
 
         let z3_config = z3::Config::new();
         let z3_context = z3::Context::new(&z3_config);
@@ -419,7 +419,7 @@ fn main() {
     // analyzer.analyze_unused_columns();
     // analyzer.analyze_unsed_custom_gates();
     // analyzer.analyze_unconstrained_cells();
-    analyzer.analyze_underconstrained(public_input);
+    analyzer.analyze_underconstrained();
     //test_count_models1();
 }
 
