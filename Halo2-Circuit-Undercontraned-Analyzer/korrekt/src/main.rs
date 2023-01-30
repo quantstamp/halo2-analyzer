@@ -1,15 +1,13 @@
-use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::marker::PhantomData;
-use std::ops::{Index, Neg};
+use std::ops::Neg;
 
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::pasta::Fp as Fr;
 
 use halo2_proofs::arithmetic::FieldExt;
 use halo2_proofs::circuit::{Layouter, Value};
-use halo2_proofs::pasta::Fp;
-use halo2_proofs::plonk::{Error, Any};
+use halo2_proofs::plonk::Error;
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
 };
@@ -24,9 +22,12 @@ mod shape;
 
 use layouter::AnalyticLayouter;
 use z3::ast::Ast;
-use z3::{ast, Config, Context, SatResult, Solver};
+use z3::{ast, SatResult, Solver};
 
 use crate::abstract_expr::AbsResult;
+
+use log;
+
 
 struct PlayCircuit<F: FieldExt> {
     _ph: PhantomData<F>,
@@ -141,12 +142,129 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
                 },
             )
             .unwrap();
-
+        // println!("out");
+        // println!("{:?}",out);
         // expose the public input
         layouter.constrain_instance(out.cell(), config.i, 0)?; //*** what is this? */
         Ok(())
     }
 }
+
+struct MultiPlayCircuit<F: FieldExt> {
+    _ph: PhantomData<F>,
+    b0: F,
+    b1: F,
+}
+
+#[derive(Clone)]
+pub struct MultiPlayCircuitConfig<F: FieldExt> {
+    _ph: PhantomData<F>,
+    advice: Column<Advice>,
+    instance: Column<Instance>,
+    s: Selector,
+}
+
+impl<F: FieldExt> MultiPlayCircuit<F> {
+    fn new(b0: F, b1: F) -> Self {
+        MultiPlayCircuit {
+            _ph: PhantomData,
+            b0,
+            b1,
+        }
+    }
+}
+
+impl<F: FieldExt> Default for MultiPlayCircuit<F> {
+    fn default() -> Self {
+        MultiPlayCircuit {
+            _ph: PhantomData,
+            b0: F::one(),
+            b1: F::one(),
+        }
+    }
+}
+
+impl<F: FieldExt> Circuit<F> for MultiPlayCircuit<F> {
+    type Config = MultiPlayCircuitConfig<F>;
+    type FloorPlanner = SimpleFloorPlanner;
+
+    fn without_witnesses(&self) -> Self {
+        Self::default()
+    }
+
+    fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+        let x = meta.advice_column();
+        let i = meta.instance_column();
+        let s = meta.selector();
+
+        meta.enable_equality(x);
+        meta.enable_equality(i);
+
+        // def gates
+        meta.create_gate("b0_binary_check", |meta| {
+            let a = meta.query_advice(x, Rotation::cur());
+            let dummy = meta.query_selector(s);
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
+            // b0 * (1-b0)
+        });
+        meta.create_gate("b1_binary_check", |meta| {
+            let a = meta.query_advice(x, Rotation::next());
+            let dummy = meta.query_selector(s);
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
+            // b1 * (1-b1)
+        });
+        meta.create_gate("equality", |meta| {
+            let a = meta.query_advice(x, Rotation::cur());
+            let b = meta.query_advice(x, Rotation::next());
+            let c = meta.query_advice(x, Rotation(2));
+            let dummy = meta.query_selector(s);
+            vec![dummy * (a + Expression::Constant(F::from(2)) * b - c)]
+        });
+
+        let cfg = Self::Config {
+            _ph: PhantomData,
+            advice:x,
+            instance:i,
+            s,
+        };
+
+        cfg
+    }
+
+    fn synthesize(
+        &self,
+        config: Self::Config,
+        mut layouter: impl Layouter<F>,
+    ) -> Result<(), Error> {
+        let out = layouter
+            .assign_region(
+                || "The Region",
+                |mut region| {
+                    config.s.enable(&mut region, 0)?;
+
+                    region.assign_advice(|| "b0", config.advice, 0, || Value::known(self.b0))?;
+
+                    region.assign_advice(|| "b1", config.advice, 1, || Value::known(self.b1))?;
+
+                    let out = region.assign_advice(
+                        || "x",
+                        config.advice,
+                        2,
+                        || Value::known(self.b0 + F::from(2) * self.b1),
+                    )?;
+
+                    Ok(out)
+                },
+            )
+            .unwrap();
+            // println!("out");
+            // println!("{:?}",out);
+        // expose the public input
+        layouter.constrain_instance(out.cell(), config.instance, 0)?; //*** what is this? */
+        Ok(())
+    }
+}
+
 
 #[derive(Debug)]
 struct Analyzer<F: FieldExt> {
@@ -206,8 +324,8 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                let n = format!("A{}", *column_index); //("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
-                let m = format!("A{}", *column_index); //format!("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
+                let n = format!("A-{}-{:?}", *column_index,*rotation); //("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
+                let m = format!("A-{}-{:?}", *column_index,*rotation); //format!("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
                 let result = Some(ast::Int::new_const(z3_context, n));
                 let v = [ast::Int::new_const(z3_context, m)];
                 (result, v.to_vec())
@@ -274,16 +392,17 @@ impl<F: FieldExt> Analyzer<F> {
 
         let mut cs: ConstraintSystem<F> = Default::default();
         let config = C::configure(&mut cs);
-
         // synthesize the circuit with analytic layout
         let mut layouter = AnalyticLayouter::new();
         circuit.synthesize(config, &mut layouter).unwrap();
+    
 
         Analyzer {
             cs,
             layouter,
             log: vec![],
         }
+
     }
     fn analyze_unsed_custom_gates(&mut self) {
         for gate in self.cs.gates.iter() {
@@ -366,19 +485,18 @@ impl<F: FieldExt> Analyzer<F> {
     }
 
     fn analyze_underconstrained(&mut self) {
-
         let z3_config = z3::Config::new();
         let z3_context = z3::Context::new(&z3_config);
         let mut instance_cols_vec = vec![];
-
+        //println!("{:?}",self.cs);
         //let v = [ast::Int::new_const(&z3_context, m)];
 
         for col in self.cs.permutation.columns.iter() {
-            let c_type = format!("{:?}",col.column_type());
-            if c_type == "Advice"{
+            let c_type = format!("{:?}", col.column_type());
+            if c_type == "Advice" {
                 instance_cols_vec.push(ast::Int::new_const(
                     &z3_context,
-                    format!("A{}", col.index()),
+                    format!("A{}-Rotation(0)", col.index()),
                 ));
             }
         }
@@ -408,19 +526,31 @@ impl<F: FieldExt> Analyzer<F> {
 }
 
 fn main() {
+    println!("----------------------Circuit----------------------");
     let circuit = PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
-
     let mut analyzer = Analyzer::new_with(&circuit);
     let k = 5;
 
     let public_input = Fr::from(3);
     //mockprover verify passes
     let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]);
-    // analyzer.analyze_unused_columns();
-    // analyzer.analyze_unsed_custom_gates();
-    // analyzer.analyze_unconstrained_cells();
     analyzer.analyze_underconstrained();
-    //test_count_models1();
+
+    println!("----------------------Multi Circuit----------------------");
+    let multi_circuit = MultiPlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
+    let mut analyzer1 = Analyzer::new_with(&multi_circuit);
+
+    let k = 5;
+
+    let public_input1 = Fr::from(3);
+    log::debug!("running mock prover...");
+    let prover1 = MockProver::<Fr>::run(k, &multi_circuit, vec![vec![public_input1]]).unwrap();
+
+    prover1.verify().expect("verify should work");
+    log::debug!("verified via mock prover...");
+
+    
+    analyzer1.analyze_underconstrained();
 }
 
 fn test_count_models(
@@ -429,6 +559,8 @@ fn test_count_models(
     vars_list: Vec<z3::ast::Int>,
     instance_cols: HashSet<ast::Int>,
 ) {
+    println!("instance:");
+    println!("{:?}",instance_cols);
     let result = control_uniqueness(&ctx, formulas, vars_list, instance_cols);
     if (!result) {
         println!("The circuit is underConstrained");
@@ -449,49 +581,63 @@ fn control_uniqueness(
     for f in formulas.clone() {
         solver.assert(&f.unwrap().clone());
     }
+    println!("solver:");
+    println!("{:?}",solver);
 
 
     let mut count = 0;
+    //* This loop iterates over all the possible,nonrepeated models, it may stop when:
+    //       - there is no more new model, or the underconstrained 
+    //       - there is a model which prooves the circuit is undercnstrained   
+    // it may not stop if there are unlimited models that satisfy the slver and none of them satisfies the underconstrained reqs.
+    // (one of the tasks would be finding a solution for this, right now the while is hardcoded to break after 10000 iterations!)
+    // */
     while solver.check() == SatResult::Sat {
         count += 1;
 
         let model = solver.get_model().unwrap();
-
+        //*** Create an equivalent local solver to check if it's underconstrained*/
+        //*** adding the circuit constraints */
         let solver1 = Solver::new(&ctx);
         for f in formulas.clone() {
             solver1.assert(&f.unwrap().clone());
         }
         let mut nvc10 = vec![];
-        let mut nvcp10 = vec![];
+        //let mut nvcp10 = vec![];
+        //*** Enforcing the solver to generate the same model by having the prev model values in check_assumptions */
         for var in vars_list.iter() {
             let v = model.eval(var, true).unwrap().as_i64().unwrap();
             let s1 = var._eq(&ast::Int::from_i64(ctx, v));
             nvc10.push(s1);
         }
-        for var in nvc10.iter() {
-            nvcp10.push(var);
-        }
+        // for var in nvc10.iter() {
+        //     nvcp10.push(var);
+        // }
         solver1.check_assumptions(&nvc10);
         let model = solver1.get_model().unwrap();
 
         println!("Model to be checked:");
         println!("{:?}", model);
 
-
         let mut i = 0;
         let mut nvc_p1 = vec![];
         let mut nvc_p2 = vec![];
         let mut nvc1 = vec![];
         let mut nvc2 = vec![];
-
+        //*** To check the model is underconstrained we need to:
+        //      1. Fix the instance related
+        //      2. Change the other vars
+        //      3. add these rules to the current solver and,
+        //      4. find a model that satisfies these rules
         for i in 0..vars_list.len() {
             let var = &vars_list[i];
+            // 1. Fix the instance related
             if (instance_cols.contains(var)) {
                 //if (var.eq(&instance_col)) {
                 let v = model.eval(var, true).unwrap().as_i64().unwrap();
                 let s1 = var._eq(&ast::Int::from_i64(ctx, v));
                 nvc1.push(s1);
-            } else {
+            } else {// 2. Change the other vars
                 let v = model.eval(var, true).unwrap().as_i64().unwrap();
                 let s11 = !var._eq(&ast::Int::from_i64(ctx, v));
                 nvc2.push(s11);
@@ -505,10 +651,12 @@ fn control_uniqueness(
         for var in nvc2.iter() {
             nvc_p2.push(var);
         }
-
+        // 3. add these rules to the current solver and,
         let or_of_others = z3::ast::Bool::or(&ctx, &nvc_p2);
         nvc_p1.push(&or_of_others);
         solver1.assert(&z3::ast::Bool::and(&ctx, &nvc_p1));
+
+        //      4. find a model that satisfies these rules
         solver1.check();
 
         // if (!solver1.get_model().is_none()) {
@@ -525,7 +673,7 @@ fn control_uniqueness(
             result = false;
             break;
         }
-
+        // if no models found, add some rules to the initial solver to make sure does not generate the same model again
         println!("Model:");
         println!("{:?}", model);
         let mut new_var_constraints = vec![];
@@ -548,4 +696,3 @@ fn control_uniqueness(
     }
     result
 }
-
