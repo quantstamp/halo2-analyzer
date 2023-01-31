@@ -85,13 +85,13 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
 
         // def gates
         meta.create_gate("b0_binary_check", |meta| {
-            let a = meta.query_advice(b1, Rotation::cur());
+            let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b0 * (1-b0)
         });
         meta.create_gate("b1_binary_check", |meta| {
-            let a = meta.query_advice(b1, Rotation::cur());
+            let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b1 * (1-b1)
@@ -581,9 +581,16 @@ fn control_uniqueness(
     for f in formulas.clone() {
         solver.assert(&f.unwrap().clone());
     }
+
+    //*** non-negative constraint */
+
+    for var in vars_list.iter() {
+        let s1 = var.gt(&ast::Int::from_i64(&ctx, 0));
+        solver.assert(&s1);
+    }
+
     println!("solver:");
     println!("{:?}",solver);
-
 
     let mut count = 0;
     //* This loop iterates over all the possible,nonrepeated models, it may stop when:
@@ -658,12 +665,14 @@ fn control_uniqueness(
 
 
         //      4. find a model that satisfies these rules
-        //solver1.check();
+        solver1.check();
 
         // if (!solver1.get_model().is_none()) {
         //     let model1 = solver1.get_model().unwrap();
         //     println!("New Model: {:?}", model1);
         // }
+        println!("solver1:");
+        println!("{:?}",solver1);
 
         if solver1.check() == SatResult::Sat {
             if (!solver1.get_model().is_none()) {
@@ -675,8 +684,7 @@ fn control_uniqueness(
             break;
         }
         // if no models found, add some rules to the initial solver to make sure does not generate the same model again
-        println!("Model:");
-        println!("{:?}", model);
+
         let mut new_var_constraints = vec![];
         let mut new_var_constraints_p = vec![];
 
@@ -691,7 +699,7 @@ fn control_uniqueness(
         solver.assert(&z3::ast::Bool::or(&ctx, &new_var_constraints_p));
 
         println!("count: {}", count);
-        if (!result || count > 10000) {
+        if (!result || count > 10) {
             break;
         }
     }
