@@ -26,7 +26,7 @@ use z3::{ast, SatResult, Solver};
 
 use crate::abstract_expr::AbsResult;
 
-use log;
+// use log;
 
 
 struct PlayCircuit<F: FieldExt> {
@@ -562,7 +562,7 @@ fn test_count_models(
     println!("instance:");
     println!("{:?}",instance_cols);
     let result = control_uniqueness(&ctx, formulas, vars_list, instance_cols);
-    if (!result) {
+    if !result {
         println!("The circuit is underConstrained");
     } else {
         println!("The circuit is NOT underConstrained");
@@ -639,7 +639,7 @@ fn control_uniqueness(
         for i in 0..vars_list.len() {
             let var = &vars_list[i];
             // 1. Fix the instance related
-            if (instance_cols.contains(var)) {
+            if instance_cols.contains(var) {
                 //if (var.eq(&instance_col)) {
                 let v = model.eval(var, true).unwrap().as_i64().unwrap();
                 let s1 = var._eq(&ast::Int::from_i64(ctx, v));
@@ -675,7 +675,7 @@ fn control_uniqueness(
         println!("{:?}",solver1);
 
         if solver1.check() == SatResult::Sat {
-            if (!solver1.get_model().is_none()) {
+            if !solver1.get_model().is_none() {
                 let model1 = solver1.get_model().unwrap();
                 println!("equivalent model with same instance column:");
                 println!("{:?}", model1);
@@ -699,7 +699,7 @@ fn control_uniqueness(
         solver.assert(&z3::ast::Bool::or(&ctx, &new_var_constraints_p));
 
         println!("count: {}", count);
-        if (!result || count > 10) {
+        if !result || count > 10000 {
             break;
         }
     }
