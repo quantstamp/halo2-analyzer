@@ -91,7 +91,7 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
             // b0 * (1-b0)
         });
         meta.create_gate("b1_binary_check", |meta| {
-            let a = meta.query_advice(b0, Rotation::cur());
+            let a = meta.query_advice(b1, Rotation::cur());
             let dummy = meta.query_selector(s);
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b1 * (1-b1)
@@ -562,10 +562,15 @@ fn test_count_models(
     println!("instance:");
     println!("{:?}",instance_cols);
     let result = control_uniqueness(&ctx, formulas, vars_list, instance_cols);
-    if (!result) {
+    println!();
+    println!("Result:");
+    if result == 1 {
         println!("The circuit is underConstrained");
-    } else {
+    } else if result == 0 {
         println!("The circuit is NOT underConstrained");
+    }
+    else {
+        println!("Unknown");       
     }
 }
 fn control_uniqueness(
@@ -574,8 +579,8 @@ fn control_uniqueness(
     vars_list: Vec<z3::ast::Int>, //,
     //instance_index: usize,
     instance_cols: HashSet<ast::Int>,
-) -> bool {
-    let mut result = true;
+) -> u8 {
+    let mut result = 0;
 
     let solver = Solver::new(&ctx);
     for f in formulas.clone() {
@@ -585,7 +590,7 @@ fn control_uniqueness(
     //*** non-negative constraint */
 
     for var in vars_list.iter() {
-        let s1 = var.gt(&ast::Int::from_i64(&ctx, 0));
+        let s1 = var.ge(&ast::Int::from_i64(&ctx, 0));
         solver.assert(&s1);
     }
 
@@ -623,7 +628,7 @@ fn control_uniqueness(
         solver1.check_assumptions(&nvc10);
         let model = solver1.get_model().unwrap();
 
-        println!("Model to be checked:");
+        println!("Model {} to be checked:", count);
         println!("{:?}", model);
 
         let mut i = 0;
@@ -671,18 +676,20 @@ fn control_uniqueness(
         //     let model1 = solver1.get_model().unwrap();
         //     println!("New Model: {:?}", model1);
         // }
-        println!("solver1:");
-        println!("{:?}",solver1);
+        // println!("solver1:");
+        // println!("{:?}",solver1);
 
         if solver1.check() == SatResult::Sat {
             if (!solver1.get_model().is_none()) {
                 let model1 = solver1.get_model().unwrap();
-                println!("equivalent model with same instance column:");
+                println!("equivalent model with same public input:");
                 println!("{:?}", model1);
             }
-            result = false;
+            result = 1;
             break;
         }
+        println!("There is no equivalent model with the  same public input to prove model {} is underconstrained!",count);
+        println!("Checking next model...");
         // if no models found, add some rules to the initial solver to make sure does not generate the same model again
 
         let mut new_var_constraints = vec![];
@@ -698,10 +705,15 @@ fn control_uniqueness(
         }
         solver.assert(&z3::ast::Bool::or(&ctx, &new_var_constraints_p));
 
-        println!("count: {}", count);
-        if (!result || count > 10) {
+        //println!("solver:{:?}",solver);
+        println!("result: {}",result);
+
+        if count > 10 {
+            result = 2;
+        }
+        if result > 0 {
             break;
         }
-    }
+    }  
     result
 }
