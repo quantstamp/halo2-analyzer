@@ -91,7 +91,7 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
             // b0 * (1-b0)
         });
         meta.create_gate("b1_binary_check", |meta| {
-            let a = meta.query_advice(b1, Rotation::cur());
+            let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b1 * (1-b1)
@@ -613,6 +613,11 @@ fn control_uniqueness(
         let solver1 = Solver::new(&ctx);
         for f in formulas.clone() {
             solver1.assert(&f.unwrap().clone());
+        }
+
+        for var in vars_list.iter() {
+            let s1 = var.ge(&ast::Int::from_i64(&ctx, 0));
+            solver1.assert(&s1);
         }
         let mut nvc10 = vec![];
         //let mut nvcp10 = vec![];
