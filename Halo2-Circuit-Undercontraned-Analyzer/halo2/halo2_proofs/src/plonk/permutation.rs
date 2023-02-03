@@ -15,7 +15,7 @@ use std::io;
 #[derive(Debug, Clone)]
 pub struct Argument {
     /// A sequence of columns involved in the argument.
-    columns: Vec<Column<Any>>,
+    pub columns: Vec<Column<Any>>,
 }
 
 impl Argument {

@@ -699,7 +699,7 @@ fn control_uniqueness(
         solver.assert(&z3::ast::Bool::or(&ctx, &new_var_constraints_p));
 
         println!("count: {}", count);
-        if !result || count > 10000 {
+        if !result || count > 1 {
             break;
         }
     }
