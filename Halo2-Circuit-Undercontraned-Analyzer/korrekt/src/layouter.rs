@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 use halo2_proofs::circuit:: {Layouter, Cell, Table, Region};
@@ -13,13 +14,15 @@ use crate::shape::AnalyticalShape;
 pub struct AnalyticLayouter<F: Field> {
     pub regions: Vec<AnalyticalShape>,
     _ph: PhantomData<F>,
+    pub eq_table: HashMap<String,String>
 }
 
 impl <F: Field> AnalyticLayouter<F> {
     pub fn new() -> Self {
         Self {
             regions: vec![],
-            _ph: PhantomData
+            _ph: PhantomData,
+            eq_table: HashMap::new()
         }
     }
 }
@@ -62,6 +65,16 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         _column: Column<Instance>,
         _row: usize,
     ) -> Result<(), Error> {
+        // println!("MAthiasssssssssssssssssssssssssss");
+        // println!("{:?}",_cell);
+        // println!("{:?}{}",_column,_row);
+
+        let left = format!("A-{}-{:?}", _cell.column.index(),_cell.row_offset);
+
+        let right = format!("A-{}-{:?}", _column.index(),_row);
+
+        self.eq_table.insert(left,right);
+        //println!("{:?}",self.eq_table);
         Ok(())
         //todo!("handle instance columns")
     }

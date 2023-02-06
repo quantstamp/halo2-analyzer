@@ -7,6 +7,7 @@ use std::{
 };
 
 use super::{lookup, permutation, Assigned, Error};
+use crate::circuit::Cell;
 use crate::{
     circuit::{Layouter, Region, Value},
     poly::Rotation,
