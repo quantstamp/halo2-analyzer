@@ -1,0 +1,4 @@
+# Codeowners for the (go) ZKR monorepo
+# Global owners (specific folders are overwritten later if necessary)
+* 	@FatemehHeidari @mmjahanara
+
