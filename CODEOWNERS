@@ -1,4 +1,4 @@
-# Codeowners for the (go) ZKR monorepo
+# Codeowners for the Halo2 linter
 # Global owners (specific folders are overwritten later if necessary)
 * 	@FatemehHeidari @mmjahanara
 
