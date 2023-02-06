@@ -65,9 +65,6 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         _column: Column<Instance>,
         _row: usize,
     ) -> Result<(), Error> {
-        // println!("MAthiasssssssssssssssssssssssssss");
-        // println!("{:?}",_cell);
-        // println!("{:?}{}",_column,_row);
 
         let left = format!("A-{}-{:?}", _cell.column.index(),_cell.row_offset);
 
