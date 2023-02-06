@@ -93,7 +93,7 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(b1, Rotation::cur());
             let dummy = meta.query_selector(s);
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
+            vec![Expression::Scaled(Box::new(dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())), F::from(5))]
             // b1 * (1-b1)
         });
         meta.create_gate("equality", |meta| {
@@ -328,6 +328,7 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 let m = format!("A-{}-{:?}", *column_index,*rotation); //format!("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
                 let result = Some(ast::Int::new_const(z3_context, n));
                 let v = [ast::Int::new_const(z3_context, m)];
+                println!("In advice {:?}", result);
                 (result, v.to_vec())
             }
             Expression::Instance {
@@ -345,13 +346,14 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 );
                 let result = Some(ast::Int::new_const(z3_context, n));
                 let v = [ast::Int::new_const(z3_context, m)];
+                println!("In instance {:?}", result);
                 (result, v.to_vec())
-                // unimplemented!();
             }
             Expression::Negated(_poly) => {
                 let (r, v) = Self::decompose_expression(z3_context, &_poly);
                 let result = Some(r.unwrap().neg());
-                (Some(result).unwrap(), v)
+                println!("In negation {:?}", result.clone());
+                (Some(result).unwrap(), v) // why do we need some here?
             }
             Expression::Sum(a, b) => {
                 let (a_var, mut a_v) = Self::decompose_expression(z3_context, a);
@@ -361,6 +363,7 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                     &[&a_var.unwrap(), &b_var.unwrap()],
                 ));
                 a_v.append(&mut b_v);
+                println!("In sum {:?}", result);
                 (result, a_v)
             }
             Expression::Product(a, b) => {
@@ -371,12 +374,33 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                     &[&a_var.unwrap(), &b_var.unwrap()],
                 ));
                 a_v.append(&mut b_v);
+                println!("In product {:?}", result);
                 (result, a_v)
             }
-            Expression::Scaled(_poly, _) => {
-                let result = Self::decompose_expression(z3_context, &_poly);
-                result
-                //TODO: figure out ... this does.
+            Expression::Scaled(_poly, c) => {
+                // In circuit.rs L492
+                // This is a scaled polynomial
+                // Scaled(Box<Expression<F>>, F)
+                // For example, if we change one of the constraint to be:
+                // Expression::Scaled(Box::new(dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())), F::from(5))
+                // This scales the polynomail by 5 and it will call this path.
+
+                // Method 1: convering the field element into an expression constant and recurse.
+                let (r_const, v_const) = Self::decompose_expression(z3_context, &Expression::Constant(*c));
+                // Method 2: copying code for processing expression constant from above.
+                // let r_const = Some(ast::Int::from_i64(
+                //     z3_context,
+                //     i64::from(c.get_lower_32()),
+                // ));
+
+                let (r_poly, v_poly) = Self::decompose_expression(z3_context, &_poly);
+                let result = Some(ast::Int::mul(
+                    z3_context,
+                    &[&r_poly.unwrap(), &r_const.unwrap()],
+                ));
+                v_poly.append(&mut v_const); // Not 100% sure if we need to do this.
+                println!("In scaled {:?}", result);
+                (result, v_poly)
             }
         }
     }
