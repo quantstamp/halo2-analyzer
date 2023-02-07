@@ -94,7 +94,7 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(b1, Rotation::cur());
-            let a = meta.query_advice(b1, Rotation::cur()); // shouldn't this be b1?
+            //let a = meta.query_advice(b1, Rotation::cur()); // shouldn't this be b1?
             let dummy = meta.query_selector(s);
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b1 * (1-b1)
@@ -295,7 +295,7 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
             Expression::Constant(a) => {
                 let result = Some(ast::Int::from_i64(
                     z3_context,
-                    i64::from(a.get_lower_32()), //*** Ask Them */
+                    i64::try_from(a.get_lower_128()).ok().unwrap(), //*** Ask Them */
                 ));
 
                 (result, vec![])
@@ -320,22 +320,22 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                let n = format!("Fixed-{}-{}-{:?}", *query_index, *column_index, rotation.0);
-                let m = format!("Fixed-{}-{}-{:?}", *query_index, *column_index, rotation.0);
-                let result = Some(ast::Int::new_const(z3_context, n));
-                let v = [ast::Int::new_const(z3_context, m)];
-                (result, v.to_vec())
+                let n = format!("F-{}-{}", *column_index, rotation.0);
+                //let m = format!("F-{}-{:?}", *column_index, rotation.0);
+                let result = Some(ast::Int::new_const(z3_context, n.clone()));
+                let v = vec![ast::Int::new_const(z3_context, n)];
+                (result, v)
             }
             Expression::Advice {
                 query_index,
                 column_index,
                 rotation,
             } => {
-                let n = format!("A-{}-{:?}", *column_index, rotation.0); //("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
-                let m = format!("A-{}-{:?}", *column_index, rotation.0); //format!("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
-                let result = Some(ast::Int::new_const(z3_context, n));
-                let v = [ast::Int::new_const(z3_context, m)];
-                (result, v.to_vec())
+                let n = format!("A-{}-{}", *column_index, rotation.0); //("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
+                //let m = format!("A-{}-{}", *column_index, rotation.0); //format!("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
+                let result = Some(ast::Int::new_const(z3_context, n.clone()));
+                let v = vec![ast::Int::new_const(z3_context, n)];
+                (result, v)
             }
             Expression::Instance {
                 query_index,
@@ -343,17 +343,18 @@ impl<'a, F: FieldExt> FMCheck<'a, F> for Analyzer<F> {
                 rotation,
             } => {
                 let n = format!(
-                    "Instance-{}-{}-{:?}",
-                    *query_index, *column_index, *rotation
+                    "I-{}-{}",
+                    *column_index,
+                    rotation.0
                 );
-                let m = format!(
-                    "Instance-{}-{}-{:?}",
-                    *query_index, *column_index, *rotation
-                );
-                let result = Some(ast::Int::new_const(z3_context, n));
-                let v = [ast::Int::new_const(z3_context, m)];
-                (result, v.to_vec())
-                // unimplemented!();
+                // let m = format!(
+                //     "I-{}-{}",
+                //     *column_index,
+                //     rotation.0
+                // );
+                let result = Some(ast::Int::new_const(z3_context, n.clone()));
+                let v = vec![ast::Int::new_const(z3_context, n)];
+                (result, v)
             }
             Expression::Negated(_poly) => {
                 let (r, v) = Self::decompose_expression(z3_context, &_poly);
@@ -512,31 +513,10 @@ impl<F: FieldExt> Analyzer<F> {
         let z3_config = z3::Config::new();
         let z3_context = z3::Context::new(&z3_config);
         let mut instance_cols: HashMap<ast::Int, i64> = HashMap::new();
-        //let mut instance_cols_vec = vec![];
-
-        //println!("{:?}",self.cs);
-        //let v = [ast::Int::new_const(&z3_context, m)];
-
-        // for col in self.cs.permutation.columns.iter() {
-        //     let c_type = format!("{:?}", col.column_type());
-        //     if c_type == "Advice" {
-        //         instance_cols.insert(
-        //             ast::Int::new_const(&z3_context, format!("A-{}-0", col.index())),
-        //             0,
-        //         );
-        //     }
-        // }
 
         for cell in &self.layouter.eq_table {
             instance_cols.insert(ast::Int::new_const(&z3_context, format!("{}", cell.0)), 0);
         }
-
-        println!("{:?}", instance_cols);
-        //let mut instance_cols = HashSet::from_iter(instance_cols_vec.iter().cloned());
-
-        //let mut instance_cols = HashMap::from_iter(instance_cols_vec.iter().cloned());
-
-        //let instance_col = ast::Int::new_const(&z3_context, "A2");
 
         let mut formula_conj: Vec<Option<z3::ast::Bool>> = vec![];
         let mut vars_list: HashSet<ast::Int> = Default::default();
@@ -566,7 +546,8 @@ fn main() {
 
     let public_input = Fr::from(3);
     //mockprover verify passes
-    let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]);
+    let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]).unwrap();
+    prover.verify().expect("verify should work");
     analyzer.analyze_underconstrained();
 
     // println!("----------------------Multi Circuit----------------------");
@@ -591,9 +572,8 @@ fn test_count_models(
     vars_list: Vec<z3::ast::Int>,
     mut instance_cols: HashMap<ast::Int, i64>,
 ) {
-    println!("instance:");
-    println!("{:?}", instance_cols);
-    println!("You can verify the circuit for a specific public input or a random number of public inputs!");
+
+    println!("You can verify the circuit for a specific public input or a random number of public inputs:");
     println!("1. verify the circuit for a specific public input!");
     println!("2. Verify for a random number of public inputs!");
 
@@ -612,19 +592,15 @@ fn test_count_models(
                 io::stdin()
                     .read_line(&mut input_var)
                     .expect("Failed to read line");
-                println!("input_var is: {:?} ", input_var.trim());
-                //_var.1 = &input_var.trim().parse::<i64>().unwrap();
                 instance_cols_new.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
-                println!("instance_cols_new: {:?}", instance_cols_new);
             }
         }
         "2" => {
             let mut input_var = String::new();
-            println!("How many random public inputs you want to verify");
+            println!("How many random public inputs you want to verify?");
             io::stdin()
                 .read_line(&mut input_var)
                 .expect("Failed to read line");
-            println!("input_var is: {:?} ", input_var.trim());
 
             iterations = input_var.trim().parse::<u128>().unwrap();
         }
@@ -647,9 +623,9 @@ fn test_count_models(
         if result == 1 {
             println!("The circuit is underConstrained.");
         } else if result == 0 {
-            println!("The circuit is NOT underConstrained for this specific input.");
+            println!("The circuit is not underConstrained for this specific input.");
         } else if result == 2 {
-            println!("The circuit is NOT underConstrained!");
+            println!("The circuit is not underConstrained!");
         }
     } else if verification_method == 2 {
         result = control_uniqueness(
@@ -666,11 +642,11 @@ fn test_count_models(
             println!("The circuit is underConstrained.");
         } else if result == 0 {
             println!(
-                "The circuit is NOT underConstrained for {} random inputs",
+                "The circuit is not underConstrained for {} random inputs.",
                 iterations
             );
         } else if result == 2 {
-            println!("The circuit is NOT underConstrained!");
+            println!("The circuit is not underConstrained!");
         }
     }
 }
@@ -690,23 +666,15 @@ fn control_uniqueness(
         solver.assert(&f.unwrap().clone());
     }
 
-    //*** non-negative constraint */
+    //*** adding non-negative constraint */
     for var in vars_list.iter() {
         let s1 = var.ge(&ast::Int::from_i64(&ctx, 0));
         solver.assert(&s1);
     }
 
-    // println!("solver:");
-    // println!("{:?}", solver);
-
     let mut count = 0;
     let mut count1 = 0;
-    // //* This loop iterates over all the possible,nonrepeated models, it may stop when:
-    // //       - there is no more new model, or the underconstrained
-    // //       - there is a model which prooves the circuit is undercnstrained
-    // // it may not stop if there are unlimited models that satisfy the slver and none of them satisfies the underconstrained reqs.
-    // // (one of the tasks would be finding a solution for this, right now the while is hardcoded to break after 10000 iterations!)
-    // // */
+
     if (verification_method == 1) {
         //*** Fixed Public Input */
         for var in instance_cols {
@@ -715,6 +683,7 @@ fn control_uniqueness(
             solver.assert(&s1);
         }
     }
+
     while result == 0 {
         count += 1;
         if solver.check() == SatResult::Sat {
@@ -726,7 +695,7 @@ fn control_uniqueness(
             for f in formulas.clone() {
                 solver1.assert(&f.unwrap().clone());
             }
-
+            //*** adding non-negative constraint */
             for var in vars_list.iter() {
                 let s1 = var.ge(&ast::Int::from_i64(&ctx, 0));
                 solver1.assert(&s1);
@@ -741,8 +710,7 @@ fn control_uniqueness(
             }
 
             let mut nvc10 = vec![];
-            //let mut nvcp10 = vec![];
-            //*** Enforcing the solver to generate the same model by having the prev model values in check_assumptions */
+            //*** Enforcing the solver to generate the same model by having the previous model values in check_assumptions */
             for var in vars_list.iter() {
                 let v = model.eval(var, true).unwrap().as_i64().unwrap();
                 let s1 = var._eq(&ast::Int::from_i64(ctx, v));
@@ -757,19 +725,18 @@ fn control_uniqueness(
             println!("Model {} to be checked:", count);
             println!("{:?}", model);
 
-            let mut i = 0;
             let mut nvc_p1 = vec![];
             let mut nvc_p2 = vec![];
             let mut nvc1 = vec![];
             let mut nvc2 = vec![];
             //*** To check the model is underconstrained we need to:
-            //      1. Fix the instance related
+            //      1. Fix the public input
             //      2. Change the other vars
             //      3. add these rules to the current solver and,
             //      4. find a model that satisfies these rules
             for i in 0..vars_list.len() {
                 let var = &vars_list[i];
-                // 1. Fix the instance related
+                // 1. Fix the public input
                 if (instance_cols.contains_key(var) && verification_method != 1) {
                     //if (var.eq(&instance_col)) {
                     let v = model.eval(var, true).unwrap().as_i64().unwrap();
@@ -790,7 +757,7 @@ fn control_uniqueness(
             for var in nvc2.iter() {
                 nvc_p2.push(var);
             }
-            // 3. add these rules to the current solver and,
+            // 3. add these rules to the current solver,
             let or_of_others = z3::ast::Bool::or(&ctx, &nvc_p2);
             nvc_p1.push(&or_of_others);
             solver1.assert(&z3::ast::Bool::and(&ctx, &nvc_p1));
@@ -825,13 +792,14 @@ fn control_uniqueness(
             }
             solver.assert(&z3::ast::Bool::or(&ctx, &new_var_constraints_p));
 
-            //println!("solver:{:?}",solver);
-            println!("result: {}", result);
         }
+        //*** Checking one specific public input */
         if verification_method == 1 {
             break;
         }
+        //*** Checking a random number of public inputs */
         if count >= iterations {
+            //*** If there have not been any other possible models to be checked we can say that the ciruit is not underconstrained */
             if count > count1 {
                 result = 2;
             }
