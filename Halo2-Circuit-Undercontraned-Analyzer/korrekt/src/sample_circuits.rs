@@ -201,10 +201,12 @@ impl<F: FieldExt> Circuit<F> for MultiPlayCircuit<F> {
         });
         meta.create_gate("equality", |meta| {
             let a = meta.query_advice(x, Rotation::cur());
-            let b = meta.query_advice(x, Rotation::next());
+            let b = meta.query_advice(x, Rotation::cur());
             let c = meta.query_advice(x, Rotation(2));
             let dummy = meta.query_selector(s);
-            vec![dummy * (a + Expression::Constant(F::from(2)) * b - c)]
+            // The following is equivalent to: vec![dummy * (a + Expression::Constant(F::from(2)) * b - c)]
+            // But it uses the Scaled operator.
+            vec![dummy * (a + Expression::Scaled(Box::new(b), F::from(2)) - c)]
         });
 
         let cfg = Self::Config {
