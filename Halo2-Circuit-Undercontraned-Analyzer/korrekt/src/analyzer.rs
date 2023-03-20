@@ -9,10 +9,10 @@ use std::{
     io,
     ops::Neg,
 };
+use z3::ast::Ast;
 use z3::{ast, SatResult, Solver};
 
 use layouter::AnalyticLayouter;
-use z3::ast::Ast;
 
 use crate::abstract_expr::{self, AbsResult};
 
@@ -22,6 +22,7 @@ pub struct Analyzer<F: FieldExt> {
     layouter: layouter::AnalyticLayouter<F>,
     log: Vec<String>,
 }
+
 trait FMCheck<'a, 'b, F: FieldExt> {
     fn decompose_expression(
         z3_context: &'a z3::Context,
@@ -54,27 +55,18 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
                 (result, vec![])
             }
             Expression::Selector(..) => {
-                //unimplemented!();
-                // let result = Some(ast::Int::new_const(z3_context, format!("{:?}", &a)));
-                // let v = [ast::Int::new_const(z3_context, format!("{:?}", &a))];
-                // (result,v.to_vec())
                 let result = Some(
                     ast::Int::from_i64(z3_context, i64::from(1)), //*** Ask Them */
                 );
 
                 (result, vec![])
             }
-            // Expression::Fixed { .. } => {
-            //     println!("fixed {:?}", poly);
-            //     unimplemented!("Implement this!");
-            // }
             Expression::Fixed {
                 query_index,
                 column_index,
                 rotation,
             } => {
                 let n = format!("F-{}-{}", *column_index, rotation.0);
-                //let m = format!("F-{}-{:?}", *column_index, rotation.0);
                 let result = Some(ast::Int::new_const(z3_context, n.clone()));
                 let v = vec![ast::Int::new_const(z3_context, n)];
                 (result, v)
@@ -84,8 +76,7 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                let n = format!("A-{}-{}", *column_index, rotation.0); //("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
-                                                                       //let m = format!("A-{}-{}", *column_index, rotation.0); //format!("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
+                let n = format!("A-{}-{}", *column_index, rotation.0); // ("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
                 let result = Some(ast::Int::new_const(z3_context, n.clone()));
                 let v = vec![ast::Int::new_const(z3_context, n)];
                 (result, v)
@@ -96,11 +87,6 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
                 rotation,
             } => {
                 let n = format!("I-{}-{}", *column_index, rotation.0);
-                // let m = format!(
-                //     "I-{}-{}",
-                //     *column_index,
-                //     rotation.0
-                // );
                 let result = Some(ast::Int::new_const(z3_context, n.clone()));
                 let v = vec![ast::Int::new_const(z3_context, n)];
                 (result, v)
@@ -131,32 +117,21 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
                 (result, a_v)
             }
             Expression::Scaled(_poly, c) => {
-                // In circuit.rs L492
-                // This is a scaled polynomial
-                // Scaled(Box<Expression<F>>, F)
-                // For example, if we change one of the constraint to be:
-                // Expression::Scaled(Box::new(dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())), F::from(5))
-                // This scales the polynomial by 5 and it will call this path.
-
-                // Method 1: convering the field element into an expression constant and recurse.
+                // convering the field element into an expression constant and recurse.
                 let (r_const, mut v_const) =
                     Self::decompose_expression(z3_context, &Expression::Constant(*c));
-                // Method 2: copying code for processing expression constant from above.
-                // let r_const = Some(ast::Int::from_i64(
-                //     z3_context,
-                //     i64::from(c.get_lower_32()),
-                // ));
 
                 let (r_poly, mut v_poly) = Self::decompose_expression(z3_context, &_poly);
                 let result = Some(ast::Int::mul(
                     z3_context,
                     &[&r_poly.unwrap(), &r_const.unwrap()],
                 ));
-                v_poly.append(&mut v_const); // Not 100% sure if we need to do this.
+                v_poly.append(&mut v_const);
                 (result, v_poly)
             }
         }
     }
+
     fn extract_instance_colls(
         eq_table: HashMap<String, String>,
         z3_context: &'b z3::Context,
@@ -191,15 +166,11 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
 }
 
 impl<F: FieldExt> Analyzer<F> {
-    // fn new<C: Circuit<F> + Default>() -> Self {
-    //     Self::new_with(&C::default())
-    // }
-
-    pub fn new_with<C: Circuit<F>>(circuit: &C) -> Self {
+    pub fn create_with_circuit<C: Circuit<F>>(circuit: &C) -> Self {
         // create constraint system to collect custom gates
-
         let mut cs: ConstraintSystem<F> = Default::default();
         let config = C::configure(&mut cs);
+
         // synthesize the circuit with analytic layout
         let mut layouter = AnalyticLayouter::new();
         circuit.synthesize(config, &mut layouter).unwrap();
@@ -210,6 +181,8 @@ impl<F: FieldExt> Analyzer<F> {
             log: vec![],
         }
     }
+
+    /// Detects unused custom gates
     pub fn analyze_unsed_custom_gates(&mut self) {
         for gate in self.cs.gates.iter() {
             let mut used = false;
@@ -226,7 +199,6 @@ impl<F: FieldExt> Analyzer<F> {
                 }
             }
 
-            //
             if !used {
                 self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name()));
             }
@@ -290,90 +262,48 @@ impl<F: FieldExt> Analyzer<F> {
         }
     }
 
-    pub fn analyze_underconstrained(&mut self) -> i8{
+    pub fn analyze_underconstrained(&mut self, analyzer_input: AnalyzerInput) -> AnalyzerOutput {
         let z3_config = z3::Config::new();
         let z3_context = z3::Context::new(&z3_config);
+        let (formulas, vars_list) = Self::decompose_polynomial(self, &z3_context);
+
         let instance_cols: HashMap<ast::Int, i64> =
             Self::extract_instance_colls(self.layouter.eq_table.clone(), &z3_context);
-
-        let (formulas, vars_list) = Self::decompose_polynomial(self, &z3_context);
-        //
-        let mut result = -1;
-        let (verification_method, instance_cols_new, iterations) = user_inputs(&instance_cols);
-
-        let t: HashMap<ast::Int, i64>;
-
-        if (verification_method == 1) {
-            t = instance_cols_new;
-        } else if (verification_method == 2){
-            t = instance_cols;
-        }
-        else {
-            return result; 
+        let instance: HashMap<ast::Int, i64> = instance_cols;
+        if (verification_method == VerificationMethod.Specific) {
+            instance = analyzer_input.verification_input.instance;
         }
 
-        let mut result = -1;
+        let mut analyzer_output: AnalyzerOutput = AnalyzerOutput::new();
 
         //println!("{:?}{}{}{}{}",formulas,vars_list,t,verification_method)
-        result = control_uniqueness(
+        let mut output_status: AnalyzerOutputStatus = control_uniqueness(
             &z3_context,
             formulas,
             vars_list,
-            &t,
-            verification_method,
-            iterations,
+            &instance,
+            analyzer_input
         );
 
+        analyzer_output.output_status = output_status;
+        output_result(analyzer_input, analyzer_output);
 
-        output_result(
-            result,
-            verification_method,
-            iterations,
-        );
-
-        return result;
+        return analyzer_output;
     }
-
-    // pub fn analyze_underconstrained(&mut self) {
-    //     let z3_config = z3::Config::new();
-    //     let z3_context = z3::Context::new(&z3_config);
-    //     let mut instance_cols: HashMap<ast::Int, i64> = HashMap::new();
-
-    //     for cell in &self.layouter.eq_table {
-    //         instance_cols.insert(ast::Int::new_const(&z3_context, format!("{}", cell.0)), 0);
-    //     }
-
-    //     let mut formula_conj: Vec<Option<z3::ast::Bool>> = vec![];
-    //     let mut vars_list: HashSet<ast::Int> = Default::default();
-    //     let zero = ast::Int::from_i64(&z3_context, 0);
-    //     for gate in self.cs.gates.iter() {
-    //         for poly in &gate.polys {
-    //             let (formula, v) = Self::decompose_expression(&z3_context, poly);
-    //             let v: HashSet<ast::Int> = HashSet::from_iter(v.iter().cloned());
-    //             vars_list.extend(v);
-    //             formula_conj.push(Some(formula.unwrap()._eq(&zero)));
-    //         }
-    //     }
-    //     let v = Vec::from_iter(vars_list);
-    //     test_count_models(&z3_context, formula_conj, v, instance_cols);
-    // }
 
     fn log(&self) -> &[String] {
         &self.log
     }
 }
 
-
 fn control_uniqueness(
     ctx: &z3::Context,
     formulas: Vec<Option<z3::ast::Bool>>,
-    vars_list: Vec<z3::ast::Int>, //,
-    //instance_index: usize,
+    vars_list: Vec<z3::ast::Int>,
     instance_cols: &HashMap<ast::Int, i64>,
-    verification_method: i64,
-    iterations: u128,
-) -> i8 {
-    let mut result = 0;
+    analyzer_input: AnalyzerInput
+) -> AnalyzerOutputStatus {
+    let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus.Invalid;
 
     let solver = Solver::new(&ctx);
     for f in formulas.clone() {
@@ -389,7 +319,7 @@ fn control_uniqueness(
     let mut count = 0;
     let mut count1 = 0;
 
-    if verification_method == 1 {
+    if analyzer_input.verification_method  == VerificationMethod.Specific {
         //*** Fixed Public Input */
         for var in instance_cols {
             println!("Here: {:?}", var);
@@ -397,10 +327,11 @@ fn control_uniqueness(
             solver.assert(&s1);
         }
     }
+
     println!("Solver {:?}", solver);
     while result == 0 {
         count += 1;
-        if solver.check() == SatResult::Sat {
+        if solver.check() == SatResult::Sat { // TODO: What does this check exactly, why do we need to create another solver?
             count1 += 1;
             let model = solver.get_model().unwrap();
             //*** Create an equivalent local solver to check if it's under-constrained*/
@@ -423,16 +354,14 @@ fn control_uniqueness(
                 }
             }
 
-            let mut nvc10 = vec![];
+            let mut nvc10 = vec![]; // TODO: WHAt is this?
             //*** Enforcing the solver to generate the same model by having the previous model values in check_assumptions */
             for var in vars_list.iter() {
                 let v = model.eval(var, true).unwrap().as_i64().unwrap();
                 let s1 = var._eq(&ast::Int::from_i64(ctx, v));
                 nvc10.push(s1);
             }
-            // for var in nvc10.iter() {
-            //     nvcp10.push(var);
-            // }
+
             solver1.check_assumptions(&nvc10);
             let model = solver1.get_model().unwrap();
 
@@ -489,7 +418,7 @@ fn control_uniqueness(
                 result = 1;
                 break;
             }
-            println!("There is no equivalent model with the  same public input to prove model {} is under-constrained!",count);
+            println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", count);
 
             // if no models found, add some rules to the initial solver to make sure does not generate the same model again
 
@@ -521,78 +450,4 @@ fn control_uniqueness(
     }
 
     result
-}
-fn user_inputs<'a>(
-    instance_cols: &HashMap<ast::Int<'a>, i64>,
-) -> (i64, HashMap<ast::Int<'a>, i64>, u128) {
-    println!("You can verify the circuit for a specific public input or a random number of public inputs:");
-    println!("1. verify the circuit for a specific public input!");
-    println!("2. Verify for a random number of public inputs!");
-
-    let mut menu = String::new();
-
-    io::stdin()
-        .read_line(&mut menu)
-        .expect("Failed to read line");
-    let mut instance_cols_new: HashMap<ast::Int, i64> = HashMap::new();
-    let mut iterations: u128 = 0;
-    match menu.trim() {
-        "1" => {
-            let mut input_var = String::new();
-            for mut _var in instance_cols.iter() {
-                println!("Enter value for {} : ", _var.0);
-                io::stdin()
-                    .read_line(&mut input_var)
-                    .expect("Failed to read line");
-                instance_cols_new.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
-            }
-        }
-        "2" => {
-            let mut input_var = String::new();
-            println!("How many random public inputs you want to verify?");
-            io::stdin()
-                .read_line(&mut input_var)
-                .expect("Failed to read line");
-
-            iterations = input_var.trim().parse::<u128>().unwrap();
-        }
-        &_ => {}
-    };
-
-    let verification_method = menu.trim().parse::<i64>().unwrap();
-    (verification_method, instance_cols_new, iterations)
-}
-
-fn output_result(
-    result: i8,
-    verification_method: i64,
-    iterations: u128,
-) {
-    if verification_method == 1 {
-        if result == 1 {
-            println!("The circuit is under-constrained.");
-        } else if result == 0 {
-            println!("The circuit is not under-constrained for this specific input.");
-        } else if result == 2 {
-            println!("The circuit is not under-constrained!");
-        }
-    } else if verification_method == 2 {
-        if result == 1 {
-            println!("The circuit is under-constrained.");
-        } else if result == 0 {
-            if (iterations == 1) {
-                println!(
-                    "The circuit is not under-constrained for {} random input.",
-                    iterations
-                );
-            } else {
-                println!(
-                    "The circuit is not under-constrained for {} random inputs.",
-                    iterations
-                );
-            }
-        } else if result == 2 {
-            println!("The circuit is not under-constrained!");
-        }
-    }
 }
