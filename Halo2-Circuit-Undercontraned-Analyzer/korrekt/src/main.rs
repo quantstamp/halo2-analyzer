@@ -1,6 +1,9 @@
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::pasta::Fp as Fr;
 
+use z3::ast::Ast;
+use z3::{ast, SatResult, Solver};
+
 mod abstract_expr;
 mod layouter;
 mod shape;
@@ -23,7 +26,14 @@ fn main() {
     println!("----------------------Multi Circuit----------------------");
     let multi_circuit = sample_circuits::MultiPlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
     let mut analyzer1 = analyzer::Analyzer::create_with_circuit(&multi_circuit);
-
+    let z
+    let instance_cols: HashMap<ast::Int, i64> =
+        Self::extract_instance_cols(analyzer1.layouter.eq_table.clone(), &z3_context);
+    // let instance: HashMap<ast::Int, i64> = instance_cols;
+    // if (verification_method == VerificationMethod.Specific) {
+    //     instance = analyzer_input.verification_input.instances;
+    // }
+        
     // This part is not relevant to the underconstrained analyzer.
     log::debug!("running mock prover...");
     let public_input1 = Fr::from(3);

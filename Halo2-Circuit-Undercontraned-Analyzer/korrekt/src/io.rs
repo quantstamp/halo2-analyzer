@@ -1,6 +1,9 @@
+use z3::ast::Ast;
+use z3::{ast, SatResult, Solver};
 
 #[derive(Debug)]
 pub struct RandomInput {
+    instances: HashMap<ast::Int<'a>, i64>,
     iterations: u128
 }
 
@@ -22,7 +25,8 @@ enum VerificationInput {
 #[derive(Debug)]
 pub struct AnalyzerInput {
     verification_method: VerificationMethod, 
-    verification_input: VerificationInput
+    verification_input: VerificationInput,
+    z3_context: z3::Context
 }
 
 enum AnalyzerOutputStatus {
@@ -35,12 +39,13 @@ enum AnalyzerOutputStatus {
 
 #[derive(Debug)]
 pub struct AnalyzerOutput {
-    output_status: AnalyzerOutputStatus, 
+    output_status: AnalyzerOutputStatus
 }
 
 
 fn retrieve_user_input<'a>(
-    instances: &HashMap<ast::Int<'a>, i64>,
+    instance_cols: &HashMap<ast::Int<'a>, i64>,
+    z3_context: z3::Context
 ) -> AnalyzerInput {
     println!("You can verify the circuit for a specific public input or a random number of public inputs:");
     println!("1. verify the circuit for a specific public input!");
@@ -56,17 +61,17 @@ fn retrieve_user_input<'a>(
 
     match verification_type {
         1 => {
-            let mut specified_instances: HashMap<ast::Int, i64> = HashMap::new();
+            let mut specified_instance_cols: HashMap<ast::Int, i64> = HashMap::new();
             for mut _var in instance_cols.iter() {
                 println!("Enter value for {} : ", _var.0);
                 let mut input_var = String::new();
                 io::stdin()
                     .read_line(&mut input_var)
                     .expect("Failed to read line");
-                specified_instances.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
+                specified_instance_cols.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
             }
             analyzer_input.verification_method = Specific;
-            analyzer_input.verification_input = SpecificInput(specified_instances);
+            analyzer_input.verification_input = SpecificInput(specified_instance_cols);
         }
         2 => {
             let mut input_var = String::new();
@@ -78,10 +83,12 @@ fn retrieve_user_input<'a>(
 
             let iterations = input_var.trim().parse::<u128>().unwrap();
             analyzer_input.verification_method = Random;
-            analyzer_input.verification_input = RandomInput(iterations);
+            analyzer_input.verification_input = RandomInput(instance_cols, iterations);
         }
         &_ => {}
     };
+
+    analyzer_input.z3_context = z3_context;
 
     analyzer_input
 }
