@@ -289,6 +289,10 @@ impl<F: FieldExt> Analyzer<F> {
         &self.log
     }
 
+    fn copy_model(model) {
+        model
+    }
+
     fn control_uniqueness(
         ctx: &z3::Context,
         formulas: Vec<Option<z3::ast::Bool>>,
@@ -296,151 +300,240 @@ impl<F: FieldExt> Analyzer<F> {
         instance_cols: &HashMap<ast::Int, i64>,
         analyzer_input: AnalyzerInput
     ) -> AnalyzerOutputStatus {
-        let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus.Invalid;
-    
+        let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus.NotUnderconstrainedLocal;
+
+        // This is the main solver
         let solver = Solver::new(&ctx);
         for f in formulas.clone() {
             solver.assert(&f.unwrap().clone());
         }
     
-        //*** adding non-negative constraint */
+        //*** Add non-negative constraint */
         for var in vars_list.iter() {
             let s1 = var.ge(&ast::Int::from_i64(&ctx, 0));
             solver.assert(&s1);
         }
     
-        let mut count = 0;
-        let mut count1 = 0;
-    
-        if analyzer_input.verification_method  == VerificationMethod.Specific {
-            //*** Fixed Public Input */
+        //*** Fix Public Input */
+        if (analyzer_input.verification_method  == VerificationMethod.Specific) {
             for var in instance_cols {
                 println!("Here: {:?}", var);
                 let s1 = var.0._eq(&ast::Int::from_i64(ctx, *var.1));
                 solver.assert(&s1);
             }
         }
-    
-        println!("Solver {:?}", solver);
-        while result == 0 {
-            count += 1;
-            if solver.check() == SatResult::Sat { // TODO: What does this check exactly, why do we need to create another solver?
-                count1 += 1;
-                let model = solver.get_model().unwrap();
-                //*** Create an equivalent local solver to check if it's under-constrained*/
-                //*** adding the circuit constraints */
-                let solver1 = Solver::new(&ctx);
-                for f in formulas.clone() {
-                    solver1.assert(&f.unwrap().clone());
-                }
-                //*** adding non-negative constraint */
-                for var in vars_list.iter() {
-                    let s1 = var.ge(&ast::Int::from_i64(&ctx, 0));
-                    solver1.assert(&s1);
-                }
-    
-                if (verification_method == 1) {
-                    //*** Fixed Public Input */
-                    for var in instance_cols {
-                        let s1 = var.0._eq(&ast::Int::from_i64(ctx, *var.1));
-                        solver1.assert(&s1);
-                    }
-                }
-    
-                let mut nvc10 = vec![]; // TODO: WHAt is this?
-                //*** Enforcing the solver to generate the same model by having the previous model values in check_assumptions */
-                for var in vars_list.iter() {
-                    let v = model.eval(var, true).unwrap().as_i64().unwrap();
-                    let s1 = var._eq(&ast::Int::from_i64(ctx, v));
-                    nvc10.push(s1);
-                }
-    
-                solver1.check_assumptions(&nvc10);
-                let model = solver1.get_model().unwrap();
-    
-                println!("Model {} to be checked:", count);
-                println!("{:?}", model);
-    
-                let mut nvc_p1 = vec![];
-                let mut nvc_p2 = vec![];
-                let mut nvc1 = vec![];
-                let mut nvc2 = vec![];
-                //*** To check the model is under-constrained we need to:
-                //      1. Fix the public input
-                //      2. Change the other vars
-                //      3. add these rules to the current solver and,
-                //      4. find a model that satisfies these rules
-                for i in 0..vars_list.len() {
-                    let var = &vars_list[i];
-                    // 1. Fix the public input
-                    if (instance_cols.contains_key(var) && verification_method != 1) {
-                        //if (var.eq(&instance_col)) {
-                        let v = model.eval(var, true).unwrap().as_i64().unwrap();
-                        let s1 = var._eq(&ast::Int::from_i64(ctx, v));
-                        nvc1.push(s1);
-                    } else {
-                    // 2. Change the other vars
-                        let v = model.eval(var, true).unwrap().as_i64().unwrap();
-                        let s11 = !var._eq(&ast::Int::from_i64(ctx, v));
-                        nvc2.push(s11);
-                    }
-                }
-    
-                for var in nvc1.iter() {
-                    nvc_p1.push(var);
-                }
-    
-                for var in nvc2.iter() {
-                    nvc_p2.push(var);
-                }
-                // 3. add these rules to the current solver,
-                let or_of_others = z3::ast::Bool::or(&ctx, &nvc_p2);
-                nvc_p1.push(&or_of_others);
-                solver1.assert(&z3::ast::Bool::and(&ctx, &nvc_p1));
-    
-                // 4. find a model that satisfies these rules
-                solver1.check();
-    
-                if solver1.check() == SatResult::Sat {
-                    if (!solver1.get_model().is_none()) {
-                        let model1 = solver1.get_model().unwrap();
-                        println!("Equivalent model for the same public input:");
-                        println!("{:?}", model1);
-                    }
-                    result = 1;
-                    break;
-                }
-                println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", count);
-    
-                // if no models found, add some rules to the initial solver to make sure does not generate the same model again
-    
-                let mut new_var_constraints = vec![];
-                let mut new_var_constraints_p = vec![];
-    
-                for var in vars_list.iter() {
-                    let v = model.eval(var, true).unwrap().as_i64().unwrap();
-                    let s1 = !var._eq(&ast::Int::from_i64(ctx, v));
-                    new_var_constraints.push(s1);
-                }
-                for var in new_var_constraints.iter() {
-                    new_var_constraints_p.push(var);
-                }
-                solver.assert(&z3::ast::Bool::or(&ctx, &new_var_constraints_p));
-            }
-            //*** Checking one specific public input */
-            if verification_method == 1 {
-                break;
-            }
-            //*** Checking a random number of public inputs */
-            if count >= iterations {
-                //*** If there have not been any other possible models to be checked we can say that the ciruit is not under-constrained */
-                if count > count1 {
-                    result = 2;
-                }
-                break;
-            }
+
+        let max_iterations: u128 = 1;
+        if (analyzer_input.verification_method  == VerificationMethod.Random) {
+            max_iterations = analyzer_input.verification_method.iterations;
         }
-    
+
+        if solver.check() == SatResult::Unsat {
+            result = AnalyzerOutputStatus.Overconstrained;
+            return result
+        }
+
+        for i in 1..=max_iterations {
+            println!("Solver {:?}", solver);
+            
+            // If there are no more satisfiable model, then we have explored all possible configurations.
+            if solver.check() == SatResult::Unsat {
+                result = AnalyzerOutputStatus.NotUnderconstrained;
+                break;
+            }
+
+            let model = solver.get_model().unwrap();
+            
+            // Copy solver
+            let constrained_solver = Solver::new(&ctx);
+
+            //*** Set the variables to be same as the ones generated by the model above. */
+            //*** Enforcing the solver to generate the same model by having the previous model values in check_assumptions */
+            let mut model_variables_assignment = vec![];
+            for var in vars_list.iter() {
+                let var_eval = model.eval(var, true).unwrap().as_i64().unwrap();
+                let var_assignment = var._eq(&ast::Int::from_i64(ctx, var_eval));
+                model_variables_assignment.push(var_assignment);
+            }
+            constrained_solver.check_assumptions(&model_variables_assignment);
+            let constrained_model = constrained_solver.get_model().unwrap();
+            println!("Model {} to be checked:", i);
+            println!("{:?}", constrained_model);
+
+            //*** To check the model is under-constrained we need to:
+            //      1. Fix the public input
+            //      2. Change the other vars
+            //      3. add these rules to the current solver and,
+            //      4. find a model that satisfies these rules
+            
+            let mut same_assigmnets = vec![];
+            let mut diff_assignments = vec![];
+            for var in vars_list.iter() {
+                if (instance_cols.contains_key(var) && verification_method != 1) {  // TODO: why do we need to check verification_method != 1
+                    // 1. Fix the public input
+                    let var_eval = constrained_model.eval(var, true).unwrap().as_i64().unwrap();
+                    let var_same_assignment = var._eq(&ast::Int::from_i64(ctx, var_eval));
+                    same_assigmnets.push(var_same_assignment);
+                } else {
+                    // 2. Change the other vars
+                    let var_eval = constrained_model.eval(var, true).unwrap().as_i64().unwrap();
+                    let var_diff_assignment = !var._eq(&ast::Int::from_i64(ctx, var_eval));
+                    diff_assignments.push(var_diff_assignment);
+                }
+            }
+
+            // 3. add these rules to the current solver,
+            let or_diff_assignments = z3::ast::Bool::or(&ctx, &diff_assignments);
+            same_assigmnets.push(&or_diff_assignments);
+            constrained_solver.assert(&z3::ast::Bool::and(&ctx, &same_assigmnets));
+
+            // 4. find a model that satisfies these rules
+            if constrained_solver.check() == SatResult::Sat {
+                let another_constrained_model = constrained_solver.get_model()
+                println!("Equivalent model for the same public input:");
+                println!("{:?}", another_constrained_model.unwrap());
+                result = AnalyzerOutputStatus.Underconstrained;
+                break;
+            } else {
+                println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+            }
+
+            // If no model found, add some rules to the initial solver to make sure does not generate the same model again
+            let mut negated_model_variable_assignments = vec![];
+            for var in vars_list.iter() {
+                let var_eval = constrained_model.eval(var, true).unwrap().as_i64().unwrap();
+                let var_assignment = !var._eq(&ast::Int::from_i64(ctx, var_eval));
+                negated_model_variable_assignments.push(var_assignment);
+            }
+            solver.assert(&z3::ast::Bool::or(&ctx, &negated_model_variable_assignments));
+        }
+        
         result
-    }
+
+    //     while result == 0 {
+    //         count += 1;
+    //         if solver.check() == SatResult::Sat { // TODO: What does this check exactly, why do we need to create another solver?
+    //             // count1 += 1;
+    //             // let model = solver.get_model().unwrap();
+    //             // //*** Create an equivalent local solver to check if it's under-constrained */
+    //             // //*** adding the circuit constraints */
+    //             // let solver1 = Solver::new(&ctx);
+    //             // for f in formulas.clone() {
+    //             //     solver1.assert(&f.unwrap().clone());
+    //             // }
+    //             // //*** adding non-negative constraint */
+    //             // for var in vars_list.iter() {
+    //             //     let s1 = var.ge(&ast::Int::from_i64(&ctx, 0));
+    //             //     solver1.assert(&s1);
+    //             // }
+    
+    //             // if (verification_method == 1) {
+    //             //     //*** Fixed Public Input */
+    //             //     for var in instance_cols {
+    //             //         let s1 = var.0._eq(&ast::Int::from_i64(ctx, *var.1));
+    //             //         solver1.assert(&s1);
+    //             //     }
+    //             // }
+    
+    //             let mut nvc10 = vec![]; // TODO: What is this?
+    //             //*** Enforcing the solver to generate the same model by having the previous model values in check_assumptions */
+    //             for var in vars_list.iter() {
+    //                 let v = model.eval(var, true).unwrap().as_i64().unwrap();
+    //                 let s1 = var._eq(&ast::Int::from_i64(ctx, v));
+    //                 nvc10.push(s1);
+    //             }
+    
+    //             solver1.check_assumptions(&nvc10);
+    //             let model = solver1.get_model().unwrap();
+    
+    //             println!("Model {} to be checked:", count);
+    //             println!("{:?}", model);
+    
+    //             let mut nvc_p1 = vec![];
+    //             let mut nvc_p2 = vec![];
+    //             let mut nvc1 = vec![];
+    //             let mut nvc2 = vec![];
+    //             //*** To check the model is under-constrained we need to:
+    //             //      1. Fix the public input
+    //             //      2. Change the other vars
+    //             //      3. add these rules to the current solver and,
+    //             //      4. find a model that satisfies these rules
+    //             for i in 0..vars_list.len() {
+    //                 let var = &vars_list[i];
+    //                 // 1. Fix the public input
+    //                 if (instance_cols.contains_key(var) && verification_method != 1) {
+    //                     //if (var.eq(&instance_col)) {
+    //                     let v = model.eval(var, true).unwrap().as_i64().unwrap();
+    //                     let s1 = var._eq(&ast::Int::from_i64(ctx, v));
+    //                     nvc1.push(s1);
+    //                 } else {
+    //                 // 2. Change the other vars
+    //                     let v = model.eval(var, true).unwrap().as_i64().unwrap();
+    //                     let s11 = !var._eq(&ast::Int::from_i64(ctx, v));
+    //                     nvc2.push(s11);
+    //                 }
+    //             }
+
+    //             for var in nvc1.iter() {
+    //                 nvc_p1.push(var);
+    //             }
+    
+    //             for var in nvc2.iter() {
+    //                 nvc_p2.push(var);
+    //             }
+    //             // 3. add these rules to the current solver,
+    //             let or_of_others = z3::ast::Bool::or(&ctx, &nvc_p2);
+    //             nvc_p1.push(&or_of_others);
+    //             solver1.assert(&z3::ast::Bool::and(&ctx, &nvc_p1));
+    
+    //             // 4. find a model that satisfies these rules
+    //             solver1.check();
+
+    //             // TODO: Is there a logic issue here?
+    //             if solver1.check() == SatResult::Sat {
+    //                 if (!solver1.get_model().is_none()) {
+    //                     let model1 = solver1.get_model().unwrap();
+    //                     println!("Equivalent model for the same public input:");
+    //                     println!("{:?}", model1);
+    //                 }
+    //                 // TODO: Especially here.
+    //                 result = 1;
+    //                 break;
+    //             }
+    //             println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", count);
+    
+    //             // if no models found, add some rules to the initial solver to make sure does not generate the same model again
+    
+    //             let mut new_var_constraints = vec![];
+    //             let mut new_var_constraints_p = vec![];
+    
+    //             for var in vars_list.iter() {
+    //                 let v = model.eval(var, true).unwrap().as_i64().unwrap();
+    //                 let s1 = !var._eq(&ast::Int::from_i64(ctx, v));
+    //                 new_var_constraints.push(s1);
+    //             }
+    //             for var in new_var_constraints.iter() {
+    //                 new_var_constraints_p.push(var);
+    //             }
+    //             solver.assert(&z3::ast::Bool::or(&ctx, &new_var_constraints_p));
+    //         }
+    //         //*** Checking one specific public input */
+    //         if verification_method == 1 {
+    //             break;
+    //         }
+    //         //*** Checking a random number of public inputs */
+    //         if count >= iterations {
+    //             //*** If there have not been any other possible models to be checked we can say that the ciruit is not under-constrained */
+                
+    //             // This should be the outer condition
+    //             // If the solver is already unsatisfiable, adding more constraints is not going to help.
+    //             if count > count1 {
+    //                 result = 2;
+    //             }
+    //             break;
+    //         }
+    //     }
+    
+    //     result
+    // }
 }
