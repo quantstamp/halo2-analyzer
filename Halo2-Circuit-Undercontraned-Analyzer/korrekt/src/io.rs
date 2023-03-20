@@ -25,16 +25,17 @@ pub struct AnalyzerInput {
     verification_input: VerificationInput
 }
 
-#[derive(Debug)]
-pub struct AnalyzerOutput {
-    output_status: AnalyzerOutputStatus, 
-}
-
 enum AnalyzerOutputStatus {
     Invalid,
     Underconstrained,
     Overconstrained,
     NotUnderconstrained,
+    NotUnderconstrainedLocal,
+}
+
+#[derive(Debug)]
+pub struct AnalyzerOutput {
+    output_status: AnalyzerOutputStatus, 
 }
 
 
@@ -86,31 +87,22 @@ fn retrieve_user_input<'a>(
 }
 
 fn output_result(analyzer_input: AnalyzerInput, analyzer_output: AnalyzerOutput) {
-    if verification_method == 1 {
-        if result == 1 {
-            println!("The circuit is under-constrained.");
-        } else if result == 0 {
-            println!("The circuit is not under-constrained for this specific input.");
-        } else if result == 2 {
-            println!("The circuit is not under-constrained!");
+    if (analyzer_output.output_status == AnalyzerOutputStatus.Underconstrained) {
+        println!("The circuit is under-constrained.");
+    } else if (analyzer_output.output_status == AnalyzerOutputStatus.Overconstrained) {
+        println!("The circuit is over-constrained");
+    } else if (analyzer_output.output_status == AnalyzerOutputStatus.NotUnderconstrained) {
+        println!("The circuit is not under-constrained!");
+    } else if (analyzer_output.output_status == AnalyzerOutputStatus.NotUnderconstrainedLocal) {
+        if (analyzer_input.verification_method == VerificationMethod.Specific) {
+            println!("The circuit is under-constrained for this specific input.");
+        } else {
+            println!(
+                "The circuit is not under-constrained for {} random input(s).",
+                iterations
+            );
         }
-    } else if verification_method == 2 {
-        if result == 1 {
-            println!("The circuit is under-constrained.");
-        } else if result == 0 {
-            if (iterations == 1) {
-                println!(
-                    "The circuit is not under-constrained for {} random input.",
-                    iterations
-                );
-            } else {
-                println!(
-                    "The circuit is not under-constrained for {} random inputs.",
-                    iterations
-                );
-            }
-        } else if result == 2 {
-            println!("The circuit is not under-constrained!");
-        }
+    } else {
+        println!("The analyzer output is invalid.");
     }
 }
