@@ -26,23 +26,21 @@ fn main() {
     println!("----------------------Multi Circuit----------------------");
     let multi_circuit = sample_circuits::MultiPlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
     let mut analyzer1 = analyzer::Analyzer::create_with_circuit(&multi_circuit);
-    let z
+    let z3_context = z3::Context::new(z3::Config::new());
     let instance_cols: HashMap<ast::Int, i64> =
         Self::extract_instance_cols(analyzer1.layouter.eq_table.clone(), &z3_context);
-    // let instance: HashMap<ast::Int, i64> = instance_cols;
-    // if (verification_method == VerificationMethod.Specific) {
-    //     instance = analyzer_input.verification_input.instances;
-    // }
-        
-    // This part is not relevant to the underconstrained analyzer.
-    log::debug!("running mock prover...");
-    let public_input1 = Fr::from(3);
-    let k = 5;
-    let prover1 = MockProver::<Fr>::run(k, &multi_circuit, vec![vec![public_input1]]).unwrap();
-    prover1.verify().expect("verify should work");
-    log::debug!("verified via mock prover...");
+    let analyzer_input: AnalyzerInput = retrieve_user_input(instance_cols, z3_context);
+    analyzer1.analyze_underconstrained(analyzer_input);
 
-    analyzer1.analyze_underconstrained();
+
+    // // This part is not relevant to the underconstrained analyzer.
+    // log::debug!("running mock prover...");
+    // let public_input1 = Fr::from(3);
+    // let k = 5;
+    // let prover1 = MockProver::<Fr>::run(k, &multi_circuit, vec![vec![public_input1]]).unwrap();
+    // prover1.verify().expect("verify should work");
+    // log::debug!("verified via mock prover...");
+
 }
 
 #[cfg(test)]

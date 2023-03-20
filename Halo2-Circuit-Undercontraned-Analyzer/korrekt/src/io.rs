@@ -89,7 +89,6 @@ fn retrieve_user_input<'a>(
     };
 
     analyzer_input.z3_context = z3_context;
-
     analyzer_input
 }
 
