@@ -1,4 +1,4 @@
-use crate::layouter;
+use crate::{layouter, io::{RandomInput, SpecificInput, output_result}};
 use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::layouter::RegionColumn,
@@ -15,12 +15,12 @@ use z3::{ast, SatResult, Solver};
 use layouter::AnalyticLayouter;
 
 use crate::abstract_expr::{self, AbsResult};
-use crate::io::{self, AnalyzerInput, AnalyzerOutput, VerificationMethod, VerificationInput, AnalyzerOutputStatus};
+use crate::io::{AnalyzerInput, AnalyzerOutput, VerificationMethod, VerificationInput, AnalyzerOutputStatus};
 
 #[derive(Debug)]
 pub struct Analyzer<F: FieldExt> {
     cs: ConstraintSystem<F>,
-    layouter: layouter::AnalyticLayouter<F>,
+    pub layouter: layouter::AnalyticLayouter<F>,
     log: Vec<String>,
 }
 
@@ -30,10 +30,7 @@ trait FMCheck<'a, 'b, F: FieldExt> {
         poly: &Expression<F>,
     ) -> (Option<ast::Int<'a>>, Vec<ast::Int<'a>>);
 
-    fn extract_instance_cols(
-        eq_table: HashMap<String, String>,
-        z3_context: &'b z3::Context,
-    ) -> HashMap<ast::Int<'b>, i64>;
+
 
     fn decompose_polynomial(
         &'b mut self,
@@ -133,18 +130,7 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
         }
     }
 
-    fn extract_instance_cols(
-        eq_table: HashMap<String, String>,
-        z3_context: &'b z3::Context,
-    ) -> HashMap<ast::Int<'b>, i64> {
-        let mut instance_cols: HashMap<ast::Int, i64> = HashMap::new();
 
-        for cell in eq_table {
-            instance_cols.insert(ast::Int::new_const(z3_context, format!("{}", cell.0)), 0);
-        }
-
-        instance_cols
-    }
 
     fn decompose_polynomial(
         &'b mut self,
@@ -166,7 +152,7 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
     }
 }
 
-impl<F: FieldExt> Analyzer<F> {
+impl<'b,F: FieldExt> Analyzer<F> {
     pub fn create_with_circuit<C: Circuit<F>>(circuit: &C) -> Self {
         // create constraint system to collect custom gates
         let mut cs: ConstraintSystem<F> = Default::default();
@@ -263,24 +249,43 @@ impl<F: FieldExt> Analyzer<F> {
         }
     }
 
+    pub fn extract_instance_cols(
+        &mut self, 
+        eq_table: HashMap<String, String>,
+        z3_context: &'b z3::Context,
+    ) -> HashMap<ast::Int<'b>, i64> {
+        let mut instance_cols: HashMap<ast::Int, i64> = HashMap::new();
+
+        for cell in eq_table {
+            instance_cols.insert(ast::Int::new_const(z3_context, format!("{}", cell.0)), 0);
+        }
+
+        instance_cols
+    }
     pub fn analyze_underconstrained(&mut self, analyzer_input: AnalyzerInput) -> AnalyzerOutput {
-        z3_context = analyzer_input.z3_context;
-        let (formulas, vars_list) = Self::decompose_polynomial(self, &z3_context);
+        //let z3_context = analyzer_input.z3_context;
+        let (formulas, vars_list) = Self::decompose_polynomial(self, &analyzer_input.z3_context);
 
-        let instance = analyzer_input.verification_input.instances
-        let mut analyzer_output: AnalyzerOutput = AnalyzerOutput::new();
+        let instance;// = analyzer_input.verification_input;
+ 
+        if let VerificationInput::Specific(specificInput) = &analyzer_input.verification_input{
+            instance = specificInput.instances.clone();
+        }
+        else {
+            instance = HashMap::new();
+        }
+        //let instance = specificInput.instances;
+        let mut analyzer_output: AnalyzerOutput = AnalyzerOutput{output_status:AnalyzerOutputStatus::Invalid};
 
-        //println!("{:?}{}{}{}{}",formulas,vars_list,t,verification_method)
-        let mut output_status: AnalyzerOutputStatus = control_uniqueness(
-            &z3_context,
+        let mut output_status: AnalyzerOutputStatus = Self::control_uniqueness(
             formulas,
             vars_list,
             &instance,
-            analyzer_input
+            &analyzer_input
         );
 
         analyzer_output.output_status = output_status;
-        output_result(analyzer_input, analyzer_output);
+        output_result(analyzer_input, &analyzer_output);
 
         return analyzer_output;
     }
@@ -289,70 +294,79 @@ impl<F: FieldExt> Analyzer<F> {
         &self.log
     }
 
-    fn copy_model(model) {
-        model
-    }
+    // fn copy_model(model) {
+    //     model
+    // }
 
     fn control_uniqueness(
-        ctx: &z3::Context,
         formulas: Vec<Option<z3::ast::Bool>>,
         vars_list: Vec<z3::ast::Int>,
         instance_cols: &HashMap<ast::Int, i64>,
-        analyzer_input: AnalyzerInput
+        analyzer_input: &AnalyzerInput
     ) -> AnalyzerOutputStatus {
-        let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus.NotUnderconstrainedLocal;
+        println!("{:?}",analyzer_input);
+        let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus::NotUnderconstrainedLocal;
 
         // This is the main solver
-        let solver = Solver::new(&ctx);
+        let solver = Solver::new(&analyzer_input.z3_context);
         for f in formulas.clone() {
             solver.assert(&f.unwrap().clone());
         }
     
         //*** Add non-negative constraint */
         for var in vars_list.iter() {
-            let s1 = var.ge(&ast::Int::from_i64(&ctx, 0));
+            let s1 = var.ge(&ast::Int::from_i64(&analyzer_input.z3_context, 0));
             solver.assert(&s1);
         }
     
         //*** Fix Public Input */
-        if (analyzer_input.verification_method  == VerificationMethod.Specific) {
+        if (matches!(analyzer_input.verification_method, VerificationMethod::Random)) {
             for var in instance_cols {
                 println!("Here: {:?}", var);
-                let s1 = var.0._eq(&ast::Int::from_i64(ctx, *var.1));
+                let s1 = var.0._eq(&ast::Int::from_i64(&analyzer_input.z3_context, *var.1));
                 solver.assert(&s1);
             }
         }
 
-        let max_iterations: u128 = 1;
-        if (analyzer_input.verification_method  == VerificationMethod.Random) {
-            max_iterations = analyzer_input.verification_method.iterations;
+        let mut max_iterations: u128 = 1;
+        if (matches!(analyzer_input.verification_method, VerificationMethod::Random)) {
+            println!("1000");
+
+            if let VerificationInput::Random(randomInput) = &analyzer_input.verification_input{
+                println!("2000");
+
+                max_iterations = randomInput.iterations;
+                println!("{}",max_iterations);
+
+            }
+            
         }
 
         if solver.check() == SatResult::Unsat {
-            result = AnalyzerOutputStatus.Overconstrained;
+            result = AnalyzerOutputStatus::Overconstrained;
             return result
         }
 
         for i in 1..=max_iterations {
-            println!("Solver {:?}", solver);
+            //println!("Solver {:?}", solver);
             
             // If there are no more satisfiable model, then we have explored all possible configurations.
             if solver.check() == SatResult::Unsat {
-                result = AnalyzerOutputStatus.NotUnderconstrained;
+                result = AnalyzerOutputStatus::NotUnderconstrained;
                 break;
             }
 
             let model = solver.get_model().unwrap();
             
             // Copy solver
-            let constrained_solver = Solver::new(&ctx);
+            let constrained_solver = Solver::new(&analyzer_input.z3_context);
 
             //*** Set the variables to be same as the ones generated by the model above. */
             //*** Enforcing the solver to generate the same model by having the previous model values in check_assumptions */
             let mut model_variables_assignment = vec![];
             for var in vars_list.iter() {
                 let var_eval = model.eval(var, true).unwrap().as_i64().unwrap();
-                let var_assignment = var._eq(&ast::Int::from_i64(ctx, var_eval));
+                let var_assignment = var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
                 model_variables_assignment.push(var_assignment);
             }
             constrained_solver.check_assumptions(&model_variables_assignment);
@@ -369,30 +383,39 @@ impl<F: FieldExt> Analyzer<F> {
             let mut same_assigmnets = vec![];
             let mut diff_assignments = vec![];
             for var in vars_list.iter() {
-                if (instance_cols.contains_key(var) && verification_method != 1) {  // TODO: why do we need to check verification_method != 1
+                if (instance_cols.contains_key(var) && !matches!(analyzer_input.verification_method, VerificationMethod::Specific)) {  // TODO: why do we need to check verification_method != 1
                     // 1. Fix the public input
                     let var_eval = constrained_model.eval(var, true).unwrap().as_i64().unwrap();
-                    let var_same_assignment = var._eq(&ast::Int::from_i64(ctx, var_eval));
+                    let var_same_assignment = var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
                     same_assigmnets.push(var_same_assignment);
                 } else {
                     // 2. Change the other vars
                     let var_eval = constrained_model.eval(var, true).unwrap().as_i64().unwrap();
-                    let var_diff_assignment = !var._eq(&ast::Int::from_i64(ctx, var_eval));
+                    let var_diff_assignment = !var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
                     diff_assignments.push(var_diff_assignment);
                 }
             }
 
+            let mut nvc_p1 = vec![];
+            let mut nvc_p2 = vec![];
+            for var in same_assigmnets.iter() {
+                nvc_p1.push(var);
+            }
+
+            for var in diff_assignments.iter() {
+                nvc_p2.push(var);
+            }
             // 3. add these rules to the current solver,
-            let or_diff_assignments = z3::ast::Bool::or(&ctx, &diff_assignments);
-            same_assigmnets.push(&or_diff_assignments);
-            constrained_solver.assert(&z3::ast::Bool::and(&ctx, &same_assigmnets));
+            let or_diff_assignments = z3::ast::Bool::or(&analyzer_input.z3_context, &nvc_p2);
+            nvc_p1.push(&or_diff_assignments);
+            constrained_solver.assert(&z3::ast::Bool::and(&analyzer_input.z3_context, &nvc_p1));
 
             // 4. find a model that satisfies these rules
             if constrained_solver.check() == SatResult::Sat {
-                let another_constrained_model = constrained_solver.get_model()
+                let another_constrained_model = constrained_solver.get_model();
                 println!("Equivalent model for the same public input:");
                 println!("{:?}", another_constrained_model.unwrap());
-                result = AnalyzerOutputStatus.Underconstrained;
+                result = AnalyzerOutputStatus::Underconstrained;
                 break;
             } else {
                 println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
@@ -400,13 +423,19 @@ impl<F: FieldExt> Analyzer<F> {
 
             // If no model found, add some rules to the initial solver to make sure does not generate the same model again
             let mut negated_model_variable_assignments = vec![];
+            let mut negated_model_variable_assignments_p = vec![];
             for var in vars_list.iter() {
                 let var_eval = constrained_model.eval(var, true).unwrap().as_i64().unwrap();
-                let var_assignment = !var._eq(&ast::Int::from_i64(ctx, var_eval));
+                let var_assignment = !var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
                 negated_model_variable_assignments.push(var_assignment);
             }
-            solver.assert(&z3::ast::Bool::or(&ctx, &negated_model_variable_assignments));
+
+            for var in negated_model_variable_assignments.iter() {
+                negated_model_variable_assignments_p.push(var);
+            }
+            solver.assert(&z3::ast::Bool::or(&analyzer_input.z3_context, &negated_model_variable_assignments_p));
         }
 
         result
+    }
 }

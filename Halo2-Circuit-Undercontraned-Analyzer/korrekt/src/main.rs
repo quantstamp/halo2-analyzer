@@ -1,14 +1,19 @@
+use std::collections::HashMap;
+
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::pasta::Fp as Fr;
 
 use z3::ast::Ast;
 use z3::{ast, SatResult, Solver};
 
+use crate::io::AnalyzerInput;
+
 mod abstract_expr;
 mod layouter;
 mod shape;
 
 mod analyzer;
+mod io;
 mod sample_circuits;
 
 fn main() {
@@ -23,14 +28,23 @@ fn main() {
     // prover.verify().expect("verify should work");
     // analyzer.analyze_underconstrained();
 
-    println!("----------------------Multi Circuit----------------------");
-    let multi_circuit = sample_circuits::MultiPlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
-    let mut analyzer1 = analyzer::Analyzer::create_with_circuit(&multi_circuit);
-    let z3_context = z3::Context::new(z3::Config::new());
+    println!("----------------------Circuit----------------------");
+    let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
+    let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
+    let z3_context = z3::Context::new(&z3::Config::new());
     let instance_cols: HashMap<ast::Int, i64> =
-        Self::extract_instance_cols(analyzer1.layouter.eq_table.clone(), &z3_context);
-    let analyzer_input: AnalyzerInput = retrieve_user_input(instance_cols, z3_context);
-    analyzer1.analyze_underconstrained(analyzer_input);
+    analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
+    let analyzer_input: AnalyzerInput = io::retrieve_user_input(&instance_cols, &z3_context);
+    analyzer.analyze_underconstrained(analyzer_input);
+
+    // println!("----------------------Multi Circuit----------------------");
+    // let multi_circuit = sample_circuits::MultiPlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
+    // let mut analyzer1 = analyzer::Analyzer::create_with_circuit(&multi_circuit);
+    // let z3_context = z3::Context::new(&z3::Config::new());
+    // let instance_cols: HashMap<ast::Int, i64> =
+    // analyzer1.extract_instance_cols(analyzer1.layouter.eq_table.clone(), &z3_context);
+    // let analyzer_input: AnalyzerInput = io::retrieve_user_input(&instance_cols, &z3_context);
+    // analyzer1.analyze_underconstrained(analyzer_input);
 
 
     // // This part is not relevant to the underconstrained analyzer.
