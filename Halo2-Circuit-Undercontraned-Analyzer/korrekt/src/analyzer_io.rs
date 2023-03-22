@@ -5,15 +5,13 @@ use std::{
 use z3::ast;
 
 use crate::analyzer_io_type::{
-    self,
     AnalyzerInput, 
     AnalyzerOutput,
     AnalyzerOutputStatus,
+    VerificationInput,
     VerificationMethod,
     VerificationMethod::Specific,
     VerificationMethod::Random,
-    VerificationInput::SpecificInput, 
-    VerificationInput::RandomInput,
 };
 
 pub fn retrieve_user_input<'a>(
@@ -42,7 +40,7 @@ pub fn retrieve_user_input<'a>(
                 specified_instance_cols.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
             }
             analyzer_input.verification_method = Specific;
-            analyzer_input.verification_input = SpecificInput(analyzer_io_type::SpecificInput { instances: specified_instance_cols });
+            analyzer_input.verification_input = VerificationInput{ instances: specified_instance_cols, iterations: 0 };
         }
         "2" => {
             let mut input_var = String::new();
@@ -54,7 +52,7 @@ pub fn retrieve_user_input<'a>(
 
             let iterations = input_var.trim().parse::<u128>().unwrap();
             analyzer_input.verification_method = Random;
-            analyzer_input.verification_input = RandomInput(analyzer_io_type::RandomInput{ instances: instance_cols.clone(), iterations: iterations });
+            analyzer_input.verification_input = VerificationInput{ instances: instance_cols.clone(), iterations: iterations };
         }
         &_ => {}
     };
