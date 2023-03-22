@@ -6,15 +6,17 @@ use halo2_proofs::pasta::Fp as Fr;
 use z3::ast::Ast;
 use z3::{ast, SatResult, Solver};
 
-use crate::io::AnalyzerInput;
-
 mod abstract_expr;
 mod layouter;
 mod shape;
-
+mod analyzer_io_type;
+mod analyzer_io;
 mod analyzer;
-mod io;
 mod sample_circuits;
+
+// use halo2_proofs::dev::MockProver;
+
+use crate::analyzer_io_type::AnalyzerInput;
 
 fn main() {
     // println!("----------------------Circuit----------------------");
@@ -27,14 +29,13 @@ fn main() {
     // let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]).unwrap();
     // prover.verify().expect("verify should work");
     // analyzer.analyze_underconstrained();
-
     println!("----------------------Circuit----------------------");
     let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
     let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
     let z3_context = z3::Context::new(&z3::Config::new());
     let instance_cols: HashMap<ast::Int, i64> =
     analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
-    let analyzer_input: AnalyzerInput = io::retrieve_user_input(&instance_cols, &z3_context);
+    let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io::retrieve_user_input(&instance_cols, &z3_context);
     analyzer.analyze_underconstrained(analyzer_input);
 
     // println!("----------------------Multi Circuit----------------------");
@@ -45,8 +46,6 @@ fn main() {
     // analyzer1.extract_instance_cols(analyzer1.layouter.eq_table.clone(), &z3_context);
     // let analyzer_input: AnalyzerInput = io::retrieve_user_input(&instance_cols, &z3_context);
     // analyzer1.analyze_underconstrained(analyzer_input);
-
-
     // // This part is not relevant to the underconstrained analyzer.
     // log::debug!("running mock prover...");
     // let public_input1 = Fr::from(3);

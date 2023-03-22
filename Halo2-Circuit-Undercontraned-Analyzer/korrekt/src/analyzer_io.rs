@@ -1,65 +1,23 @@
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::io;
 
-use z3::ast::Ast;
-use z3::{ast, SatResult, Solver};
+use std::{
+    collections::HashMap,
+    io,
+};
+use z3::ast;
 
-#[derive(Debug)]
-pub struct RandomInput <'a>{
-    instances: HashMap<ast::Int<'a>, i64>,
-    pub iterations: u128
-}
-
-#[derive(Debug)]
-pub struct SpecificInput <'a>{
-    pub instances: HashMap<ast::Int<'a>, i64>
-}
-#[derive(Debug)]
-
-pub enum VerificationMethod {
-    Specific,
-    Random,
-}
-#[derive(Debug)]
-
-pub enum VerificationInput<'a> {
-    Specific(SpecificInput<'a>),
-    Random(RandomInput<'a>)
-}
-#[derive(Debug)]
-
-pub struct AnalyzerInput<'a> {
-    pub verification_method: VerificationMethod, 
-    pub verification_input: VerificationInput<'a>,
-    pub z3_context: &'a z3::Context
-}
-// impl<'a> AnalyzerInput<'a> {
-//     pub fn new() -> Self {
-//         Self {
-//             verification_method: VerificationMethod::Random,
-//             verification_input: ,
-//             z3_context: todo!(),
-//         }
-//     }
-// }
-pub enum AnalyzerOutputStatus {
-    Invalid,
-    Underconstrained,
-    Overconstrained,
-    NotUnderconstrained,
-    NotUnderconstrainedLocal,
-}
-
-
-pub struct AnalyzerOutput {
-    pub output_status: AnalyzerOutputStatus
-}
-
+use crate::analyzer_io_type::{
+    AnalyzerInput, 
+    AnalyzerOutput,
+    AnalyzerOutputStatus,
+    VerificationInput,
+    VerificationMethod,
+    VerificationMethod::Specific,
+    VerificationMethod::Random,
+};
 
 pub fn retrieve_user_input<'a>(
     instance_cols: &HashMap<ast::Int<'a>, i64>,
-    z3_context: &'a z3::Context
+    z3_context: &z3::Context
 ) -> AnalyzerInput<'a> {
     println!("You can verify the circuit for a specific public input or a random number of public inputs:");
     println!("1. verify the circuit for a specific public input!");
@@ -69,13 +27,12 @@ pub fn retrieve_user_input<'a>(
     io::stdin()
         .read_line(&mut menu)
         .expect("Failed to read line");
-    
-    let verification_type = menu.trim().parse::<i64>().unwrap();
-    let mut analyzer_input: AnalyzerInput = AnalyzerInput { verification_method: VerificationMethod::Random, verification_input: VerificationInput::Random(RandomInput { instances: HashMap::new(), iterations: 1 }), z3_context: z3_context };
+        let verification_type = menu.trim().parse::<i64>().unwrap();
+    let mut analyzer_input: AnalyzerInput = analyzer_io_type::AnalyzerInput { verification_method: VerificationMethod::Random, verification_input: analyzer_io_type::VerificationInput::Random(RandomInput { instances: HashMap::new(), iterations: 1 }), z3_context: z3_context };
 
     match verification_type {
         1 => {
-            let mut specified_instance_cols: HashMap<ast::Int, i64> = HashMap::new();
+             let mut specified_instance_cols: HashMap<ast::Int, i64> = HashMap::new();
             for mut _var in instance_cols.iter() {
                 println!("Enter value for {} : ", _var.0);
                 let mut input_var = String::new();
@@ -85,8 +42,8 @@ pub fn retrieve_user_input<'a>(
                 specified_instance_cols.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
             }
             analyzer_input.verification_method = VerificationMethod::Specific;
-            analyzer_input.verification_input = VerificationInput::Specific({SpecificInput { instances: specified_instance_cols }});
-        }
+            analyzer_input.verification_input = analyzer_io_type::VerificationInput::Specific({SpecificInput { instances: specified_instance_cols }});
+ }
         2 => {
             let mut input_var = String::new();
             
@@ -97,7 +54,7 @@ pub fn retrieve_user_input<'a>(
 
             let iterations = input_var.trim().parse::<u128>().unwrap();
             analyzer_input.verification_method = VerificationMethod::Random;
-            analyzer_input.verification_input =VerificationInput::Random({ RandomInput{instances: instance_cols.clone(), iterations}});
+            analyzer_input.verification_input =analyzer_io_type::VerificationInput::Random({ RandomInput{instances: instance_cols.clone(), iterations}});
         }
         _ => {}
     };
