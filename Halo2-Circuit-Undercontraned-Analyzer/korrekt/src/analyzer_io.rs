@@ -12,12 +12,12 @@ use crate::analyzer_io_type::{
     VerificationInput,
     VerificationMethod,
     VerificationMethod::Specific,
-    VerificationMethod::Random,
+    VerificationMethod::Random, self,
 };
 
 pub fn retrieve_user_input<'a>(
     instance_cols: &HashMap<ast::Int<'a>, i64>,
-    z3_context: &z3::Context
+    z3_context: &'a z3::Context
 ) -> AnalyzerInput<'a> {
     println!("You can verify the circuit for a specific public input or a random number of public inputs:");
     println!("1. verify the circuit for a specific public input!");
@@ -28,7 +28,7 @@ pub fn retrieve_user_input<'a>(
         .read_line(&mut menu)
         .expect("Failed to read line");
         let verification_type = menu.trim().parse::<i64>().unwrap();
-    let mut analyzer_input: AnalyzerInput = analyzer_io_type::AnalyzerInput { verification_method: VerificationMethod::Random, verification_input: analyzer_io_type::VerificationInput::Random(RandomInput { instances: HashMap::new(), iterations: 1 }), z3_context: z3_context };
+    let mut analyzer_input: AnalyzerInput = analyzer_io_type::AnalyzerInput { verification_method: VerificationMethod::Random, verification_input: analyzer_io_type::VerificationInput { instances: HashMap::new(), iterations: 1 }, z3_context: z3_context };
 
     match verification_type {
         1 => {
@@ -42,7 +42,7 @@ pub fn retrieve_user_input<'a>(
                 specified_instance_cols.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
             }
             analyzer_input.verification_method = VerificationMethod::Specific;
-            analyzer_input.verification_input = analyzer_io_type::VerificationInput::Specific({SpecificInput { instances: specified_instance_cols }});
+            analyzer_input.verification_input.instances = specified_instance_cols;//.verification_input = analyzer_io_type::AnalyzerInput{ instances: specified_instance_cols };
  }
         2 => {
             let mut input_var = String::new();
@@ -54,12 +54,13 @@ pub fn retrieve_user_input<'a>(
 
             let iterations = input_var.trim().parse::<u128>().unwrap();
             analyzer_input.verification_method = VerificationMethod::Random;
-            analyzer_input.verification_input =analyzer_io_type::VerificationInput::Random({ RandomInput{instances: instance_cols.clone(), iterations}});
+            analyzer_input.verification_input.instances = instance_cols.clone();
+            analyzer_input.verification_input.iterations = iterations;
         }
         _ => {}
     };
 
-    analyzer_input.z3_context = z3_context;
+    analyzer_input.z3_context = &z3_context;
     analyzer_input
 }
 

@@ -28,7 +28,7 @@ pub struct VerificationInput<'a> {
 pub struct AnalyzerInput<'a> {
     pub verification_method: VerificationMethod, 
     pub verification_input: VerificationInput<'a>,
-    pub z3_context: &z3::Context
+    pub z3_context: &'a z3::Context
 }
 
 #[derive(Debug, PartialEq)]
