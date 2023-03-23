@@ -48,7 +48,6 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
                     z3_context,
                     i64::try_from(a.get_lower_128()).ok().unwrap(), //*** Ask Them */
                 ));
-                // println!("constant:{}", a.get_lower_128());
                 (result, vec![])
             }
             Expression::Selector(..) => {
@@ -347,8 +346,9 @@ impl<'b,F: FieldExt> Analyzer<F> {
             let mut same_assignments = vec![];
             let mut diff_assignments = vec![];
             for var in vars_list.iter() {
-                // if (instance_cols.contains_key(var) && !matches!(analyzer_input.verification_method, VerificationMethod::Specific)) { 
-                if (instance_cols.contains_key(var)) {  // TODO: why do we need to check verification_method != 1
+                // The second condition is needed because the following constraints would've been added already to the solver in the beginning.
+                // It is not strictly necessary, but there is no point in adding redundant constraints to the solver.
+                if (instance_cols.contains_key(var) && !matches!(analyzer_input.verification_method, VerificationMethod::Specific)) { 
                     // 1. Fix the public input
                     let var_eval = model.eval(var, true).unwrap().as_i64().unwrap();
                     let var_same_assignment = var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));

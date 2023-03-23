@@ -72,7 +72,7 @@ pub fn retrieve_user_input<'a>(
 }
 
 pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOutput) {
-    if (matches!(analyzer_output.output_status,AnalyzerOutputStatus::Underconstrained)) {
+    if (matches!(analyzer_output.output_status, AnalyzerOutputStatus::Underconstrained)) {
         println!("The circuit is under-constrained.");
     } else if (matches!(analyzer_output.output_status, AnalyzerOutputStatus::Overconstrained)) {
         println!("The circuit is over-constrained");
