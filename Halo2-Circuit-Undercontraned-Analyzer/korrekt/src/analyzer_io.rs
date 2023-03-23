@@ -11,8 +11,7 @@ use crate::analyzer_io_type::{
     AnalyzerOutputStatus,
     VerificationInput,
     VerificationMethod,
-    VerificationMethod::Specific,
-    VerificationMethod::Random, self,
+    self,
 };
 
 pub fn retrieve_user_input<'a>(
@@ -28,7 +27,15 @@ pub fn retrieve_user_input<'a>(
         .read_line(&mut menu)
         .expect("Failed to read line");
         let verification_type = menu.trim().parse::<i64>().unwrap();
-    let mut analyzer_input: AnalyzerInput = analyzer_io_type::AnalyzerInput { verification_method: VerificationMethod::Random, verification_input: analyzer_io_type::VerificationInput { instances: HashMap::new(), iterations: 1 }, z3_context: z3_context };
+    
+    let mut analyzer_input: AnalyzerInput = AnalyzerInput { 
+        verification_method: VerificationMethod::Random,
+        verification_input: VerificationInput { 
+            instances: HashMap::new(), 
+            iterations: 1 
+        }, 
+        z3_context: z3_context 
+    };
 
     match verification_type {
         1 => {
@@ -42,7 +49,7 @@ pub fn retrieve_user_input<'a>(
                 specified_instance_cols.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
             }
             analyzer_input.verification_method = VerificationMethod::Specific;
-            analyzer_input.verification_input.instances = specified_instance_cols;//.verification_input = analyzer_io_type::AnalyzerInput{ instances: specified_instance_cols };
+            analyzer_input.verification_input.instances = specified_instance_cols;
  }
         2 => {
             let mut input_var = String::new();

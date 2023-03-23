@@ -61,18 +61,15 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
         meta.enable_equality(x);
         meta.enable_equality(i);
 
-        // def gates
+        // define gates
         meta.create_gate("b0_binary_check", |meta| {
-            let a = meta.query_advice(b1, Rotation::cur());
+            let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
-            // For testing scaling:
-            // vec![Expression::Scaled(Box::new(dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())), F::from(5))]
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b0 * (1-b0)
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(b1, Rotation::cur());
-            //let a = meta.query_advice(b1, Rotation::cur()); // shouldn't this be b1?
             let dummy = meta.query_selector(s);
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b1 * (1-b1)
@@ -126,8 +123,6 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
                 },
             )
             .unwrap();
-        // println!("out");
-        // println!("{:?}",out);
         // expose the public input
         // Is this line just making sure the output "x" (which is private) is same as the instance (public input)?
         // For example, given public input i=3, we want b0 = 1, b1 = 1, x = 3, and make sure x
@@ -186,7 +181,7 @@ impl<F: FieldExt> Circuit<F> for MultiPlayCircuit<F> {
         meta.enable_equality(x);
         meta.enable_equality(i);
 
-        // def gates
+        // define gates
         meta.create_gate("b0_binary_check", |meta| {
             let a = meta.query_advice(x, Rotation::cur());
             let dummy = meta.query_selector(s);
@@ -245,8 +240,6 @@ impl<F: FieldExt> Circuit<F> for MultiPlayCircuit<F> {
                 },
             )
             .unwrap();
-        // println!("out");
-        // println!("{:?}",out);
         // expose the public input
         layouter.constrain_instance(out.cell(), config.instance, 0)?; //*** what is this? */
         Ok(())
