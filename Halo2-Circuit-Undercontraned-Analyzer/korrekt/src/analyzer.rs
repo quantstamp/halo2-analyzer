@@ -413,11 +413,4 @@ impl<'b,F: FieldExt> Analyzer<F> {
 
         result
     }
-    // pub fn get_layouter_table_clone(&mut self) ->  HashMap<String,String> {
-    //     return self.layouter.eq_table.clone();
-    // }
-
-    // pub fn get_instance_cols(&mut self, z3_context: &z3::Context) -> HashMap<ast::Int, i64> {
-    //     return Self::extract_instance_cols(self.get_layouter_table_clone(), z3_context);
-    // }
 }

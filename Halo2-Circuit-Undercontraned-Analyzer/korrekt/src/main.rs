@@ -24,9 +24,9 @@ fn main() {
     println!("----------------------Analyzing Circuit----------------------");
     // Note: the (Fr::from(1), Fr::from(1)) in the parameters are meaning less with respect to analyze underconstrained.
     // This is the circuit with only one row 
-    let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
+    // let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
     // This is the circuit with multiple rows. Uncomment the following to analyze the multi-row circuit.
-    // let circuit = sample_circuits::MultiPlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
+    let circuit = sample_circuits::MultiPlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
     let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
     let z3_context = z3::Context::new(&z3::Config::new());
     let instance_cols: HashMap<ast::Int, i64> =

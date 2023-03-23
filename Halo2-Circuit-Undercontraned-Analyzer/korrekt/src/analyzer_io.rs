@@ -83,8 +83,8 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
             println!("The circuit is under-constrained for this specific input.");
         } else {
             println!(
-                "The circuit is not under-constrained for {} random input(s).",1
-                //analyzer_input.verification_input.Random
+                "The circuit is not under-constrained for {} random input(s).",
+                analyzer_input.verification_input.iterations
             );
         }
     } else {
