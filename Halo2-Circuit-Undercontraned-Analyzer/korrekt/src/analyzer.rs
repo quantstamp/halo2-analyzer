@@ -18,12 +18,12 @@ use crate::analyzer_io::{self};
 
 #[derive(Debug)]
 pub struct Analyzer<F: FieldExt> {
-    cs: ConstraintSystem<F>,
+    pub cs: ConstraintSystem<F>,
     pub layouter: layouter::AnalyticLayouter<F>,
-    log: Vec<String>,
+    pub log: Vec<String>,
 }
 
-trait FMCheck<'a, 'b, F: FieldExt> {
+pub trait FMCheck<'a, 'b, F: FieldExt> {
     fn decompose_expression(
         z3_context: &'a z3::Context,
         poly: &Expression<F>,
@@ -135,6 +135,10 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
         let mut formula_conj: Vec<Option<z3::ast::Bool>> = vec![];
         let mut vars_list: HashSet<ast::Int> = Default::default();
         let zero = ast::Int::from_i64(&z3_context, 0);
+        //println!("cs:{:?}",self.cs);
+        println!("regions:{:?}",self.layouter.regions);
+
+        
         for gate in self.cs.gates.iter() {
             for poly in &gate.polys {
                 let (formula, v) = Self::decompose_expression(&z3_context, poly);
@@ -153,11 +157,9 @@ impl<'b,F: FieldExt> Analyzer<F> {
         // create constraint system to collect custom gates
         let mut cs: ConstraintSystem<F> = Default::default();
         let config = C::configure(&mut cs);
-
         // synthesize the circuit with analytic layout
         let mut layouter = AnalyticLayouter::new();
         circuit.synthesize(config, &mut layouter).unwrap();
-
         Analyzer {
             cs,
             layouter,
@@ -263,6 +265,8 @@ impl<'b,F: FieldExt> Analyzer<F> {
         //let z3_context = analyzer_input.z3_context;
         let (formulas, vars_list) = Self::decompose_polynomial(self, &analyzer_input.z3_context);
 
+        println!("formulas:{:?}",formulas);
+        
         let instance = analyzer_input.verification_input.instances.clone();
  
         //let instance = specificInput.instances;
@@ -280,17 +284,16 @@ impl<'b,F: FieldExt> Analyzer<F> {
         return analyzer_output;
     }
 
-    fn log(&self) -> &[String] {
+    pub fn log(&self) -> &[String] {
         &self.log
     }
 
-    fn control_uniqueness(
+    pub fn control_uniqueness(
         formulas: Vec<Option<z3::ast::Bool>>,
         vars_list: Vec<z3::ast::Int>,
         instance_cols: &HashMap<ast::Int, i64>,
         analyzer_input: &AnalyzerInput
     ) -> AnalyzerOutputStatus {
-        println!("{:?}",analyzer_input);
         let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus::NotUnderconstrainedLocal;
 
         // This is the main solver

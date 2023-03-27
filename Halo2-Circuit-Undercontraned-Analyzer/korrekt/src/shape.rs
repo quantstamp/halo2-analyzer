@@ -88,21 +88,21 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         _advice: Column<Advice>,
         _offset: usize,
     ) -> Result<(Cell, Value<F>), Error> {
-        todo!()
+        //todo!()
 
-        /*
-        self.columns.insert((advice.into(), Rotation(offset as i32)));
-        self.row_count = cmp::max(self.row_count, offset + 1);
+        //self.columns.insert(Column::<Any>::from(advice).into());
+        self.columns.insert((Column::<Any>::from(_advice).into(), Rotation(_offset as i32)));
+        self.row_count = cmp::max(self.row_count, _offset + 1);
 
         Ok((
             Cell {
                 region_index: self.region_index,
-                row_offset: offset,
-                column: advice.into(),
+                row_offset: _offset,
+                column: _advice.into(),
             },
             Value::unknown(),
         ))
-        */
+        
     }
 
     fn assign_fixed<'v>(

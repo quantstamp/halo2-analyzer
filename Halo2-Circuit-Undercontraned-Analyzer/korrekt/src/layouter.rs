@@ -91,10 +91,10 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        todo!("handle namespaces");
+        //todo!("handle namespaces");
     }
 
     fn pop_namespace(&mut self, _gadget_name: Option<String>) {
-        todo!("handle namespaces");
+        //todo!("handle namespaces");
     }
 }
