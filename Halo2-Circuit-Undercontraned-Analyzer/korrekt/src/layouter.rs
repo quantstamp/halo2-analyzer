@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use halo2_proofs::circuit:: {Layouter, Cell, Table, Region};
-use halo2_proofs::plonk::{Column, Instance};
 use halo2_proofs::arithmetic::Field;
+use halo2_proofs::circuit::{Cell, Layouter, Region, Table};
 use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::{Column, Instance};
 
 use halo2_proofs::circuit::layouter::RegionLayouter;
 
@@ -14,15 +14,15 @@ use crate::shape::AnalyticalShape;
 pub struct AnalyticLayouter<F: Field> {
     pub regions: Vec<AnalyticalShape>,
     _ph: PhantomData<F>,
-    pub eq_table: HashMap<String,String>
+    pub eq_table: HashMap<String, String>,
 }
 
-impl <F: Field> AnalyticLayouter<F> {
+impl<F: Field> AnalyticLayouter<F> {
     pub fn new() -> Self {
         Self {
             regions: vec![],
             _ph: PhantomData,
-            eq_table: HashMap::new()
+            eq_table: HashMap::new(),
         }
     }
 }
@@ -65,12 +65,11 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         _column: Column<Instance>,
         _row: usize,
     ) -> Result<(), Error> {
+        let left = format!("A-{}", _cell.column.index() + _cell.row_offset);
 
-        let left = format!("A-{}-{:?}", _cell.column.index(),_cell.row_offset);
+        let right = format!("-{:?}", _column.index() + _row); // TODO (jgorzny): ??
 
-        let right = format!("A-{}-{:?}", _column.index(),_row);
-
-        self.eq_table.insert(left,right);
+        self.eq_table.insert(left, right);
         //println!("{:?}",self.eq_table);
         Ok(())
         //todo!("handle instance columns")

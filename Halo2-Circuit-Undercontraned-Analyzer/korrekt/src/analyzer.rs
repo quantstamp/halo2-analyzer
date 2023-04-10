@@ -12,9 +12,16 @@ use z3::{ast, SatResult, Solver};
 
 use layouter::AnalyticLayouter;
 
-use crate::{abstract_expr::{self, AbsResult}, layouter, analyzer_io_type::VerificationInput, analyzer_io::output_result};
-use crate::analyzer_io_type::{AnalyzerInput, AnalyzerOutput, VerificationMethod, AnalyzerOutputStatus};
 use crate::analyzer_io::{self};
+use crate::analyzer_io_type::{
+    AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, VerificationMethod,
+};
+use crate::{
+    abstract_expr::{self, AbsResult},
+    analyzer_io::output_result,
+    analyzer_io_type::VerificationInput,
+    layouter,
+};
 
 #[derive(Debug)]
 pub struct Analyzer<F: FieldExt> {
@@ -28,8 +35,6 @@ pub trait FMCheck<'a, 'b, F: FieldExt> {
         z3_context: &'a z3::Context,
         poly: &Expression<F>,
     ) -> (Option<ast::Int<'a>>, Vec<ast::Int<'a>>);
-
-
 
     fn decompose_polynomial(
         &'b mut self,
@@ -62,7 +67,7 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                let n = format!("F-{}-{}", *column_index, rotation.0);
+                let n = format!("F-{}", (*column_index as i32) + rotation.0);
                 let result = Some(ast::Int::new_const(z3_context, n.clone()));
                 let v = vec![ast::Int::new_const(z3_context, n)];
                 (result, v)
@@ -72,7 +77,7 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                let n = format!("A-{}-{}", *column_index, rotation.0); // ("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
+                let n = format!("A-{}", (*column_index as i32) + rotation.0); // ("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
                 let result = Some(ast::Int::new_const(z3_context, n.clone()));
                 let v = vec![ast::Int::new_const(z3_context, n)];
                 (result, v)
@@ -82,7 +87,7 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                let n = format!("I-{}-{}", *column_index, rotation.0);
+                let n = format!("I-{}", (*column_index as i32) + rotation.0);
                 let result = Some(ast::Int::new_const(z3_context, n.clone()));
                 let v = vec![ast::Int::new_const(z3_context, n)];
                 (result, v)
@@ -136,9 +141,8 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
         let mut vars_list: HashSet<ast::Int> = Default::default();
         let zero = ast::Int::from_i64(&z3_context, 0);
         //println!("cs:{:?}",self.cs);
-        println!("regions:{:?}",self.layouter.regions);
+        println!("regions:{:?}", self.layouter.regions);
 
-        
         for gate in self.cs.gates.iter() {
             for poly in &gate.polys {
                 let (formula, v) = Self::decompose_expression(&z3_context, poly);
@@ -152,7 +156,7 @@ impl<'a, 'b, F: FieldExt> FMCheck<'a, 'b, F> for Analyzer<F> {
     }
 }
 
-impl<'b,F: FieldExt> Analyzer<F> {
+impl<'b, F: FieldExt> Analyzer<F> {
     pub fn create_with_circuit<C: Circuit<F>>(circuit: &C) -> Self {
         // create constraint system to collect custom gates
         let mut cs: ConstraintSystem<F> = Default::default();
@@ -248,7 +252,7 @@ impl<'b,F: FieldExt> Analyzer<F> {
     }
 
     pub fn extract_instance_cols(
-        &mut self, 
+        &mut self,
         eq_table: HashMap<String, String>,
         z3_context: &'b z3::Context,
     ) -> HashMap<ast::Int<'b>, i64> {
@@ -265,19 +269,17 @@ impl<'b,F: FieldExt> Analyzer<F> {
         //let z3_context = analyzer_input.z3_context;
         let (formulas, vars_list) = Self::decompose_polynomial(self, &analyzer_input.z3_context);
 
-        println!("formulas:{:?}",formulas);
-        
-        let instance = analyzer_input.verification_input.instances.clone();
- 
-        //let instance = specificInput.instances;
-        let mut analyzer_output: AnalyzerOutput = AnalyzerOutput{output_status:AnalyzerOutputStatus::Invalid};
+        println!("formulas:{:?}", formulas);
 
-        let output_status: AnalyzerOutputStatus = Self::control_uniqueness(
-            formulas,
-            vars_list,
-            &instance,
-            &analyzer_input
-        );
+        let instance = analyzer_input.verification_input.instances.clone();
+
+        //let instance = specificInput.instances;
+        let mut analyzer_output: AnalyzerOutput = AnalyzerOutput {
+            output_status: AnalyzerOutputStatus::Invalid,
+        };
+
+        let output_status: AnalyzerOutputStatus =
+            Self::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
 
         analyzer_output.output_status = output_status;
         output_result(analyzer_input, &analyzer_output);
@@ -292,7 +294,7 @@ impl<'b,F: FieldExt> Analyzer<F> {
         formulas: Vec<Option<z3::ast::Bool>>,
         vars_list: Vec<z3::ast::Int>,
         instance_cols: &HashMap<ast::Int, i64>,
-        analyzer_input: &AnalyzerInput
+        analyzer_input: &AnalyzerInput,
     ) -> AnalyzerOutputStatus {
         let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus::NotUnderconstrainedLocal;
 
@@ -301,32 +303,40 @@ impl<'b,F: FieldExt> Analyzer<F> {
         for f in formulas.clone() {
             solver.assert(&f.unwrap().clone());
         }
-    
+
         //*** Add non-negative constraint */
         for var in vars_list.iter() {
             let s1 = var.ge(&ast::Int::from_i64(&analyzer_input.z3_context, 0));
             solver.assert(&s1);
         }
-    
+
         //*** Fix Public Input */
-        if (matches!(analyzer_input.verification_method, VerificationMethod::Specific)) {
+        if (matches!(
+            analyzer_input.verification_method,
+            VerificationMethod::Specific
+        )) {
             for var in instance_cols {
-                let s1 = var.0._eq(&ast::Int::from_i64(&analyzer_input.z3_context, *var.1));
+                let s1 = var
+                    .0
+                    ._eq(&ast::Int::from_i64(&analyzer_input.z3_context, *var.1));
                 solver.assert(&s1);
             }
         }
 
         let mut max_iterations: u128 = 1;
-        if (matches!(analyzer_input.verification_method, VerificationMethod::Random)) {
+        if (matches!(
+            analyzer_input.verification_method,
+            VerificationMethod::Random
+        )) {
             max_iterations = analyzer_input.verification_input.iterations;
         }
 
         if solver.check() == SatResult::Unsat {
             result = AnalyzerOutputStatus::Overconstrained;
-            return result
+            return result;
         }
 
-        for i in 1..=max_iterations {            
+        for i in 1..=max_iterations {
             // If there are no more satisfiable model, then we have explored all possible configurations.
             if matches!(solver.check(), SatResult::Unsat) {
                 result = AnalyzerOutputStatus::NotUnderconstrained;
@@ -345,21 +355,28 @@ impl<'b,F: FieldExt> Analyzer<F> {
             //      2. Change the other vars
             //      3. add these rules to the current solver and,
             //      4. find a model that satisfies these rules
-            
+
             let mut same_assignments = vec![];
             let mut diff_assignments = vec![];
             for var in vars_list.iter() {
                 // The second condition is needed because the following constraints would've been added already to the solver in the beginning.
                 // It is not strictly necessary, but there is no point in adding redundant constraints to the solver.
-                if (instance_cols.contains_key(var) && !matches!(analyzer_input.verification_method, VerificationMethod::Specific)) { 
+                if (instance_cols.contains_key(var)
+                    && !matches!(
+                        analyzer_input.verification_method,
+                        VerificationMethod::Specific
+                    ))
+                {
                     // 1. Fix the public input
                     let var_eval = model.eval(var, true).unwrap().as_i64().unwrap();
-                    let var_same_assignment = var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
+                    let var_same_assignment =
+                        var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
                     same_assignments.push(var_same_assignment);
                 } else {
                     // 2. Change the other vars
                     let var_eval = model.eval(var, true).unwrap().as_i64().unwrap();
-                    let var_diff_assignment = !var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
+                    let var_diff_assignment =
+                        !var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
                     diff_assignments.push(var_diff_assignment);
                 }
             }
@@ -374,9 +391,13 @@ impl<'b,F: FieldExt> Analyzer<F> {
             }
 
             // 3. add these rules to the current solver,
-            let or_diff_assignments = z3::ast::Bool::or(&analyzer_input.z3_context, &diff_assignments_p);
+            let or_diff_assignments =
+                z3::ast::Bool::or(&analyzer_input.z3_context, &diff_assignments_p);
             same_assignments_p.push(&or_diff_assignments);
-            solver.assert(&z3::ast::Bool::and(&analyzer_input.z3_context, &same_assignments_p));
+            solver.assert(&z3::ast::Bool::and(
+                &analyzer_input.z3_context,
+                &same_assignments_p,
+            ));
 
             // 4. find a model that satisfies these rules
             if matches!(solver.check(), SatResult::Sat) {
@@ -396,13 +417,17 @@ impl<'b,F: FieldExt> Analyzer<F> {
             let mut negated_model_variable_assignments_p = vec![];
             for var in vars_list.iter() {
                 let var_eval = model.eval(var, true).unwrap().as_i64().unwrap();
-                let var_assignment = !var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
+                let var_assignment =
+                    !var._eq(&ast::Int::from_i64(&analyzer_input.z3_context, var_eval));
                 negated_model_variable_assignments.push(var_assignment);
             }
             for var in negated_model_variable_assignments.iter() {
                 negated_model_variable_assignments_p.push(var);
             }
-            solver.assert(&z3::ast::Bool::or(&analyzer_input.z3_context, &negated_model_variable_assignments_p));
+            solver.assert(&z3::ast::Bool::or(
+                &analyzer_input.z3_context,
+                &negated_model_variable_assignments_p,
+            ));
         }
 
         result
