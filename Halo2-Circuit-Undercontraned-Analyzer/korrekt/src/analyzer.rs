@@ -204,7 +204,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         match &poly {
             Expression::Constant(a) => {
                 //smt::write_const(p, format!("V-{}", counter),a.get_lower_32());
-                let term = format!("as ff{} F", a.get_lower_32());
+                let term = format!("as ff{} F", a.get_lower_128());
                 //println!("Constant:{:?}", a.get_lower_32());
                 (term, NodeType::Constant)
             }
@@ -441,10 +441,10 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         let output = Command::new("cvc5").arg(smt_file_copy_path.clone()).output();
         let term = output.unwrap();
         let output_string = String::from_utf8_lossy(&term.stdout);
-        println!("Output {:?}", output_string);
+        //println!("Output {:?}", output_string);
         let model = smt_parser::extract_model_response(output_string.to_string());
-        println!("Model {:?}", model);
-        fs::remove_file(smt_file_copy_path.clone());
+        //println!("Model {:?}", model);
+        //fs::remove_file(smt_file_copy_path.clone());
         return model
     }
 }

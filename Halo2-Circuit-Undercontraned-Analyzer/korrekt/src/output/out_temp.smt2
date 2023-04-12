@@ -26,3 +26,7 @@
 (assert (and (and ( = A-2-0 (as ff2 F))(or (not ( = A-1-0 (as ff1 F)))(not ( = A-0-0 (as ff0 F)))))))
 (pop)
 (assert (or (not ( = A-2-0 (as ff2 F)))(not ( = A-1-0 (as ff1 F)))(not ( = A-0-0 (as ff0 F)))))
+(check-sat)
+(get-value (A-1-0))
+(get-value (A-2-0))
+(get-value (A-0-0))
