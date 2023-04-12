@@ -165,7 +165,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
     pub fn analyze_underconstrained(&mut self, analyzer_input: AnalyzerInput) -> AnalyzerOutput {
         //let z3_context = analyzer_input.z3_context;
-        let smt_file_path = "output/out.smt2";
+        let smt_file_path = "src/output/out.smt2";
         let base_field_prime = "11";
         let mut smt_file = std::fs::File::create(smt_file_path).unwrap();
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_string());
