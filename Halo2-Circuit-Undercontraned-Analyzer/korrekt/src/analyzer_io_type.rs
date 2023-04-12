@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use z3::ast;
 
 #[derive(Debug, PartialEq)]
 pub enum VerificationMethod {
@@ -8,17 +7,15 @@ pub enum VerificationMethod {
 }
 
 #[derive(Debug)]
-pub struct VerificationInput<'a> {
-    pub instances: HashMap<ast::Int<'a>, i64>,
+pub struct VerificationInput {
     pub instances_string: HashMap<String, i64>,
     pub iterations: u128
 }
 
 #[derive(Debug)]
-pub struct AnalyzerInput<'a> {
+pub struct AnalyzerInput {
     pub verification_method: VerificationMethod, 
-    pub verification_input: VerificationInput<'a>,
-    pub z3_context: &'a z3::Context
+    pub verification_input: VerificationInput,
 }
 
 #[derive(Debug, PartialEq)]

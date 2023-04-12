@@ -3,7 +3,6 @@ use std::{
     collections::HashMap,
     io,
 };
-use z3::ast;
 
 use crate::analyzer_io_type::{
     AnalyzerInput, 
@@ -11,14 +10,11 @@ use crate::analyzer_io_type::{
     AnalyzerOutputStatus,
     VerificationInput,
     VerificationMethod,
-    self,
 };
 
-pub fn retrieve_user_input<'a>(
-    instance_cols: &HashMap<ast::Int<'a>, i64>,
+pub fn retrieve_user_input(
     instance_cols_string: &HashMap<String, i64>,
-    z3_context: &'a z3::Context
-) -> AnalyzerInput<'a> {
+) -> AnalyzerInput {
     println!("You can verify the circuit for a specific public input or a random number of public inputs:");
     println!("1. verify the circuit for a specific public input!");
     println!("2. Verify for a random number of public inputs!");
@@ -32,26 +28,15 @@ pub fn retrieve_user_input<'a>(
     let mut analyzer_input: AnalyzerInput = AnalyzerInput { 
         verification_method: VerificationMethod::Random,
         verification_input: VerificationInput { 
-            instances: HashMap::new(), 
             iterations: 1,
             instances_string: HashMap::new(), 
         }, 
-        z3_context: z3_context 
     };
 
     match verification_type {
         1 => {
-             let mut specified_instance_cols: HashMap<ast::Int, i64> = HashMap::new();
-             let mut specified_instance_cols_string: HashMap<String, i64> = HashMap::new();
+            let mut specified_instance_cols_string: HashMap<String, i64> = HashMap::new();
 
-            // for mut _var in instance_cols.iter() {
-            //     println!("Enter value for {} : ", _var.0);
-            //     let mut input_var = String::new();
-            //     io::stdin()
-            //         .read_line(&mut input_var)
-            //         .expect("Failed to read line");
-            //     specified_instance_cols.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
-            // }
             for mut _var in instance_cols_string.iter() {
                 println!("Enter value for {} : ", _var.0);
                 let mut input_var = String::new();
@@ -60,10 +45,10 @@ pub fn retrieve_user_input<'a>(
                     .expect("Failed to read line");
                 specified_instance_cols_string.insert(_var.0.clone(), input_var.trim().parse::<i64>().unwrap());
             }
+
             analyzer_input.verification_method = VerificationMethod::Specific;
-            analyzer_input.verification_input.instances = specified_instance_cols;
             analyzer_input.verification_input.instances_string = specified_instance_cols_string;
- }
+        }
         2 => {
             let mut input_var = String::new();
             
@@ -74,14 +59,12 @@ pub fn retrieve_user_input<'a>(
 
             let iterations = input_var.trim().parse::<u128>().unwrap();
             analyzer_input.verification_method = VerificationMethod::Random;
-            analyzer_input.verification_input.instances = instance_cols.clone();
             analyzer_input.verification_input.instances_string = instance_cols_string.clone();
             analyzer_input.verification_input.iterations = iterations;
         }
         _ => {}
     };
 
-    analyzer_input.z3_context = &z3_context;
     analyzer_input
 }
 
