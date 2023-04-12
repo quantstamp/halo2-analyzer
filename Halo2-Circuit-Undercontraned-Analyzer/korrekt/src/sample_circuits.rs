@@ -63,7 +63,7 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
 
         // define gates
         meta.create_gate("b0_binary_check", |meta| {
-            let a = meta.query_advice(b0, Rotation::cur());
+            let a = meta.query_advice(b1, Rotation::cur());
             let dummy = meta.query_selector(s);
             vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b0 * (1-b0)
@@ -689,9 +689,9 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
         let cfg = FibonacciChip::configure(meta);
-        for gate in &meta.gates{
-            println!("{:?}",gate.polys);
-        }
+        // for gate in &meta.gates{
+        //     //println!("{:?}",gate.polys);
+        // }
         cfg
         
     }

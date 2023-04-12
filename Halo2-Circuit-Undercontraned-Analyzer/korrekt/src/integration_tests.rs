@@ -3,12 +3,13 @@ mod tests {
     use std::collections::HashMap;
     use std::marker::PhantomData;
     use crate::analyzer::Analyzer;
-    use crate::analyzer::FMCheck;
+    //use crate::analyzer::FMCheck;
     use crate::analyzer_io_type;
     use crate::analyzer_io_type::AnalyzerOutputStatus;
     use crate::analyzer_io_type::VerificationInput;
     use crate::analyzer_io_type::VerificationMethod;
     use crate::sample_circuits;
+    use crate::smt;
     use halo2_proofs::pasta::Fp;
     use halo2_proofs::{dev::MockProver, pasta::Fp as Fr};
     use z3::ast;
@@ -50,7 +51,7 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
         for var in instance_cols {
@@ -65,13 +66,14 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances: instance_cols,
+                instances_string:t,
                 iterations: 5,
             },
             z3_context: &z3_context,
@@ -86,18 +88,21 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances: instance_cols,
+                instances_string:t,
                 iterations: 5,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         assert!(formulas.len().eq(&3));
         assert!(vars_list.len().eq(&3));
     }
@@ -106,21 +111,25 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances: instance_cols,
+                instances_string:t,
                 iterations: 5,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
     }
 
@@ -129,21 +138,25 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances: instance_cols,
+                instances_string:t,
                 iterations: 1,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
     #[test]
@@ -151,21 +164,25 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances: instance_cols,
+                instances_string:t,
                 iterations: 4,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
     #[test]
@@ -173,10 +190,10 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
-        let mut specified_instance_cols: HashMap<ast::Int, i64> = HashMap::new();
+        let mut specified_instance_cols = HashMap::new();
         for mut _var in instance_cols.iter() {
             specified_instance_cols.insert(_var.0.clone(), 3);
         }
@@ -185,14 +202,18 @@ mod tests {
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances: specified_instance_cols,
+                instances_string:t,
                 iterations: 1,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 
@@ -201,10 +222,10 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
-        let mut specified_instance_cols: HashMap<ast::Int, i64> = HashMap::new();
+        let mut specified_instance_cols = HashMap::new();
         for mut _var in instance_cols.iter() {
             specified_instance_cols.insert(_var.0.clone(), 1);
         }
@@ -213,14 +234,18 @@ mod tests {
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances: specified_instance_cols,
+                instances_string:t,
                 iterations: 1,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 
@@ -230,21 +255,25 @@ mod tests {
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances: instance_cols,
+                instances_string:t,
                 iterations: 5,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
@@ -254,21 +283,25 @@ mod tests {
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances: instance_cols,
+                instances_string:t,
                 iterations: 1,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 
@@ -278,11 +311,11 @@ mod tests {
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
 
         assert!(instance_cols.len().eq(&1));
-        let mut specified_instance_cols: HashMap<ast::Int, i64> = HashMap::new();
+        let mut specified_instance_cols = HashMap::new();
         for mut _var in instance_cols.iter() {
             specified_instance_cols.insert(_var.0.clone(), 3);
         }
@@ -291,15 +324,18 @@ mod tests {
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances: specified_instance_cols,
+                instances_string:t,
                 iterations: 1,
             },
             z3_context: &z3_context,
         };
-
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
     #[test]
@@ -308,11 +344,11 @@ mod tests {
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
 
         assert!(instance_cols.len().eq(&1));
-        let mut specified_instance_cols: HashMap<ast::Int, i64> = HashMap::new();
+        let mut specified_instance_cols = HashMap::new();
         for mut _var in instance_cols.iter() {
             specified_instance_cols.insert(_var.0.clone(), 1);
         }
@@ -321,15 +357,18 @@ mod tests {
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances: specified_instance_cols,
+                instances_string:t,
                 iterations: 1,
             },
             z3_context: &z3_context,
         };
-
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 
@@ -340,20 +379,24 @@ mod tests {
         sample_circuits::PlayCircuit_M::default();
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances: instance_cols,
+                instances_string:t,
                 iterations: 5,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
@@ -406,20 +449,24 @@ mod tests {
 
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
         let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
-        let instance_cols: HashMap<ast::Int, i64> =
+        let (instance_cols,t) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone(), &z3_context);
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances: instance_cols,
+                instances_string:t,
                 iterations: 5,
             },
             z3_context: &z3_context,
         };
-        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context);
+        let mut f = std::fs::File::create("out.smt2").unwrap();
+        let mut p = smt::write_start(&mut f);
+        let (formulas, vars_list) = analyzer.decompose_polynomial(&analyzer_input.z3_context,&mut p);
         let instance = analyzer_input.verification_input.instances.clone();
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
         let output_status: AnalyzerOutputStatus =
-            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance, &analyzer_input);
+            Analyzer::<Fp>::control_uniqueness(formulas, vars_list, &instance,&instance_string, &analyzer_input,&mut p);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
     }
 }

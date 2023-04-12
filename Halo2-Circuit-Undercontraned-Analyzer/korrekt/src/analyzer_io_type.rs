@@ -10,6 +10,7 @@ pub enum VerificationMethod {
 #[derive(Debug)]
 pub struct VerificationInput<'a> {
     pub instances: HashMap<ast::Int<'a>, i64>,
+    pub instances_string: HashMap<String, i64>,
     pub iterations: u128
 }
 
