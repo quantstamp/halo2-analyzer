@@ -12,7 +12,7 @@ mod tests {
     use crate::smt;
     use halo2_proofs::pasta::Fp;
     use halo2_proofs::{dev::MockProver, pasta::Fp as Fr};
-    use z3::ast;
+
     #[test]
     fn create_play_circuit() {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
@@ -50,7 +50,7 @@ mod tests {
     fn extract_instance_cols_test() {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -65,7 +65,7 @@ mod tests {
     fn set_user_input_test() {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -87,7 +87,7 @@ mod tests {
     fn decompose_polynomial_test() {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -112,7 +112,7 @@ mod tests {
     fn not_under_constrained_enough_random_input_test() {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -144,7 +144,7 @@ mod tests {
     fn not_under_constrained_not_enough_input_test() {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -173,7 +173,7 @@ mod tests {
     fn not_under_constrained_not_enough_input_1_test() {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -204,7 +204,7 @@ mod tests {
     fn not_under_constrained_exact_spec_input_test() {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -240,7 +240,7 @@ mod tests {
     fn not_under_constrained_not_exact_spec_input_test() {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -277,7 +277,7 @@ mod tests {
         let circuit =
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -310,7 +310,7 @@ mod tests {
         let circuit =
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -343,7 +343,7 @@ mod tests {
         let circuit =
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
 
@@ -380,7 +380,7 @@ mod tests {
         let circuit =
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
 
@@ -419,7 +419,7 @@ mod tests {
         let circuit : sample_circuits::PlayCircuit_M<Fp> =
         sample_circuits::PlayCircuit_M::default();
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -494,7 +494,7 @@ mod tests {
         //let mut public_input = vec![a, b, out];
 
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        let z3_context: z3::Context = z3::Context::new(&z3::Config::new());
+
         let (instance_cols) =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
