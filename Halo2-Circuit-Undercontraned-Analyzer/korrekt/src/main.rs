@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-use std::marker::PhantomData;
-
-use halo2_proofs::dev::MockProver;
 use halo2_proofs::pasta::Fp as Fr;
 
 mod abstract_expr;

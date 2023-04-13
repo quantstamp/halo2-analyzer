@@ -69,22 +69,31 @@ pub fn retrieve_user_input(
 }
 
 pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOutput) {
-    if (matches!(analyzer_output.output_status, AnalyzerOutputStatus::Underconstrained)) {
-        println!("The circuit is under-constrained.");
-    } else if (matches!(analyzer_output.output_status, AnalyzerOutputStatus::Overconstrained)) {
-        println!("The circuit is over-constrained");
-    } else if (matches!(analyzer_output.output_status, AnalyzerOutputStatus::NotUnderconstrained)) {
-        println!("The circuit is not under-constrained!");
-    } else if (matches!(analyzer_output.output_status, AnalyzerOutputStatus::NotUnderconstrainedLocal)) {
-        if (matches!(analyzer_input.verification_method, VerificationMethod::Specific)) {
-            println!("The circuit is under-constrained for this specific input.");
-        } else {
-            println!(
-                "The circuit is not under-constrained for {} random input(s).",
-                analyzer_input.verification_input.iterations
-            );
-        }
-    } else {
-        println!("The analyzer output is invalid.");
+    match analyzer_output.output_status {
+        AnalyzerOutputStatus::Underconstrained => {
+            println!("The circuit is under-constrained.");
+        },
+        AnalyzerOutputStatus::Overconstrained => {
+            println!("The circuit is over-constrained");
+        },
+        AnalyzerOutputStatus::NotUnderconstrained => {
+            println!("The circuit is not under-constrained!");
+        },
+        AnalyzerOutputStatus::NotUnderconstrainedLocal => {
+            match analyzer_input.verification_method {
+                VerificationMethod::Specific => {
+                    println!("The circuit is under-constrained for this specific input.");
+                },
+                VerificationMethod::Random => {
+                    println!(
+                        "The circuit is not under-constrained for {} random input(s).",
+                        analyzer_input.verification_input.iterations
+                    );        
+                }
+            }
+        },
+        AnalyzerOutputStatus::Invalid => {
+            println!("The analyzer output is invalid.");
+        },
     }
 }

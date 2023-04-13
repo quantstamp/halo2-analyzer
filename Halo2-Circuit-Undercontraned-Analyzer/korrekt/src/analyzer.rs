@@ -6,9 +6,7 @@ use halo2_proofs::{
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
-    ops::Neg,
     process::Command,
-    str,
     fs,
     path::Path,
     fs::OpenOptions,
@@ -296,18 +294,22 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
         //*** Fix Public Input */
         let mut max_iterations: u128 = 1;
-        if (matches!(analyzer_input.verification_method, VerificationMethod::Specific)) {
-            for var in instance_cols_string {
-                smt::write_assert(
-                    printer,
-                    var.0.clone(),
-                    (*var.1.to_string()).to_string(),
-                    NodeType::Instance,
-                    Operation::Equal,
-                );
-            }
-        } else if (matches!(analyzer_input.verification_method, VerificationMethod::Random)) {
-            max_iterations = analyzer_input.verification_input.iterations;
+
+        match analyzer_input.verification_method {
+            VerificationMethod::Specific => {
+                for var in instance_cols_string {
+                    smt::write_assert(
+                        printer,
+                        var.0.clone(),
+                        (*var.1).to_string(),
+                        NodeType::Instance,
+                        Operation::Equal,
+                    );
+                }
+            },
+            VerificationMethod::Random => {
+                max_iterations = analyzer_input.verification_input.iterations;
+            },
         }
 
         let model = Self::solve_and_get_model(smt_file_path.clone(), &variables);

@@ -51,7 +51,7 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
         for var in instance_cols {
@@ -66,7 +66,7 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -88,7 +88,7 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -113,7 +113,7 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -241,7 +241,7 @@ mod tests {
         let circuit = sample_circuits::PlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
@@ -278,7 +278,7 @@ mod tests {
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -311,7 +311,7 @@ mod tests {
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -344,7 +344,7 @@ mod tests {
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
 
         assert!(instance_cols.len().eq(&1));
@@ -381,7 +381,7 @@ mod tests {
             sample_circuits::PlayCircuitUnderConstrained::<Fr>::new(Fr::from(1), Fr::from(1));
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
 
         assert!(instance_cols.len().eq(&1));
@@ -420,7 +420,7 @@ mod tests {
         sample_circuits::PlayCircuit_M::default();
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
@@ -495,7 +495,7 @@ mod tests {
 
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
 
-        let (instance_cols) =
+        let instance_cols =
             analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
