@@ -31,3 +31,11 @@ pub enum AnalyzerOutputStatus {
 pub struct AnalyzerOutput {
     pub output_status: AnalyzerOutputStatus
 }
+
+#[derive(Debug)]
+pub enum AnalyzerType {
+    UnusedGates,
+    UnconstrainedCells,
+    UnusedColumns,
+    UnderconstrainedCircuit,
+}

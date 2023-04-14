@@ -13,13 +13,10 @@ use std::{
 };
 
 use layouter::AnalyticLayouter;
-
-use crate::analyzer_io_type::{
-    AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, VerificationMethod,
-};
 use crate::{
     abstract_expr::{self, AbsResult},
-    analyzer_io::output_result,
+    analyzer_io::{output_result, retrieve_user_input_for_underconstrained},
+    analyzer_io_type::{AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, VerificationMethod, AnalyzerType},
     layouter, 
     smt,
     smt::Printer,
@@ -69,7 +66,8 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
     }
 
     /// Detects unused custom gates
-    pub fn analyze_unsed_custom_gates(&mut self) {
+    pub fn analyze_unused_custom_gates(&mut self) {
+        let mut count = 0;
         for gate in self.cs.gates.iter() {
             let mut used = false;
 
@@ -86,13 +84,16 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             }
 
             if !used {
-                self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name()));
+                count += 1;
+                println!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name());
             }
         }
+        println!("Finished analysis: {} unused gates found.", count);
     }
 
     /// Detects unused columns
     pub fn analyze_unused_columns(&mut self) {
+        let mut count = 0;
         for (column, rotation) in self.cs.advice_queries.iter().cloned() {
             let mut used = false;
 
@@ -106,15 +107,18 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             }
 
             if !used {
-                self.log.push(format!("unused column: {:?}", column));
+                count += 1;
+                println!("unused column: {:?}", column);
             }
         }
+        println!("Finished analysis: {} unused columns found.", count);
     }
 
     /// Detect assigned but unconstrained cells:
     /// (does it occur in a not-identially zero polynomial in the region?)
     /// (if not almost certainly a bug)
     pub fn analyze_unconstrained_cells(&mut self) {
+        let mut count = 0;
         for region in self.layouter.regions.iter() {
             let selectors = HashSet::from_iter(region.selectors().into_iter());
 
@@ -142,10 +146,12 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 };
 
                 if !used {
-                    self.log.push(format!("unconstrained cell in \"{}\" region: {:?} (rotation: {:?}) -- very likely a bug.", region.name,  reg_column, rotation));
+                    count += 1;
+                    println!("unconstrained cell in \"{}\" region: {:?} (rotation: {:?}) -- very likely a bug.", region.name,  reg_column, rotation);
                 }
             }
         }
+        println!("Finished analysis: {} unconstrained cells found.", count);
     }
 
     pub fn extract_instance_cols(
@@ -444,10 +450,31 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         let output = Command::new("cvc5").arg(smt_file_copy_path.clone()).output();
         let term = output.unwrap();
         let output_string = String::from_utf8_lossy(&term.stdout);
-        //println!("Output {:?}", output_string);
         let model = smt_parser::extract_model_response(output_string.to_string());
-        //println!("Model {:?}", model);
         //fs::remove_file(smt_file_copy_path.clone());
         return model
+    }
+
+    pub fn dispatch_analysis(&mut self, analyzer_type: AnalyzerType) -> bool {
+        match analyzer_type {
+            AnalyzerType::UnusedGates => {
+                self.analyze_unused_custom_gates();
+            }
+            AnalyzerType::UnconstrainedCells => {
+                self.analyze_unconstrained_cells();
+            }
+            AnalyzerType::UnusedColumns => {
+                self.analyze_unused_columns();        
+            }
+            AnalyzerType::UnderconstrainedCircuit => {
+                let instance_cols_string = self.extract_instance_cols(self.layouter.eq_table.clone());
+                let analyzer_input: AnalyzerInput = retrieve_user_input_for_underconstrained(&instance_cols_string);
+                self.analyze_underconstrained(analyzer_input);        
+            }
+            _ => {
+                return false;
+            }
+        };
+        return true;
     }
 }

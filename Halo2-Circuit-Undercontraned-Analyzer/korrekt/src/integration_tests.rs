@@ -375,6 +375,7 @@ mod tests {
         );
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
+
     #[test]
     fn under_constrained_not_exact_spec_input_test() {
         let circuit =
@@ -451,24 +452,19 @@ mod tests {
         let circuit : sample_circuits::PlayCircuit_M<Fp> =
         sample_circuits::PlayCircuit_M::default();
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        // println!("{:#?}", analyzer);
-
         analyzer.analyze_unused_columns();
-
         assert!(analyzer.log().len().gt(&0))
     }
+
     #[test]
-    fn analyze_unsed_custom_gates_test() {
+    fn analyze_unused_custom_gates_test() {
         let circuit : sample_circuits::PlayCircuit_M<Fp> =
         sample_circuits::PlayCircuit_M::default();
         let mut analyzer = Analyzer::create_with_circuit(&circuit);
-        // println!("{:#?}", analyzer);
-
-        
-        analyzer.analyze_unsed_custom_gates();
-
+        analyzer.analyze_unused_custom_gates();
         assert!(analyzer.log().len().gt(&0))
     }
+
     #[test]
     fn analyze_unconstrained_cells() {
         let circuit : sample_circuits::PlayCircuit_M<Fp> =
