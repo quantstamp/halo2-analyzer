@@ -1,4 +1,5 @@
 use halo2_proofs::pasta::Fp as Fr;
+use std::time::{Duration, Instant};
 
 mod abstract_expr;
 mod layouter;
@@ -11,39 +12,35 @@ mod smt;
 mod smt_parser;
 
 fn main() {
-    // This is for verifying with Mock Prover (unrelated to analyze underconstrained)
-    // let public_input = Fr::from(3);
-    // let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]).unwrap();
-    // prover.verify().expect("verify should work");
-    
     println!("----------------------Analyzing Circuit----------------------");
-    //Note: the (Fr::from(1), Fr::from(1)) in the parameters are meaningless with respect to analyze underconstrained.
-    //This is the circuit with only one row 
-    let circuit = sample_circuits::BitDecompositon::<Fr, 3>::new([Fr::from(1); 3]);
-    //This is the circuit with multiple rows. Uncomment the following to analyze the multi-row circuit.
-    //let circuit = sample_circuits::MultiPlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
-    let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
-    let analyzer_type = analyzer_io::retrieve_user_input_for_analyzer_type();
-    analyzer.dispatch_analysis(analyzer_type);
-    
-    // let k = 4;
-    // let a = Fr::from(1); // F[0]
-    // let b = Fr::from(1); // F[1]
-    // let out = Fr::from(55); // F[9]s
-
-    // let circuit:sample_circuits::MyCircuit<_> = sample_circuits::MyCircuit::<Fr>(PhantomData);
-    // let mut public_input = vec![a, b, out];
-
-    // let prover = MockProver::run(k, &circuit, vec![public_input.clone()]).unwrap();
-    // prover.assert_satisfied();
-
+    // let circuit = sample_circuits::BitDecompositon::<Fr, 3>::new([Fr::from(1); 3]);
     // let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
-    // let instance_cols_strings: HashMap<ast::Int, i64> =
-    // analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-    // let analyzer_input: AnalyzerInput = analyzer_io::retrieve_user_input_for_underconstrained(&instance_cols_strings);
-    // analyzer.analyze_underconstrained(analyzer_input);
-    // let mut f = std::fs::File::create("out.smt2").unwrap();
-    // smt::write_query(&mut f);   
+    // let analyzer_type = analyzer_io::retrieve_user_input_for_analyzer_type();
+    // analyzer.dispatch_analysis(analyzer_type);
+
+    // How to run the benchmark for a particular size.
+    run_underconstrained_benchmark::<2>();
+    run_underconstrained_benchmark::<3>();
+    run_underconstrained_benchmark::<4>();
+    run_underconstrained_benchmark::<10>();
+}
+
+pub fn run_underconstrained_benchmark<const bits: usize>() {
+    let circuit = sample_circuits::BitDecompositon::<Fr, bits>::new([Fr::from(1); bits]);
+    let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
+    let instance_cols =
+        analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
+    let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+        verification_method: analyzer_io_type::VerificationMethod::Random,
+        verification_input: analyzer_io_type::VerificationInput {
+            instances_string: instance_cols,
+            iterations: 1,
+        },
+    };    
+    let start = Instant::now();
+    analyzer.analyze_underconstrained(analyzer_input);
+    let duration = start.elapsed();
+    println!("{} bits: Time elapsed for analyze_underconstrained() is: {:?}", bits, duration);
 }
 
 #[cfg(test)]
