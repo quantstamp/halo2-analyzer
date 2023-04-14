@@ -10,9 +10,10 @@ use crate::analyzer_io_type::{
     AnalyzerOutputStatus,
     VerificationInput,
     VerificationMethod,
+    AnalyzerType,
 };
 
-pub fn retrieve_user_input(
+pub fn retrieve_user_input_for_underconstrained(
     instance_cols_string: &HashMap<String, i64>,
 ) -> AnalyzerInput {
     println!("You can verify the circuit for a specific public input or a random number of public inputs:");
@@ -96,4 +97,38 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
             println!("The analyzer output is invalid.");
         },
     }
+}
+
+pub fn retrieve_user_input_for_analyzer_type() -> AnalyzerType {
+    println!("Choose the mode of analysis for your circuit.");
+    println!("1. Unused Gates");
+    println!("2. Unused Columns");
+    println!("3. Unconstrained Cells");
+    println!("4. Underconstrained Circuit");
+
+    let mut menu = String::new();
+    io::stdin()
+        .read_line(&mut menu)
+        .expect("Failed to read line");
+    let menu_int = menu.trim().parse::<i64>().unwrap();
+    
+    let mut analyzer_type: AnalyzerType;
+    match menu_int {
+        1 => {
+            analyzer_type = AnalyzerType::UnusedGates;
+        }
+        2 => {
+            analyzer_type = AnalyzerType::UnusedColumns;
+        }
+        3 => {
+            analyzer_type = AnalyzerType::UnconstrainedCells;
+        }
+        4 => {
+            analyzer_type = AnalyzerType::UnderconstrainedCircuit;
+        }
+        _ => {
+            panic!("Not a valid mode of analysis.")
+        }
+    };
+    analyzer_type
 }
