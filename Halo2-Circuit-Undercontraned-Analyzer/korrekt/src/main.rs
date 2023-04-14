@@ -21,13 +21,16 @@ fn main() {
 
     // How to run the benchmark for a particular size.
     run_underconstrained_benchmark::<2>();
-    run_underconstrained_benchmark::<3>();
     run_underconstrained_benchmark::<4>();
-    run_underconstrained_benchmark::<10>();
+    run_underconstrained_benchmark::<8>();
+    run_underconstrained_benchmark::<16>();
+    run_underconstrained_benchmark::<32>();
+    run_underconstrained_benchmark::<64>();
+    run_underconstrained_benchmark::<128>();
 }
 
 pub fn run_underconstrained_benchmark<const bits: usize>() {
-    let circuit = sample_circuits::BitDecompositon::<Fr, bits>::new([Fr::from(1); bits]);
+    let circuit = sample_circuits::BitDecompositonUnderConstrained::<Fr, bits>::new([Fr::from(1); bits]);
     let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
     let instance_cols =
         analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
