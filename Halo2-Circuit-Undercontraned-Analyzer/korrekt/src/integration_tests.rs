@@ -323,7 +323,18 @@ mod tests {
             },
             
         };
-        s
+        let smt_file_path = "src/output/out.smt2";
+        let base_field_prime = "11";
+        let mut smt_file = std::fs::File::create(smt_file_path).unwrap();
+        let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_string());
+        analyzer.decompose_polynomial(&mut printer);
+        let instance_string = analyzer_input.verification_input.instances_string.clone();
+        let output_status: AnalyzerOutputStatus = Analyzer::<Fp>::control_uniqueness(
+            smt_file_path.to_string(),
+            &instance_string,
+            &analyzer_input,
+            &mut printer,
+        );
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 
