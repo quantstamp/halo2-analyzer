@@ -18,6 +18,7 @@ fn main() {
     // let analyzer_type = analyzer_io::retrieve_user_input_for_analyzer_type();
     // analyzer.dispatch_analysis(analyzer_type);
 
+
     // How to run the benchmark for a particular size.
     run_underconstrained_benchmark::<2>();
     run_underconstrained_benchmark::<3>();

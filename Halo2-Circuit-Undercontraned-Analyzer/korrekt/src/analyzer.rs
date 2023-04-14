@@ -167,6 +167,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
     pub fn analyze_underconstrained(&mut self, analyzer_input: AnalyzerInput) -> AnalyzerOutput {
         //let z3_context = analyzer_input.z3_context;
+        fs::create_dir_all("src/output/").unwrap();
         let smt_file_path = "src/output/out.smt2";
         // TODO: extract the modulus from F
         let base_field_prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
