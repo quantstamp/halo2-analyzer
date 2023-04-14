@@ -21,7 +21,8 @@ fn main() {
     println!("----------------------Analyzing Circuit----------------------");
     //Note: the (Fr::from(1), Fr::from(1)) in the parameters are meaningless with respect to analyze underconstrained.
     //This is the circuit with only one row 
-    let circuit = sample_circuits::BitDecompositon::<Fr, 3>::new([Fr::from(1); 3]);
+    const COUNT: usize = 128;
+    let circuit = sample_circuits::BitDecompositonUnderConstrained::<Fr, COUNT>::new([Fr::from(1); COUNT]);
     //This is the circuit with multiple rows. Uncomment the following to analyze the multi-row circuit.
     //let circuit = sample_circuits::MultiPlayCircuit::<Fr>::new(Fr::from(1), Fr::from(1));
     let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
