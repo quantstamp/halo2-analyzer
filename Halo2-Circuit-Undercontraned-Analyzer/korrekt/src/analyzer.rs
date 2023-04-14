@@ -14,18 +14,16 @@ use std::{
 
 use layouter::AnalyticLayouter;
 
-use crate::analyzer_io::{self};
 use crate::analyzer_io_type::{
     AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, VerificationMethod,
 };
 use crate::{
     abstract_expr::{self, AbsResult},
     analyzer_io::output_result,
-    analyzer_io_type::VerificationInput,
     layouter, 
     smt,
     smt::Printer,
-    smt_parser::{self, Satisfiability, ModelResult, Variable, FieldElement}
+    smt_parser::{self, Satisfiability, ModelResult}
 };
 
 #[derive(Debug)]
@@ -164,7 +162,8 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
     pub fn analyze_underconstrained(&mut self, analyzer_input: AnalyzerInput) -> AnalyzerOutput {
         //let z3_context = analyzer_input.z3_context;
         let smt_file_path = "src/output/out.smt2";
-        let base_field_prime = "11";
+        // TODO: extract the modulus from F
+        let base_field_prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
         let mut smt_file = std::fs::File::create(smt_file_path).unwrap();
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_string());
               
@@ -223,6 +222,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 column_index,
                 rotation,
             } => {
+                println!("{:?}",format!("A-{}-{}", *column_index, rotation.0));
                 let term = format!("A-{}-{}", *column_index, rotation.0); // ("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
                 smt::write_var(printer, term.clone());
                 (term, NodeType::Advice)
@@ -426,7 +426,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         let smt_path_obj = Path::new(&smt_path_clone);
         let smt_file_stem = smt_path_obj.file_stem().unwrap();
         let smt_file_copy_path = format!("src/output/{}{}", smt_file_stem.to_str().unwrap(), "_temp.smt2");
-        fs::copy(smt_file_path.clone(), smt_file_copy_path.clone());
+        fs::copy(smt_file_path.clone(), smt_file_copy_path.clone()).unwrap();
         return smt_file_copy_path
     }
 

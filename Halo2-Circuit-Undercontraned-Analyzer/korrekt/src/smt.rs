@@ -167,7 +167,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         writeln!(&mut self.writer, "(set-option :incremental true)").unwrap();
 
         writeln!(&mut self.writer, "(set-logic {})", get_logic_string()).unwrap();
-        writeln!(&mut self.writer, "(define-sort F () (_ FiniteField 11))").unwrap();
+        writeln!(&mut self.writer, "(define-sort F () (_ FiniteField {}))", prime).unwrap();
     }
     
     fn write_end(&mut self) {

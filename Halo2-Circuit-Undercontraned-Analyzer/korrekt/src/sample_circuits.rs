@@ -7,15 +7,141 @@ use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner, AssignedCell};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::poly::Rotation;
 
+pub struct BitDecompositon<F: FieldExt, const COUNT: usize> {
+    b: [F; COUNT],
+    // TODO: Consider adding the non decomposed version of b
+}
+
+#[derive(Clone)]
+pub struct BitDecompositonConfig<const COUNT: usize> {
+    b: [Column<Advice>; COUNT],
+    x: Column<Advice>,
+    i: Column<Instance>,
+    s: Selector,
+}
+
+impl<F: FieldExt, const COUNT: usize> BitDecompositon<F, COUNT> {
+    pub fn new(b: [F; COUNT]) -> Self {
+        BitDecompositon {
+            b
+        }
+    }
+}
+
+impl<F: FieldExt, const COUNT: usize> Default for BitDecompositon<F, COUNT> {
+    fn default() -> Self {
+        BitDecompositon {
+            b: [F::one(); COUNT]
+        }
+    }
+}
+
+impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositon<F, COUNT> {
+    type Config = BitDecompositonConfig<COUNT>;
+    type FloorPlanner = SimpleFloorPlanner;
+
+    fn without_witnesses(&self) -> Self {
+        Self::default()
+    }
+
+    fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
+        // TODO: make this look prettier later!
+        let mut b: [Column<Advice>; COUNT] = [Column::new(0, Advice); COUNT];
+        for i in 0..COUNT {
+            b[i] = meta.advice_column();
+        }
+        let x = meta.advice_column();
+        let i = meta.instance_column();
+        let s = meta.selector();
+
+        meta.enable_equality(x);
+        meta.enable_equality(i);
+
+        // define gates
+        for i in 0..COUNT {
+            // TODO: Figure out how to annotate with i set dynamically 
+            meta.create_gate("bi_binary_check", |meta| {
+                let a = meta.query_advice(b[i], Rotation::cur());
+                let dummy = meta.query_selector(s);
+                vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
+                // bi * (1-bi)
+            });
+        }
+
+        meta.create_gate("equality", |meta| {
+            let mut exp = Expression::Constant(F::from(0));
+            let mut t:u128  = 1;
+            for i in 0..COUNT {
+                let bi = meta.query_advice(b[i], Rotation::cur());
+                exp = exp + Expression::Constant(F::from_u128(t)) * bi;
+                t = t * 2;
+            }
+
+            let c = meta.query_advice(x, Rotation::cur());
+            let dummy = meta.query_selector(s);
+            // For example, if we change the constraint to the following, then the circuit is underconstraint,
+            // because we have two models with the same public input (i=1, b0=1, b1=0, x=1) and (i=1, b0=0, b1=1, x=1)
+            // vec![dummy * (a + b - c)]
+            vec![dummy * (exp - c)]
+        });
+
+        let cfg = Self::Config {
+            b,
+            x,
+            i,
+            s,
+        };
+
+        cfg
+    }
+
+    fn synthesize(
+        &self,
+        config: Self::Config,
+        mut layouter: impl Layouter<F>,
+    ) -> Result<(), Error> {
+        let out = layouter
+            .assign_region(
+                || "The Region",
+                |mut region| {
+                    config.s.enable(&mut region, 0)?;
+                    for i in 0..COUNT {
+                        region.assign_advice(|| "bi", config.b[i], 0, || Value::known(self.b[0]))?;
+                    }
+                    
+                    let mut compose_b = F::from(0);
+                    for i in 0..COUNT-1 {
+                        compose_b = F::from(2)*compose_b + self.b[COUNT-1-i];
+                    }
+                    compose_b = compose_b + self.b[0];
+                    
+                    let out = region.assign_advice(
+                        || "x",
+                        config.x,
+                        0,
+                        || Value::known(compose_b),
+                    )?;
+
+                    Ok(out)
+                },
+            )
+            .unwrap();
+        // expose the public input
+        // Is this line just making sure the output "x" (which is private) is same as the instance (public input)?
+        // For example, given public input i=3, we want b0 = 1, b1 = 1, x = 3, and make sure x
+        layouter.constrain_instance(out.cell(), config.i, 0)?; //*** what is this? */
+        Ok(())
+    }
+}
+
+
 pub struct PlayCircuit<F: FieldExt> {
-    _ph: PhantomData<F>,
     b0: F,
     b1: F,
 }
 
 #[derive(Clone)]
-pub struct PlayCircuitConfig<F: FieldExt> {
-    _ph: PhantomData<F>,
+pub struct PlayCircuitConfig {
     b0: Column<Advice>,
     b1: Column<Advice>,
     x: Column<Advice>,
@@ -26,7 +152,6 @@ pub struct PlayCircuitConfig<F: FieldExt> {
 impl<F: FieldExt> PlayCircuit<F> {
     pub fn new(b0: F, b1: F) -> Self {
         PlayCircuit {
-            _ph: PhantomData,
             b0,
             b1,
         }
@@ -36,7 +161,6 @@ impl<F: FieldExt> PlayCircuit<F> {
 impl<F: FieldExt> Default for PlayCircuit<F> {
     fn default() -> Self {
         PlayCircuit {
-            _ph: PhantomData,
             b0: F::one(),
             b1: F::one(),
         }
@@ -44,7 +168,7 @@ impl<F: FieldExt> Default for PlayCircuit<F> {
 }
 
 impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
-    type Config = PlayCircuitConfig<F>;
+    type Config = PlayCircuitConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
     fn without_witnesses(&self) -> Self {
@@ -86,7 +210,6 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
         });
 
         let cfg = Self::Config {
-            _ph: PhantomData,
             b0,
             b1,
             x,
@@ -132,7 +255,6 @@ impl<F: FieldExt> Circuit<F> for PlayCircuit<F> {
 }
 
 pub struct PlayCircuitUnderConstrained<F: FieldExt> {
-    _ph: PhantomData<F>,
     b0: F,
     b1: F,
 }
@@ -150,7 +272,6 @@ pub struct PlayCircuitUnderConstrainedConfig<F: FieldExt> {
 impl<F: FieldExt> PlayCircuitUnderConstrained<F> {
     pub fn new(b0: F, b1: F) -> Self {
         PlayCircuitUnderConstrained {
-            _ph: PhantomData,
             b0,
             b1,
         }
@@ -160,7 +281,6 @@ impl<F: FieldExt> PlayCircuitUnderConstrained<F> {
 impl<F: FieldExt> Default for PlayCircuitUnderConstrained<F> {
     fn default() -> Self {
         PlayCircuitUnderConstrained {
-            _ph: PhantomData,
             b0: F::one(),
             b1: F::one(),
         }
@@ -168,7 +288,7 @@ impl<F: FieldExt> Default for PlayCircuitUnderConstrained<F> {
 }
 
 impl<F: FieldExt> Circuit<F> for PlayCircuitUnderConstrained<F> {
-    type Config = PlayCircuitConfig<F>;
+    type Config = PlayCircuitConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
     fn without_witnesses(&self) -> Self {
@@ -210,7 +330,6 @@ impl<F: FieldExt> Circuit<F> for PlayCircuitUnderConstrained<F> {
         });
 
         let cfg = Self::Config {
-            _ph: PhantomData,
             b0,
             b1,
             x,
@@ -256,7 +375,6 @@ impl<F: FieldExt> Circuit<F> for PlayCircuitUnderConstrained<F> {
 }
 
 pub struct MultiPlayCircuit<F: FieldExt> {
-    _ph: PhantomData<F>,
     b0: F,
     b1: F,
 }
@@ -272,7 +390,6 @@ pub struct MultiPlayCircuitConfig<F: FieldExt> {
 impl<F: FieldExt> MultiPlayCircuit<F> {
     pub fn new(b0: F, b1: F) -> Self {
         MultiPlayCircuit {
-            _ph: PhantomData,
             b0,
             b1,
         }
@@ -282,7 +399,6 @@ impl<F: FieldExt> MultiPlayCircuit<F> {
 impl<F: FieldExt> Default for MultiPlayCircuit<F> {
     fn default() -> Self {
         MultiPlayCircuit {
-            _ph: PhantomData,
             b0: F::one(),
             b1: F::one(),
         }
@@ -371,7 +487,6 @@ impl<F: FieldExt> Circuit<F> for MultiPlayCircuit<F> {
 }
 
 pub struct PlayCircuit_M<F: FieldExt> {
-    _ph: PhantomData<F>,
     a: F,
     b: F,
 }
@@ -387,7 +502,6 @@ pub struct PlayCircuit_M_Config<F: FieldExt> {
 impl <F: FieldExt> PlayCircuit_M<F> {
     fn new(a: F, b: F) -> Self {
         PlayCircuit_M {
-            _ph: PhantomData,
             a,
             b
         }
@@ -397,7 +511,6 @@ impl <F: FieldExt> PlayCircuit_M<F> {
 impl <F: FieldExt> Default for PlayCircuit_M<F> {
     fn default() -> Self {
         PlayCircuit_M{
-            _ph: PhantomData,
             a: F::one(),
             b: F::one(),
         }
