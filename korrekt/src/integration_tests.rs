@@ -97,7 +97,7 @@ mod tests {
             
         };
         let smt_file_path = "src/output/out.smt2";
-        let base_field_prime = "11";
+        let base_field_prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
         let mut smt_file = std::fs::File::create(smt_file_path).unwrap();
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_string());
         analyzer.decompose_polynomial(&mut printer);
