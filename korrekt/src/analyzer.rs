@@ -166,7 +166,6 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
     }
 
     pub fn analyze_underconstrained(&mut self, analyzer_input: AnalyzerInput) -> AnalyzerOutput {
-        //let z3_context = analyzer_input.z3_context;
         fs::create_dir_all("src/output/").unwrap();
         let smt_file_path = "src/output/out.smt2";
         // TODO: extract the modulus from F
@@ -432,7 +431,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         let smt_path_clone = smt_file_path.clone();
         let smt_path_obj = Path::new(&smt_path_clone);
         let smt_file_stem = smt_path_obj.file_stem().unwrap();
-        let smt_file_copy_path = format!("src/output/{}{}", smt_file_stem.to_str().unwrap(), "_temp.smt2");
+        let smt_file_copy_path = format!("{}{}{}", "src/output/", smt_file_stem.to_str().unwrap(), "_temp.smt2");
         fs::copy(smt_file_path.clone(), smt_file_copy_path.clone()).unwrap();
         return smt_file_copy_path
     }
