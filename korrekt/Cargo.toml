@@ -1,0 +1,11 @@
+[package]
+name = "korrekt"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+halo2_proofs = { version = "0.2.0", path = "../halo2/halo2_proofs" }
+env_logger = "0.9.0"
+
+log = "0.4.17"
+try-catch = "0.2.2"
