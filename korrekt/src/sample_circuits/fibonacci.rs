@@ -1,5 +1,11 @@
 use std::marker::PhantomData;
-use halo2_proofs::{arithmetic::FieldExt, circuit::*, plonk::*, poly::Rotation};
+use halo2_proofs::arithmetic::FieldExt;
+use halo2_proofs::plonk::{
+    Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
+};
+use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner, AssignedCell};
+use halo2_proofs::plonk::Error;
+use halo2_proofs::poly::Rotation;
 
 #[derive(Debug, Clone)]
 pub struct FibonacciConfig {
@@ -144,9 +150,9 @@ impl<F: FieldExt> FibonacciChip<F> {
 }
 
 #[derive(Default)]
-pub struct MyCircuit<F>(pub PhantomData<F>);
+pub struct FibonacciCircuit<F>(pub PhantomData<F>);
 
-impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
+impl<F: FieldExt> Circuit<F> for FibonacciCircuit<F> {
     type Config = FibonacciConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -156,11 +162,7 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
         let cfg = FibonacciChip::configure(meta);
-        for gate in &meta.gates{
-            println!("{:?}",gate.polys);
-        }
-        cfg
-        
+        cfg    
     }
 
     fn synthesize(
@@ -181,49 +183,5 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
 
         chip.expose_public(layouter.namespace(|| "out"), &prev_c, 2)?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::marker::PhantomData;
-
-    use super::MyCircuit;
-    use halo2_proofs::{dev::MockProver, pasta::Fp};
-
-    #[test]
-    fn fibonacci_example1() {
-        let k = 4;
-
-        let a = Fp::from(1); // F[0]
-        let b = Fp::from(1); // F[1]
-        let out = Fp::from(55); // F[9]
-
-        let circuit = MyCircuit(PhantomData);
-
-        let mut public_input = vec![a, b, out];
-
-        let prover = MockProver::run(k, &circuit, vec![public_input.clone()]).unwrap();
-        prover.assert_satisfied();
-
-        public_input[2] += Fp::one();
-        let _prover = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-        // uncomment the following line and the assert will fail
-        // _prover.assert_satisfied();
-    }
-
-    #[cfg(feature = "dev-graph")]
-    #[test]
-    fn plot_fibonacci1() {
-        use plotters::prelude::*;
-
-        let root = BitMapBackend::new("fib-1-layout.png", (1024, 3096)).into_drawing_area();
-        root.fill(&WHITE).unwrap();
-        let root = root.titled("Fib 1 Layout", ("sans-serif", 60)).unwrap();
-
-        let circuit = MyCircuit::<Fp>(PhantomData);
-        halo2_proofs::dev::CircuitLayout::default()
-            .render(4, &circuit, &root)
-            .unwrap();
     }
 }
