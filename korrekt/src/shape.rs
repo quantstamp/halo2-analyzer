@@ -1,29 +1,34 @@
-use halo2_proofs::circuit:: {RegionIndex, Cell, Value};
-use halo2_proofs::plonk::{Error, Column, Fixed, Assigned, Selector, Any, Advice, Instance};
 use halo2_proofs::arithmetic::Field;
-use halo2_proofs::circuit::layouter::{RegionLayouter, RegionColumn};
+use halo2_proofs::circuit::layouter::{RegionColumn, RegionLayouter};
+use halo2_proofs::circuit::{Cell, RegionIndex, Value};
+use halo2_proofs::plonk::{Advice, Any, Assigned, Column, Error, Fixed, Instance, Selector};
 use halo2_proofs::poly::Rotation;
 
-use std::collections::HashSet;
 use std::cmp;
+use std::collections::{HashSet, HashMap};
 
 #[derive(Clone, Debug)]
 pub struct AnalyticalShape {
     pub name: String,
     pub region_index: RegionIndex,
     pub selectors: HashSet<RegionColumn>,
-    pub columns: HashSet<(RegionColumn,  Rotation)>,
+    pub columns: HashSet<(RegionColumn, Rotation)>,
     pub row_count: usize,
+
+    pub __advice_eq_table: HashMap<String,String>,
+    pub __eq_table: HashMap<String,String>
 }
 
 impl AnalyticalShape {
     pub fn new(name: String, index: usize) -> Self {
-        AnalyticalShape { 
-            region_index: index.into() , 
-            columns: HashSet::new(), 
+        AnalyticalShape {
+            region_index: index.into(),
+            columns: HashSet::new(),
             selectors: HashSet::new(),
             row_count: 0,
-            name
+            name,
+            __advice_eq_table: HashMap::new(),
+            __eq_table: HashMap::new(),
         }
     }
 
@@ -47,7 +52,8 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         offset: usize,
     ) -> Result<(), Error> {
         // Track the selector's fixed column as part of the region's shape.
-        self.columns.insert(((*selector).into(), Rotation(offset as i32)));
+        self.columns
+            .insert(((*selector).into(), Rotation(offset as i32)));
         self.row_count = cmp::max(self.row_count, offset + 1);
         Ok(())
     }
@@ -59,7 +65,8 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         offset: usize,
         _to: &'v mut (dyn FnMut() -> Value<Assigned<F>> + 'v),
     ) -> Result<Cell, Error> {
-        self.columns.insert((Column::<Any>::from(column).into(), Rotation(offset as i32)));
+        self.columns
+            .insert((Column::<Any>::from(column).into(), Rotation(offset as i32)));
         self.row_count = cmp::max(self.row_count, offset + 1);
 
         Ok(Cell {
@@ -82,16 +89,23 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
 
     fn assign_advice_from_instance<'v>(
         &mut self,
-        _: &'v (dyn Fn() -> String + 'v),
-        _: Column<Instance>,
-        _: usize,
+        _annotation: &'v (dyn Fn() -> String + 'v),
+        _instance: Column<Instance>,
+        _row: usize,
         _advice: Column<Advice>,
         _offset: usize,
     ) -> Result<(Cell, Value<F>), Error> {
         //todo!()
+        let left = format!("I-{:?}-{}-{:?}", self.region_index.0, _instance.index(),_row);
 
+        let right = format!("A-{:?}-{}-{:?}",self.region_index.0, _advice.index(),_offset);
+
+        self.__eq_table.insert(left,right);
         //self.columns.insert(Column::<Any>::from(advice).into());
-        self.columns.insert((Column::<Any>::from(_advice).into(), Rotation(_offset as i32)));
+        self.columns.insert((
+            Column::<Any>::from(_advice).into(),
+            Rotation(_offset as i32),
+        ));
         self.row_count = cmp::max(self.row_count, _offset + 1);
 
         Ok((
@@ -102,7 +116,6 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
             },
             Value::unknown(),
         ))
-        
     }
 
     fn assign_fixed<'v>(
@@ -112,7 +125,8 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         offset: usize,
         _to: &'v mut (dyn FnMut() -> Value<Assigned<F>> + 'v),
     ) -> Result<Cell, Error> {
-        self.columns.insert((Column::<Any>::from(column).into(), Rotation(offset as i32)));
+        self.columns
+            .insert((Column::<Any>::from(column).into(), Rotation(offset as i32)));
         self.row_count = cmp::max(self.row_count, offset + 1);
 
         Ok(Cell {
@@ -129,6 +143,12 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
 
     fn constrain_equal(&mut self, _left: Cell, _right: Cell) -> Result<(), Error> {
         // Equality constraints don't affect the region shape.
+
+        let left_name = format!("A-{:?}-{}-{:?}", _left.region_index.0,_left.column.index(), _left.row_offset);
+
+        let right_name = format!("A-{:?}-{}-{:?}",_right.region_index.0, _right.column.index(), _right.row_offset);
+
+        self.__advice_eq_table.insert(left_name, right_name);
         Ok(())
     }
 }

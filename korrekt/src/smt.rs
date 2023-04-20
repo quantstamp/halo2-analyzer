@@ -42,6 +42,10 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         right: String,
         ntr: analyzer::NodeType,
     ) -> String {
+        //println!("right {}", right.clone());
+        //println!("ntr {:?}", ntr);
+
+
         let l;
         if (matches!(ntl, NodeType::Advice) || matches!(ntl, NodeType::Instance)) {
             l = left;
@@ -55,7 +59,6 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         } else {
             r = format!("({})", right);
         }
-
         let t = format!("ff.{} {} {}", op, l, r);
         t
     }
@@ -67,9 +70,14 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         writeln!(&mut self.writer, "(set-option :incremental true)").unwrap();
 
         writeln!(&mut self.writer, "(set-logic {})", get_logic_string()).unwrap();
-        writeln!(&mut self.writer, "(define-sort F () (_ FiniteField {}))", prime).unwrap();
+        writeln!(
+            &mut self.writer,
+            "(define-sort F () (_ FiniteField {}))",
+            prime
+        )
+        .unwrap();
     }
-    
+
     fn write_end(&mut self) {
         writeln!(&mut self.writer, "(check-sat)").unwrap();
     }
@@ -82,71 +90,88 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         writeln!(&mut self.writer, "(declare-fun {} () {})", name, "F").unwrap();
     }
 
-    fn write_assert(&mut self, poly: String,value: String,nt: analyzer::NodeType,op:analyzer::Operation) {
+    fn write_assert(
+        &mut self,
+        poly: String,
+        value: String,
+        nt: analyzer::NodeType,
+        op: analyzer::Operation,
+    ) {
         let a;
         if (matches!(nt, NodeType::Advice) || matches!(nt, NodeType::Instance)) {
             a = poly;
         } else {
             a = format!("({})", poly);
         }
-        if (matches!(op,analyzer::Operation::Equal)) {
-            writeln!(&mut self.writer, "(assert ( = {} (as ff{} F)))", a,value).unwrap();
+        if (matches!(op, analyzer::Operation::Equal)) {
+            writeln!(&mut self.writer, "(assert ( = {} (as ff{} F)))", a, value).unwrap();
         } else {
-            writeln!(&mut self.writer, "(assert (not ( = {} (as ff{} F))))", a,value).unwrap();
+            writeln!(
+                &mut self.writer,
+                "(assert (not ( = {} (as ff{} F))))",
+                a, value
+            )
+            .unwrap();
         }
     }
 
-    fn write_assert_bool(&mut self, poly: String,op:analyzer::Operation){
-        if (matches!(op,analyzer::Operation::Or)) {
+    fn write_assert_bool(&mut self, poly: String, op: analyzer::Operation) {
+        if (matches!(op, analyzer::Operation::Or)) {
             writeln!(&mut self.writer, "(assert (or {}))", poly).unwrap();
-        } else if (matches!(op,analyzer::Operation::And)) {
+        } else if (matches!(op, analyzer::Operation::And)) {
             writeln!(&mut self.writer, "(assert (and {}))", poly).unwrap();
         }
     }
 
-    fn get_assert(&mut self, poly: String, value: String, nt: analyzer::NodeType,op:analyzer::Operation) ->String {
+    fn get_assert(
+        &mut self,
+        poly: String,
+        value: String,
+        nt: analyzer::NodeType,
+        op: analyzer::Operation,
+    ) -> String {
         let a;
         if (matches!(nt, NodeType::Advice) || matches!(nt, NodeType::Instance)) {
             a = poly;
         } else {
             a = format!("({})", poly);
         }
-        if (matches!(op,analyzer::Operation::Equal)) {
-            format!( "( = {} (as ff{} F))", a,value)
+        if (matches!(op, analyzer::Operation::Equal)) {
+            format!("( = {} (as ff{} F))", a, value)
         } else {
-            format!( "(not ( = {} (as ff{} F)))", a,value)
+            format!("(not ( = {} (as ff{} F)))", a, value)
         }
     }
 
-    pub fn write_get_value(&mut self, var: String){
+    pub fn write_get_value(&mut self, var: String) {
         writeln!(&mut self.writer, "(get-value ({}))", var).unwrap();
     }
 
-    pub fn write_get_model(&mut self){
+    pub fn write_get_model(&mut self) {
         writeln!(&mut self.writer, "(get-model)").unwrap();
     }
-    
-    pub fn write_push(&mut self,number:u8){
+
+    pub fn write_push(&mut self, number: u8) {
         if number == 1 {
             writeln!(&mut self.writer, "(push)").unwrap();
         } else {
             writeln!(&mut self.writer, "(push {})", number).unwrap();
         }
     }
-    
-    pub fn write_pop(&mut self,number:u8){
+
+    pub fn write_pop(&mut self, number: u8) {
         if number == 1 {
             writeln!(&mut self.writer, "(pop)").unwrap();
         } else {
             writeln!(&mut self.writer, "(pop {})", number).unwrap();
-        }   
+        }
     }
 
-    pub fn get_or(&mut self,or_str:String) -> String{
+    pub fn get_or(&mut self, or_str: String) -> String {
         format!("(or {})", or_str)
     }
-    
-    pub fn get_and(&mut self,or_str:String) -> String{
+
+    pub fn get_and(&mut self, or_str: String) -> String {
         format!("(and {})", or_str)
     }
 }
@@ -176,38 +201,50 @@ pub fn write_term<W: Write>(
     p.write_term(op, left, ntl, right, ntr)
 }
 
-pub fn write_assert(p: &mut Printer<File>, poly: String,value: String,nt: analyzer::NodeType,op:analyzer::Operation) {
-    p.write_assert(poly,value,nt,op);
+pub fn write_assert(
+    p: &mut Printer<File>,
+    poly: String,
+    value: String,
+    nt: analyzer::NodeType,
+    op: analyzer::Operation,
+) {
+    p.write_assert(poly, value, nt, op);
 }
 
-pub fn write_assert_bool(p: &mut Printer<File>, poly: String,op:analyzer::Operation) {
-    p.write_assert_bool(poly,op);
+pub fn write_assert_bool(p: &mut Printer<File>, poly: String, op: analyzer::Operation) {
+    p.write_assert_bool(poly, op);
 }
 
-pub fn get_assert(p: &mut Printer<File>, poly: String,value: String,nt: analyzer::NodeType,op:analyzer::Operation)->String {
-    p.get_assert(poly,value,nt,op)
+pub fn get_assert(
+    p: &mut Printer<File>,
+    poly: String,
+    value: String,
+    nt: analyzer::NodeType,
+    op: analyzer::Operation,
+) -> String {
+    p.get_assert(poly, value, nt, op)
 }
 
-pub fn write_get_value(p: &mut Printer<File>, var: String){
+pub fn write_get_value(p: &mut Printer<File>, var: String) {
     p.write_get_value(var);
 }
 
-pub fn write_get_model(p: &mut Printer<File>){
+pub fn write_get_model(p: &mut Printer<File>) {
     p.write_get_model();
 }
 
-pub fn write_push(p: &mut Printer<File>,number:u8){
+pub fn write_push(p: &mut Printer<File>, number: u8) {
     p.write_push(number);
 }
 
-pub fn write_pop(p: &mut Printer<File>,number:u8){
+pub fn write_pop(p: &mut Printer<File>, number: u8) {
     p.write_pop(number);
 }
 
-pub fn get_or(p: &mut Printer<File>,or_str:String)->String{
+pub fn get_or(p: &mut Printer<File>, or_str: String) -> String {
     p.get_or(or_str)
 }
 
-pub fn get_and(p: &mut Printer<File>,or_str:String)->String{
+pub fn get_and(p: &mut Printer<File>, or_str: String) -> String {
     p.get_and(or_str)
 }
