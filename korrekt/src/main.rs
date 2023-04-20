@@ -11,7 +11,6 @@ mod smt;
 mod smt_parser;
 mod benchmark;
 mod sample_circuits;
-mod new_layouters;
 
 fn main() {
     // How to run our analysis on a circuit.
