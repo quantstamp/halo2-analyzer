@@ -47,14 +47,14 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
 
 
         let l;
-        if (matches!(ntl, NodeType::Advice) || matches!(ntl, NodeType::Instance)) {
+        if (matches!(ntl, NodeType::Advice) || matches!(ntl, NodeType::Instance) || matches!(ntl, NodeType::Fixed)) {
             l = left;
         } else {
             l = format!("({})", left);
         }
 
         let r;
-        if (matches!(ntr, NodeType::Advice) || matches!(ntr, NodeType::Instance)) {
+        if (matches!(ntr, NodeType::Advice) || matches!(ntr, NodeType::Instance)|| matches!(ntr, NodeType::Fixed)) {
             r = right;
         } else {
             r = format!("({})", right);
@@ -98,7 +98,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         op: analyzer::Operation,
     ) {
         let a;
-        if (matches!(nt, NodeType::Advice) || matches!(nt, NodeType::Instance)) {
+        if (matches!(nt, NodeType::Advice) || matches!(nt, NodeType::Instance)|| matches!(nt, NodeType::Fixed)) {
             a = poly;
         } else {
             a = format!("({})", poly);
@@ -131,7 +131,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         op: analyzer::Operation,
     ) -> String {
         let a;
-        if (matches!(nt, NodeType::Advice) || matches!(nt, NodeType::Instance)) {
+        if (matches!(nt, NodeType::Advice) || matches!(nt, NodeType::Instance)|| matches!(nt, NodeType::Fixed)) {
             a = poly;
         } else {
             a = format!("({})", poly);

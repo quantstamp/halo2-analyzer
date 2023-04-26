@@ -57,7 +57,8 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         N: Fn() -> NR,
         NR: Into<String>,
     {
-        todo!()
+        //todo!()
+        Ok(())
     }
 
     fn constrain_instance(

@@ -1,5 +1,8 @@
 use std::collections::HashMap;
-
+use halo2_proofs::{
+    arithmetic::FieldExt,
+    plonk::{lookup::Argument},
+};
 #[derive(Debug, PartialEq)]
 pub enum VerificationMethod {
     Specific,
@@ -13,9 +16,10 @@ pub struct VerificationInput {
 }
 
 #[derive(Debug)]
-pub struct AnalyzerInput {
+pub struct AnalyzerInput<F: FieldExt> {
     pub verification_method: VerificationMethod, 
     pub verification_input: VerificationInput,
+    pub lookups:Vec<Argument<F>>
 }
 
 #[derive(Debug, PartialEq)]

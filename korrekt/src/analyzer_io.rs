@@ -3,7 +3,10 @@ use std::{
     collections::HashMap,
     io,
 };
-
+use halo2_proofs::{
+    arithmetic::FieldExt,
+    plonk::{lookup::Argument},
+};
 use crate::analyzer_io_type::{
     AnalyzerInput, 
     AnalyzerOutput,
@@ -13,9 +16,10 @@ use crate::analyzer_io_type::{
     AnalyzerType,
 };
 
-pub fn retrieve_user_input_for_underconstrained(
+
+pub fn retrieve_user_input_for_underconstrained<F: FieldExt>(
     instance_cols_string: &HashMap<String, i64>,
-) -> AnalyzerInput {
+) -> AnalyzerInput<F> {
     println!("You can verify the circuit for a specific public input or a random number of public inputs:");
     println!("1. verify the circuit for a specific public input!");
     println!("2. Verify for a random number of public inputs!");
@@ -26,12 +30,13 @@ pub fn retrieve_user_input_for_underconstrained(
         .expect("Failed to read line");
         let verification_type = menu.trim().parse::<i64>().unwrap();
     
-    let mut analyzer_input: AnalyzerInput = AnalyzerInput { 
+    let mut analyzer_input: AnalyzerInput<F> = AnalyzerInput::<F> { 
         verification_method: VerificationMethod::Random,
         verification_input: VerificationInput { 
             iterations: 1,
             instances_string: HashMap::new(), 
         }, 
+        lookups:[].to_vec()
     };
 
     match verification_type {
@@ -69,7 +74,7 @@ pub fn retrieve_user_input_for_underconstrained(
     analyzer_input
 }
 
-pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOutput) {
+pub fn output_result<F: FieldExt>(analyzer_input: AnalyzerInput<F>, analyzer_output: &AnalyzerOutput) {
     match analyzer_output.output_status {
         AnalyzerOutputStatus::Underconstrained => {
             println!("The circuit is under-constrained.");
@@ -83,7 +88,7 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
         AnalyzerOutputStatus::NotUnderconstrainedLocal => {
             match analyzer_input.verification_method {
                 VerificationMethod::Specific => {
-                    println!("The circuit is under-constrained for this specific input.");
+                    println!("The circuit is not under-constrained for this specific input.");
                 },
                 VerificationMethod::Random => {
                     println!(

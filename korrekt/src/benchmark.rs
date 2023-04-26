@@ -9,6 +9,7 @@ use crate::{
 
 pub fn run_benchmark() {
     run_underconstrained_benchmark_for_specified_size::<2>();
+    run_underconstrained_benchmark_for_specified_size::<2>();
     run_underconstrained_benchmark_for_specified_size::<4>();
     run_underconstrained_benchmark_for_specified_size::<8>();
     run_underconstrained_benchmark_for_specified_size::<16>();
