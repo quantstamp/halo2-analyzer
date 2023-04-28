@@ -148,11 +148,11 @@ pub struct BitDecompositonUnderConstrainedConfig<const COUNT: usize> {
 }
 
 impl<F: FieldExt, const COUNT: usize> BitDecompositonUnderConstrained<F, COUNT> {
-    // pub fn new(b: [F; COUNT]) -> Self {
-    //     BitDecompositonUnderConstrained {
-    //         b
-    //     }
-    // }
+    pub fn new(b: [F; COUNT]) -> Self {
+        BitDecompositonUnderConstrained {
+            b
+        }
+    }
 }
 
 impl<F: FieldExt, const COUNT: usize> Default for BitDecompositonUnderConstrained<F, COUNT> {

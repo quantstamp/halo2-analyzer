@@ -298,7 +298,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 rotation,
             } => {
                 let term = format!("F-{}-{}-{}", region_no, *column_index, rotation.0 + row_num);
-                println!("{}", term);
+                //println!("{}", term);
                 //let t = format!( "(as ff{} F)",a.get_lower_32());
                 //(term, NodeType::Fixed)
                 // smt::write_var(printer, term.clone());
@@ -551,10 +551,10 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 return result; // We can just break here.
             }
 
-            println!("Model {} to be checked:", i);
-            for r in &model.result {
-                println!("{} : {}", r.1.name, r.1.value.element)
-            }
+            // println!("Model {} to be checked:", i);
+            // for r in &model.result {
+            //     println!("{} : {}", r.1.name, r.1.value.element)
+            // }
 
             // Imitate the creation of a new solver by utilizing the stack functionality of solver
             smt::write_push(printer, 1);
@@ -619,14 +619,14 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             let model_with_constraint =
                 Self::solve_and_get_model(smt_file_path.clone(), &variables);
             if matches!(model_with_constraint.sat, Satisfiability::SATISFIABLE) {
-                println!("Equivalent model for the same public input:");
-                for r in &model_with_constraint.result {
-                    println!("{} : {}", r.1.name, r.1.value.element)
-                }
+                // println!("Equivalent model for the same public input:");
+                // for r in &model_with_constraint.result {
+                //     println!("{} : {}", r.1.name, r.1.value.element)
+                // }
                 result = AnalyzerOutputStatus::Underconstrained;
                 return result;
             } else {
-                println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+                //println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
             }
             smt::write_pop(printer, 1);
 

@@ -22,12 +22,12 @@ pub struct TwoBitDecompCircuitConfig {
 }
 
 impl<F: FieldExt> TwoBitDecompCircuit<F> {
-    // pub fn new(b0: F, b1: F) -> Self {
-    //     TwoBitDecompCircuit {
-    //         b0,
-    //         b1,
-    //     }
-    // }
+    pub fn new(b0: F, b1: F) -> Self {
+        TwoBitDecompCircuit {
+            b0,
+            b1,
+        }
+    }
 }
 
 impl<F: FieldExt> Default for TwoBitDecompCircuit<F> {
@@ -142,12 +142,12 @@ pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: FieldExt> {
 }
 
 impl<F: FieldExt> TwoBitDecompCircuitUnderConstrained<F> {
-    // pub fn new(b0: F, b1: F) -> Self {
-    //     TwoBitDecompCircuitUnderConstrained {
-    //         b0,
-    //         b1,
-    //     }
-    // }
+    pub fn new(b0: F, b1: F) -> Self {
+        TwoBitDecompCircuitUnderConstrained {
+            b0,
+            b1,
+        }
+    }
 }
 
 impl<F: FieldExt> Default for TwoBitDecompCircuitUnderConstrained<F> {

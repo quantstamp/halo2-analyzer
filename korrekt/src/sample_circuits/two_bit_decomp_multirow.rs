@@ -21,12 +21,12 @@ pub struct MultiRowTwoBitDecompCircuitConfig<F: FieldExt> {
 }
 
 impl<F: FieldExt> MultiRowTwoBitDecompCircuit<F> {
-    // pub fn new(b0: F, b1: F) -> Self {
-    //     MultiRowTwoBitDecompCircuit {
-    //         b0,
-    //         b1,
-    //     }
-    // }
+    pub fn new(b0: F, b1: F) -> Self {
+        MultiRowTwoBitDecompCircuit {
+            b0,
+            b1,
+        }
+    }
 }
 
 impl<F: FieldExt> Default for MultiRowTwoBitDecompCircuit<F> {

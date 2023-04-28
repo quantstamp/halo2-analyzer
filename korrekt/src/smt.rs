@@ -43,14 +43,14 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
 
 
         let l;
-        if (matches!(ntl, NodeType::Advice) || matches!(ntl, NodeType::Instance) || matches!(ntl, NodeType::Fixed)) {
+        if (matches!(ntl, NodeType::Advice) || matches!(ntl, NodeType::Instance) || matches!(ntl, NodeType::Fixed)|| matches!(ntl, NodeType::Constant)) {
             l = left;
         } else {
             l = format!("({})", left);
         }
 
         let r;
-        if (matches!(ntr, NodeType::Advice) || matches!(ntr, NodeType::Instance)|| matches!(ntr, NodeType::Fixed)) {
+        if (matches!(ntr, NodeType::Advice) || matches!(ntr, NodeType::Instance)|| matches!(ntr, NodeType::Fixed)|| matches!(ntr, NodeType::Constant)) {
             r = right;
         } else {
             r = format!("({})", right);
