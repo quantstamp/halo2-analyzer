@@ -3,10 +3,7 @@ use std::{
     collections::HashMap,
     io,
 };
-use halo2_proofs::{
-    arithmetic::FieldExt,
-    plonk::{lookup::Argument},
-};
+
 use crate::analyzer_io_type::{
     AnalyzerInput, 
     AnalyzerOutput,
@@ -17,9 +14,9 @@ use crate::analyzer_io_type::{
 };
 
 
-pub fn retrieve_user_input_for_underconstrained<F: FieldExt>(
+pub fn retrieve_user_input_for_underconstrained(
     instance_cols_string: &HashMap<String, i64>,
-) -> AnalyzerInput<F> {
+) -> AnalyzerInput {
     println!("You can verify the circuit for a specific public input or a random number of public inputs:");
     println!("1. verify the circuit for a specific public input!");
     println!("2. Verify for a random number of public inputs!");
@@ -30,13 +27,12 @@ pub fn retrieve_user_input_for_underconstrained<F: FieldExt>(
         .expect("Failed to read line");
         let verification_type = menu.trim().parse::<i64>().unwrap();
     
-    let mut analyzer_input: AnalyzerInput<F> = AnalyzerInput::<F> { 
+    let mut analyzer_input: AnalyzerInput = AnalyzerInput { 
         verification_method: VerificationMethod::Random,
         verification_input: VerificationInput { 
             iterations: 1,
             instances_string: HashMap::new(), 
         }, 
-        lookups:[].to_vec()
     };
 
     match verification_type {
@@ -74,7 +70,7 @@ pub fn retrieve_user_input_for_underconstrained<F: FieldExt>(
     analyzer_input
 }
 
-pub fn output_result<F: FieldExt>(analyzer_input: AnalyzerInput<F>, analyzer_output: &AnalyzerOutput) {
+pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOutput) {
     match analyzer_output.output_status {
         AnalyzerOutputStatus::Underconstrained => {
             println!("The circuit is under-constrained.");
@@ -117,7 +113,7 @@ pub fn retrieve_user_input_for_analyzer_type() -> AnalyzerType {
         .expect("Failed to read line");
     let menu_int = menu.trim().parse::<i64>().unwrap();
     
-    let mut analyzer_type: AnalyzerType;
+    let analyzer_type: AnalyzerType;
     match menu_int {
         1 => {
             analyzer_type = AnalyzerType::UnusedGates;

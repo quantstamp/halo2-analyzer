@@ -42,7 +42,7 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
 
         let region: &mut dyn RegionLayouter<F> = &mut shape;
         let result = assignment(region.into())?;
-        let a  = assignment;
+        let _a  = assignment;
 
         // save region
 
@@ -67,7 +67,6 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         _column: Column<Instance>,
         _row: usize,
     ) -> Result<(), Error> {
-
         let left = format!("A-{}-{}-{:?}", _cell.region_index.0, _cell.column.index(),_cell.row_offset);
 
         let right = format!("A-{}-{}-{:?}",_cell.region_index.0, _column.index(),_row);

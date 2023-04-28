@@ -73,15 +73,15 @@ pub fn extract_model_response(stream: String) -> ModelResult {
     model
 }
 
-pub fn output_model_result(model: &ModelResult) {
-    println!("Satisfiability: {:?}", model.sat);
-    for variable in &model.result {
-        println!(
-            "Variable Name: {}, Field Element: {}, Field Order: {}", 
-            variable.1.name, variable.1.value.element, variable.1.value.order
-        );
-    }
-}
+// pub fn output_model_result(model: &ModelResult) {
+//     println!("Satisfiability: {:?}", model.sat);
+//     for variable in &model.result {
+//         println!(
+//             "Variable Name: {}, Field Element: {}, Field Order: {}", 
+//             variable.1.name, variable.1.value.element, variable.1.value.order
+//         );
+//     }
+// }
 
 // Main's Output:
 // Satisfiability: SATISFIABLE

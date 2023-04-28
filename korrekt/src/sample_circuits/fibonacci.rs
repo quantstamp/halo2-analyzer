@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 use halo2_proofs::arithmetic::FieldExt;
 use halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
+    Advice, Circuit, Column, ConstraintSystem, Instance, Selector,
 };
-use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner, AssignedCell};
+use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, AssignedCell};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::poly::Rotation;
 

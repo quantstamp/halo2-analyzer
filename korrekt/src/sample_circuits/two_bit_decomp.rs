@@ -3,7 +3,7 @@ use halo2_proofs::arithmetic::FieldExt;
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
 };
-use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner, AssignedCell};
+use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::poly::Rotation;
 
@@ -22,12 +22,12 @@ pub struct TwoBitDecompCircuitConfig {
 }
 
 impl<F: FieldExt> TwoBitDecompCircuit<F> {
-    pub fn new(b0: F, b1: F) -> Self {
-        TwoBitDecompCircuit {
-            b0,
-            b1,
-        }
-    }
+    // pub fn new(b0: F, b1: F) -> Self {
+    //     TwoBitDecompCircuit {
+    //         b0,
+    //         b1,
+    //     }
+    // }
 }
 
 impl<F: FieldExt> Default for TwoBitDecompCircuit<F> {
@@ -134,20 +134,20 @@ pub struct TwoBitDecompCircuitUnderConstrained<F: FieldExt> {
 #[derive(Clone)]
 pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: FieldExt> {
     _ph: PhantomData<F>,
-    b0: Column<Advice>,
-    b1: Column<Advice>,
-    x: Column<Advice>,
-    i: Column<Instance>,
-    s: Selector,
+    // b0: Column<Advice>,
+    // b1: Column<Advice>,
+    // x: Column<Advice>,
+    // i: Column<Instance>,
+    // s: Selector,
 }
 
 impl<F: FieldExt> TwoBitDecompCircuitUnderConstrained<F> {
-    pub fn new(b0: F, b1: F) -> Self {
-        TwoBitDecompCircuitUnderConstrained {
-            b0,
-            b1,
-        }
-    }
+    // pub fn new(b0: F, b1: F) -> Self {
+    //     TwoBitDecompCircuitUnderConstrained {
+    //         b0,
+    //         b1,
+    //     }
+    // }
 }
 
 impl<F: FieldExt> Default for TwoBitDecompCircuitUnderConstrained<F> {

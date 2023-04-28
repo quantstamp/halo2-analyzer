@@ -1,9 +1,8 @@
-use std::marker::PhantomData;
 use halo2_proofs::arithmetic::FieldExt;
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
 };
-use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner, AssignedCell};
+use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::poly::Rotation;
 
@@ -21,11 +20,11 @@ pub struct BitDecompositonConfig<const COUNT: usize> {
 }
 
 impl<F: FieldExt, const COUNT: usize> BitDecompositon<F, COUNT> {
-    pub fn new(b: [F; COUNT]) -> Self {
-        BitDecompositon {
-            b
-        }
-    }
+    // pub fn new(b: [F; COUNT]) -> Self {
+    //     BitDecompositon {
+    //         b
+    //     }
+    // }
 }
 
 impl<F: FieldExt, const COUNT: usize> Default for BitDecompositon<F, COUNT> {
@@ -149,11 +148,11 @@ pub struct BitDecompositonUnderConstrainedConfig<const COUNT: usize> {
 }
 
 impl<F: FieldExt, const COUNT: usize> BitDecompositonUnderConstrained<F, COUNT> {
-    pub fn new(b: [F; COUNT]) -> Self {
-        BitDecompositonUnderConstrained {
-            b
-        }
-    }
+    // pub fn new(b: [F; COUNT]) -> Self {
+    //     BitDecompositonUnderConstrained {
+    //         b
+    //     }
+    // }
 }
 
 impl<F: FieldExt, const COUNT: usize> Default for BitDecompositonUnderConstrained<F, COUNT> {

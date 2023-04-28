@@ -3,7 +3,7 @@ use halo2_proofs::arithmetic::FieldExt;
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
 };
-use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner, AssignedCell};
+use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::poly::Rotation;
 
@@ -21,12 +21,12 @@ pub struct MultiRowTwoBitDecompCircuitConfig<F: FieldExt> {
 }
 
 impl<F: FieldExt> MultiRowTwoBitDecompCircuit<F> {
-    pub fn new(b0: F, b1: F) -> Self {
-        MultiRowTwoBitDecompCircuit {
-            b0,
-            b1,
-        }
-    }
+    // pub fn new(b0: F, b1: F) -> Self {
+    //     MultiRowTwoBitDecompCircuit {
+    //         b0,
+    //         b1,
+    //     }
+    // }
 }
 
 impl<F: FieldExt> Default for MultiRowTwoBitDecompCircuit<F> {

@@ -224,6 +224,7 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
         let chip = FibonacciChip::construct(config);
         chip.load_table(layouter.namespace(|| "lookup table"))?;
         let out_cell = chip.assign(layouter.namespace(|| "entire table"), 8)?;
+        //println!("{:?}",out_cell);
         chip.expose_public(layouter.namespace(|| "out"), out_cell, 2)?;
 
         Ok(())

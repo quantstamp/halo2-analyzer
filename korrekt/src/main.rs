@@ -24,13 +24,12 @@ fn main() {
     let b = Fr::from(1); // F[1]
     let out = Fr::from(21); // F[9]
 
-    let mut public_input = vec![a, b, out];
+    let public_input = vec![a, b, out];
     let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input.clone()]).unwrap();
-    //println!("prove {:?}",prover);
     let _lookups = prover.cs.lookups;
 
     let analyzer_type = analyzer_io::retrieve_user_input_for_analyzer_type();
-    analyzer.dispatch_analysis(analyzer_type,_lookups);
+    analyzer.dispatch_analysis(analyzer_type,prover.fixed);
 
     // The benchmark for underconstrained analysis.
     //benchmark::run_benchmark();

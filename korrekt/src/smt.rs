@@ -6,15 +6,13 @@ use crate::analyzer::{self, NodeType};
 
 pub struct Printer<'a, W: 'a> {
     writer: &'a mut W,
-    n_ff_sorts: usize,
-    n_terms: usize,
     pub vars: HashMap<String, bool>,
 }
 
 fn get_logic_string() -> String {
-    let mut ff = true;
-    let mut bv = false;
-    let mut nia = false;
+    let ff = true;
+    let bv = false;
+    let nia = false;
 
     format!(
         "QF_{}{}{}",
@@ -28,8 +26,6 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     pub fn new(writer: &'a mut W) -> Self {
         Self {
             writer,
-            n_ff_sorts: 0,
-            n_terms: 0,
             vars: HashMap::new(),
         }
     }
@@ -103,7 +99,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         } else {
             a = format!("({})", poly);
         }
-        if (matches!(op, analyzer::Operation::Equal)) {
+        if matches!(op, analyzer::Operation::Equal) {
             writeln!(&mut self.writer, "(assert ( = {} (as ff{} F)))", a, value).unwrap();
         } else {
             writeln!(
@@ -116,9 +112,9 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     }
 
     fn write_assert_bool(&mut self, poly: String, op: analyzer::Operation) {
-        if (matches!(op, analyzer::Operation::Or)) {
+        if matches!(op, analyzer::Operation::Or) {
             writeln!(&mut self.writer, "(assert (or {}))", poly).unwrap();
-        } else if (matches!(op, analyzer::Operation::And)) {
+        } else if matches!(op, analyzer::Operation::And) {
             writeln!(&mut self.writer, "(assert (and {}))", poly).unwrap();
         }
     }
@@ -136,7 +132,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         } else {
             a = format!("({})", poly);
         }
-        if (matches!(op, analyzer::Operation::Equal)) {
+        if matches!(op, analyzer::Operation::Equal) {
             format!("( = {} (as ff{} F))", a, value)
         } else {
             format!("(not ( = {} (as ff{} F)))", a, value)
@@ -147,9 +143,9 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         writeln!(&mut self.writer, "(get-value ({}))", var).unwrap();
     }
 
-    pub fn write_get_model(&mut self) {
-        writeln!(&mut self.writer, "(get-model)").unwrap();
-    }
+    // pub fn write_get_model(&mut self) {
+    //     writeln!(&mut self.writer, "(get-model)").unwrap();
+    // }
 
     pub fn write_push(&mut self, number: u8) {
         if number == 1 {
@@ -229,9 +225,9 @@ pub fn write_get_value(p: &mut Printer<File>, var: String) {
     p.write_get_value(var);
 }
 
-pub fn write_get_model(p: &mut Printer<File>) {
-    p.write_get_model();
-}
+// pub fn write_get_model(p: &mut Printer<File>) {
+//     p.write_get_model();
+// }
 
 pub fn write_push(p: &mut Printer<File>, number: u8) {
     p.write_push(number);
@@ -245,6 +241,6 @@ pub fn get_or(p: &mut Printer<File>, or_str: String) -> String {
     p.get_or(or_str)
 }
 
-pub fn get_and(p: &mut Printer<File>, or_str: String) -> String {
-    p.get_and(or_str)
+pub fn get_and(p: &mut Printer<File>, and_str: String) -> String {
+    p.get_and(and_str)
 }

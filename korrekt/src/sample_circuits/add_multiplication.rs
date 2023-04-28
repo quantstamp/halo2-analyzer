@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 use halo2_proofs::arithmetic::FieldExt;
 use halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
+    Advice, Circuit, Column, ConstraintSystem, Selector,
 };
-use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner, AssignedCell};
+use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::poly::Rotation;
 
@@ -13,20 +13,20 @@ pub struct AddMultCircuit<F: FieldExt> {
 }
 
 #[derive(Clone)]
-pub struct AddMultCircuit_Config<F: FieldExt> {
+pub struct AddMultCircuitConfig<F: FieldExt> {
     _ph: PhantomData<F>,
     s_mul: Selector,
-    s_add: Selector,
+    //s_add: Selector,
     columns: [Column<Advice>; 25],
 }
 
 impl <F: FieldExt> AddMultCircuit<F> {
-    fn new(a: F, b: F) -> Self {
-        AddMultCircuit {
-            a,
-            b
-        }
-    }
+    // fn new(a: F, b: F) -> Self {
+    //     AddMultCircuit {
+    //         a,
+    //         b
+    //     }
+    // }
 }
 
 impl <F: FieldExt> Default for AddMultCircuit<F> {
@@ -39,7 +39,7 @@ impl <F: FieldExt> Default for AddMultCircuit<F> {
 }
 
 impl <F: FieldExt>  Circuit<F> for AddMultCircuit<F> {
-    type Config = AddMultCircuit_Config<F>;
+    type Config = AddMultCircuitConfig<F>;
     type FloorPlanner = SimpleFloorPlanner;
 
     fn without_witnesses(&self) -> Self {
@@ -86,7 +86,7 @@ impl <F: FieldExt>  Circuit<F> for AddMultCircuit<F> {
         Self::Config {
             _ph: PhantomData,
             s_mul,
-            s_add,
+            //s_add,
             columns,
         }
     }

@@ -44,3 +44,12 @@ ConstraintSystem {
                     Product(Selector(Selector(1, false)), Advice { query_index: 2, column_index: 2, rotation: Rotation(0) })
                 ], 
                 table_expressions: [Fixed { query_index: 0, column_index: 0, rotation: Rotation(0) }, Fixed { query_index: 1, column_index: 1, rotation: Rotation(0) }, Fixed { query_index: 2, column_index: 2, rotation: Rotation(0) }] }], constants: [], minimum_degree: None }
+
+
+
+                [Argument { input_expressions: 
+                    [
+                    Product(Fixed { query_index: 3, column_index: 3, rotation: Rotation(0) }, Advice { query_index: 0, column_index: 0, rotation: Rotation(0) }), 
+                    Product(Fixed { query_index: 3, column_index: 3, rotation: Rotation(0) }, Advice { query_index: 1, column_index: 1, rotation: Rotation(0) }), 
+                    Product(Fixed { query_index: 3, column_index: 3, rotation: Rotation(0) }, Advice { query_index: 2, column_index: 2, rotation: Rotation(0) })], 
+                    table_expressions: [Fixed { query_index: 0, column_index: 0, rotation: Rotation(0) }, Fixed { query_index: 1, column_index: 1, rotation: Rotation(0) }, Fixed { query_index: 2, column_index: 2, rotation: Rotation(0) }] }]
