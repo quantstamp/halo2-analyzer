@@ -50,7 +50,7 @@ pub trait Chip<F: FieldExt>: Sized {
 
 /// Index of a region in a layouter
 #[derive(Clone, Copy, Debug)]
-pub struct RegionIndex(usize);
+pub struct RegionIndex(pub usize);
 
 impl From<usize> for RegionIndex {
     fn from(idx: usize) -> RegionIndex {

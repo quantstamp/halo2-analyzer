@@ -74,12 +74,18 @@ impl Region {
 
 /// The value of a particular cell within the circuit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum CellValue<F: Group + Field> {
+pub enum CellValue<F: Group + Field> {
     // An unassigned cell.
+    /// Linter
+    /// Linter
     Unassigned,
     // A cell that has been assigned a value.
+    /// Linter
+    /// Linter
     Assigned(F),
     // A unique poisoned cell.
+    /// Linter
+    /// Linter
     Poison(usize),
 }
 
@@ -281,7 +287,9 @@ pub struct MockProver<F: Group + Field> {
     current_region: Option<Region>,
 
     // The fixed cells in the circuit, arranged as [column][row].
-    fixed: Vec<Vec<CellValue<F>>>,
+    /// Linter
+    /// Linter
+    pub fixed: Vec<Vec<CellValue<F>>>,
     // The advice cells in the circuit, arranged as [column][row].
     advice: Vec<Vec<CellValue<F>>>,
     // The instance cells in the circuit, arranged as [column][row].
