@@ -62,7 +62,6 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         // synthesize the circuit with analytic layout
         let mut layouter = AnalyticLayouter::new();
         circuit.synthesize(config, &mut layouter).unwrap();
-        //println!("{:?}",layouter.)
         Analyzer {
             cs,
             layouter,
@@ -203,7 +202,6 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         };
         for region in self.layouter.regions.iter() {
             for eq_adv in region.__advice_eq_table.iter() {
-                //println!("{:?}",eq_adv);
 
                 smt::write_var(&mut printer, eq_adv.0.to_string());
                 smt::write_var(&mut printer, eq_adv.1.to_string());
@@ -278,17 +276,13 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             Expression::Constant(a) => {
                 //smt::write_const(p, format!("V-{}", counter),a.get_lower_32());
                 let term = format!("(as ff{} F)", a.get_lower_128());
-                //println!("Constant:{:?}", a.get_lower_32());
                 (term, NodeType::Constant)
             }
             Expression::Selector(a) => {
                 let s = format!("S-{:?}-{}-{}", region_no, a.0, row_num);
-                //println!("es: {:?}", es);
                 if es.contains(&s) {
-                    //println!("Selector 1: {:?}", s);
                     (format!("(as ff1 F)"), NodeType::Fixed)
                 } else {
-                    //println!("Selector 0: {:?}", s);
                     (format!("(as ff0 F)"), NodeType::Fixed) //*** Return like the previuus, at the and replace with 1 if enabled, 0 for disabled */
                 }
             }
@@ -298,7 +292,6 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 rotation,
             } => {
                 let term = format!("F-{}-{}-{}", region_no, *column_index, rotation.0 + row_num);
-                //println!("{}", term);
                 //let t = format!( "(as ff{} F)",a.get_lower_32());
                 //(term, NodeType::Fixed)
                 // smt::write_var(printer, term.clone());
@@ -314,7 +307,6 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                //println!("{:?}",format!("A-{}-{}", *column_index, rotation.0));
                 let term = format!("A-{}-{}-{}", region_no, *column_index, rotation.0 + row_num); // ("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
                 smt::write_var(printer, term.clone());
                 (term, NodeType::Advice)
@@ -416,6 +408,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
             for region_no in 0..self.layouter.regions.len() {
                 for row_num in 0..self.layouter.regions[region_no].row_count {
+                    //println!("lookup: {:?}",self.cs.lookups.clone());
                     for lookup in self.cs.lookups.iter() {
                         //lookups.iter() {
                         //let mut cons_str = "".to_string();
@@ -448,6 +441,8 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                                 _ => {} //extract col index to col_indices
                             }
                         }
+                        println!("col_indices: {:?}",col_indices);
+                        println!("cons_str_vec: {:?}",cons_str_vec);
                         let mut big_cons_str = "".to_string();
                         let mut big_cons = vec![];
                         for row in 0..fixed[0].len() {//*** Iterate over look up table rows */
@@ -457,9 +452,9 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                             //let mut cons_str = "".to_string();
                             let mut equalities = vec![];
                             let mut eq_str = String::new();
-                            for col in col_indices.clone() {//*** Iterate over fixed cols */
+                            for col in 0..col_indices.len() {//*** Iterate over fixed cols */
                                 let mut t = String::new();
-                                match fixed[col][row] {
+                                match fixed[col_indices[col]][row] {
                                     CellValue::Unassigned => {
                                         exit = true;
                                         break;
@@ -469,7 +464,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                                     }
                                     CellValue::Poison(_) => todo!(),
                                 }
-                                if let CellValue::Assigned(value) = fixed[col][row] {
+                                if let CellValue::Assigned(value) = fixed[col_indices[col]][row] {
                                     t = value.get_lower_128().to_string();
                                 }
                                 let sa = smt::get_assert(
@@ -500,7 +495,6 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                         }
 
                         //let or_eqs = smt::get_or(printer, big_cons_str);
-                        //println!("or_eqs {}",or_eqs);
 
                         smt::write_assert_bool(printer, big_cons_str, Operation::Or);
                     }
@@ -551,10 +545,10 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 return result; // We can just break here.
             }
 
-            // println!("Model {} to be checked:", i);
-            // for r in &model.result {
-            //     println!("{} : {}", r.1.name, r.1.value.element)
-            // }
+            println!("Model {} to be checked:", i);
+            for r in &model.result {
+                println!("{} : {}", r.1.name, r.1.value.element)
+            }
 
             // Imitate the creation of a new solver by utilizing the stack functionality of solver
             smt::write_push(printer, 1);
@@ -619,14 +613,14 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             let model_with_constraint =
                 Self::solve_and_get_model(smt_file_path.clone(), &variables);
             if matches!(model_with_constraint.sat, Satisfiability::SATISFIABLE) {
-                // println!("Equivalent model for the same public input:");
-                // for r in &model_with_constraint.result {
-                //     println!("{} : {}", r.1.name, r.1.value.element)
-                // }
+                println!("Equivalent model for the same public input:");
+                for r in &model_with_constraint.result {
+                    println!("{} : {}", r.1.name, r.1.value.element)
+                }
                 result = AnalyzerOutputStatus::Underconstrained;
                 return result;
             } else {
-                //println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+                println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
             }
             smt::write_pop(printer, 1);
 
