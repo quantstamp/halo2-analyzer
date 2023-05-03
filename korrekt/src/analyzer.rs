@@ -441,8 +441,6 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                                 _ => {} //extract col index to col_indices
                             }
                         }
-                        println!("col_indices: {:?}",col_indices);
-                        println!("cons_str_vec: {:?}",cons_str_vec);
                         let mut big_cons_str = "".to_string();
                         let mut big_cons = vec![];
                         for row in 0..fixed[0].len() {//*** Iterate over look up table rows */
