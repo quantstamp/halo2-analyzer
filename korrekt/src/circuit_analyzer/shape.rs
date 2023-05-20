@@ -15,10 +15,10 @@ pub struct AnalyticalShape {
     pub columns: HashSet<(RegionColumn, Rotation)>,
     pub row_count: usize,
 
-    pub __enabled_selectors: HashSet<String>,
+    pub enabled_selectors: HashSet<String>,
 
-    pub __advice_eq_table: HashMap<String, String>,
-    pub __eq_table: HashMap<String, String>,
+    pub advice_eq_table: HashMap<String, String>,
+    pub eq_table: HashMap<String, String>,
 }
 
 impl AnalyticalShape {
@@ -29,9 +29,9 @@ impl AnalyticalShape {
             selectors: HashSet::new(),
             row_count: 0,
             name,
-            __enabled_selectors: HashSet::new(),
-            __advice_eq_table: HashMap::new(),
-            __eq_table: HashMap::new(),
+            enabled_selectors: HashSet::new(),
+            advice_eq_table: HashMap::new(),
+            eq_table: HashMap::new(),
         }
     }
 
@@ -40,7 +40,7 @@ impl AnalyticalShape {
         for (column, _rotation) in self.columns.iter() {
             match column {
                 RegionColumn::Column(_) => (),
-                RegionColumn::Selector(selector) => selectors.push(selector.clone()),
+                RegionColumn::Selector(selector) => selectors.push(*selector),
             }
         }
         selectors
@@ -55,10 +55,10 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         offset: usize,
     ) -> Result<(), Error> {
         // Track the selector's fixed column as part of the region's shape.
-        self.__enabled_selectors.insert(format!(
+        self.enabled_selectors.insert(format!(
             "S-{:?}-{}-{}",
             self.region_index.0,
-            i32::try_from(selector.0.clone()).ok().unwrap(),
+            i32::try_from(selector.0).ok().unwrap(),
             i32::try_from(offset).ok().unwrap()
         ));
         self.columns
@@ -77,15 +77,6 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         self.columns
             .insert((Column::<Any>::from(column).into(), Rotation(offset as i32)));
         self.row_count = cmp::max(self.row_count, offset + 1);
-
-       //let mut value = Value::unknown();
-       let _c =column;
-    //    let _vv = {
-    //                 let v = _to();
-    //                 let value_f = v.to_field();
-    //                 value = v;
-    //                 value_f
-    //             };
 
         Ok(Cell {
             region_index: self.region_index,
@@ -108,39 +99,38 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
     fn assign_advice_from_instance<'v>(
         &mut self,
         _annotation: &'v (dyn Fn() -> String + 'v),
-        _instance: Column<Instance>,
-        _row: usize,
-        _advice: Column<Advice>,
-        _offset: usize,
+        instance: Column<Instance>,
+        row: usize,
+        advice: Column<Advice>,
+        offset: usize,
     ) -> Result<(Cell, Value<F>), Error> {
         //todo!()
         let left = format!(
             "I-{:?}-{}-{:?}",
             self.region_index.0,
-            _instance.index(),
-            _row
+            instance.index(),
+            row
         );
 
         let right = format!(
             "A-{:?}-{}-{:?}",
             self.region_index.0,
-            _advice.index(),
-            _offset
+            advice.index(),
+            offset
         );
 
-        self.__eq_table.insert(left, right);
-        //self.columns.insert(Column::<Any>::from(advice).into());
+        self.eq_table.insert(left, right);
         self.columns.insert((
-            Column::<Any>::from(_advice).into(),
-            Rotation(_offset as i32),
+            Column::<Any>::from(advice).into(),
+            Rotation(offset as i32),
         ));
-        self.row_count = cmp::max(self.row_count, _offset + 1);
+        self.row_count = cmp::max(self.row_count, offset + 1);
 
         Ok((
             Cell {
                 region_index: self.region_index,
-                row_offset: _offset,
-                column: _advice.into(),
+                row_offset: offset,
+                column: advice.into(),
             },
             Value::unknown(),
         ))
@@ -169,24 +159,24 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         Ok(())
     }
 
-    fn constrain_equal(&mut self, _left: Cell, _right: Cell) -> Result<(), Error> {
+    fn constrain_equal(&mut self, left: Cell, right: Cell) -> Result<(), Error> {
         // Equality constraints don't affect the region shape.
 
         let left_name = format!(
             "A-{:?}-{}-{:?}",
-            _left.region_index.0,
-            _left.column.index(),
-            _left.row_offset
+            left.region_index.0,
+            left.column.index(),
+            left.row_offset
         );
 
         let right_name = format!(
             "A-{:?}-{}-{:?}",
-            _right.region_index.0,
-            _right.column.index(),
-            _right.row_offset
+            right.region_index.0,
+            right.column.index(),
+            right.row_offset
         );
 
-        self.__advice_eq_table.insert(left_name, right_name);
+        self.advice_eq_table.insert(left_name, right_name);
         Ok(())
     }
 }

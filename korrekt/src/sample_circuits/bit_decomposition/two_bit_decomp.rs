@@ -1,11 +1,11 @@
-use std::marker::PhantomData;
 use halo2_proofs::arithmetic::FieldExt;
+use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
+use halo2_proofs::plonk::Error;
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
 };
-use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner};
-use halo2_proofs::plonk::Error;
 use halo2_proofs::poly::Rotation;
+use std::marker::PhantomData;
 
 pub struct TwoBitDecompCircuit<F: FieldExt> {
     b0: F,
@@ -23,10 +23,7 @@ pub struct TwoBitDecompCircuitConfig {
 
 impl<F: FieldExt> TwoBitDecompCircuit<F> {
     pub fn new(b0: F, b1: F) -> Self {
-        TwoBitDecompCircuit {
-            b0,
-            b1,
-        }
+        TwoBitDecompCircuit { b0, b1 }
     }
 }
 
@@ -61,13 +58,13 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuit<F> {
         meta.create_gate("b0_binary_check", |meta| {
             let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
             // b0 * (1-b0)
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(b1, Rotation::cur());
             let dummy = meta.query_selector(s);
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
             // b1 * (1-b1)
         });
         meta.create_gate("equality", |meta| {
@@ -81,15 +78,7 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuit<F> {
             vec![dummy * (a + Expression::Constant(F::from(2)) * b - c)]
         });
 
-        let cfg = Self::Config {
-            b0,
-            b1,
-            x,
-            i,
-            s,
-        };
-
-        cfg
+        Self::Config { b0, b1, x, i, s }
     }
 
     fn synthesize(
@@ -119,9 +108,7 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuit<F> {
             )
             .unwrap();
         // expose the public input
-        // Is this line just making sure the output "x" (which is private) is same as the instance (public input)?
-        // For example, given public input i=3, we want b0 = 1, b1 = 1, x = 3, and make sure x
-        layouter.constrain_instance(out.cell(), config.i, 0)?; //*** what is this? */
+        layouter.constrain_instance(out.cell(), config.i, 0)?;
         Ok(())
     }
 }
@@ -134,19 +121,11 @@ pub struct TwoBitDecompCircuitUnderConstrained<F: FieldExt> {
 #[derive(Clone)]
 pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: FieldExt> {
     _ph: PhantomData<F>,
-    // b0: Column<Advice>,
-    // b1: Column<Advice>,
-    // x: Column<Advice>,
-    // i: Column<Instance>,
-    // s: Selector,
 }
 
 impl<F: FieldExt> TwoBitDecompCircuitUnderConstrained<F> {
     pub fn new(b0: F, b1: F) -> Self {
-        TwoBitDecompCircuitUnderConstrained {
-            b0,
-            b1,
-        }
+        TwoBitDecompCircuitUnderConstrained { b0, b1 }
     }
 }
 
@@ -179,15 +158,15 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
 
         // define gates
         meta.create_gate("b0_binary_check", |meta| {
-            let a = meta.query_advice(b1, Rotation::cur());
+            let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
             // b0 * (1-b0)
         });
         meta.create_gate("b1_binary_check", |meta| {
-            let a = meta.query_advice(b1, Rotation::cur());
+            let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
             // b1 * (1-b1)
         });
         meta.create_gate("equality", |meta| {
@@ -201,15 +180,7 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
             vec![dummy * (a + Expression::Constant(F::from(2)) * b - c)]
         });
 
-        let cfg = Self::Config {
-            b0,
-            b1,
-            x,
-            i,
-            s,
-        };
-
-        cfg
+        Self::Config { b0, b1, x, i, s }
     }
 
     fn synthesize(
@@ -239,9 +210,7 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
             )
             .unwrap();
         // expose the public input
-        // Is this line just making sure the output "x" (which is private) is same as the instance (public input)?
-        // For example, given public input i=3, we want b0 = 1, b1 = 1, x = 3, and make sure x
-        layouter.constrain_instance(out.cell(), config.i, 0)?; //*** what is this? */
+        layouter.constrain_instance(out.cell(), config.i, 0)?;
         Ok(())
     }
 }

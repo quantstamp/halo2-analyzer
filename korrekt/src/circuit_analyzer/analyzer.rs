@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use halo2_proofs::{
     arithmetic::FieldExt,
     circuit::layouter::RegionColumn,
@@ -13,13 +14,16 @@ use std::{
     process::Command,
 };
 
-use crate::{
+use crate::circuit_analyzer::{
     abstract_expr::{self, AbsResult},
-    analyzer_io::{output_result, retrieve_user_input_for_underconstrained},
-    analyzer_io_type::{
-        AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, VerificationMethod,
-    },
-    layouter, smt,
+    layouter,
+};
+use crate::io::analyzer_io::{output_result, retrieve_user_input_for_underconstrained};
+use crate::io::analyzer_io_type::{
+    AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, VerificationMethod,
+};
+use crate::smt_solver::{
+    smt,
     smt::Printer,
     smt_parser::{self, ModelResult, Satisfiability},
 };
@@ -50,11 +54,15 @@ pub enum Operation {
     NotEqual,
     And,
     Or,
-    // Add,
-    // Mul,
 }
 
-impl<'a, 'b, F: FieldExt> Analyzer<F> {
+impl<'b, F: FieldExt> Analyzer<F> {
+    /// Creates an `Analyzer` instance with a circuit.
+    ///
+    /// This function creates an `Analyzer` instance by synthesizing the provided `Circuit` with an analytic layout.
+    /// It internally creates a constraint system to collect custom gates and uses the `circuit` parameter to synthesize the circuit
+    /// and populate the analytic layouter. The function returns the resulting `Analyzer` instance.
+    ///
     pub fn create_with_circuit<C: Circuit<F>>(circuit: &C) -> Self {
         // create constraint system to collect custom gates
         let mut cs: ConstraintSystem<F> = Default::default();
@@ -71,6 +79,12 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
     }
 
     /// Detects unused custom gates
+    ///
+    /// This function iterates through the gates in the constraint system (`self.cs`) and checks if each gate is used.
+    /// A gate is considered unused if it evaluates to zero for all regions in the layouter (`self.layouter`).
+    /// If an unused gate is found, it is logged in the `self.log` vector along with a suggested action.
+    /// Finally, the function prints the total number of unused gates found.
+    ///
     pub fn analyze_unused_custom_gates(&mut self) {
         let mut count = 0;
         for gate in self.cs.gates.iter() {
@@ -90,13 +104,20 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
             if !used {
                 count += 1;
-                println!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name());
+                //println!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name());
+                self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name()));
             }
         }
         println!("Finished analysis: {} unused gates found.", count);
     }
 
     /// Detects unused columns
+    ///
+    /// This function iterates through the advice queries in the constraint system (`self.cs`) and checks if each column is used.
+    /// A column is considered unused if it does not appear in any of the polynomials within the gates of the constraint system.
+    /// If an unused column is found, it is logged in the `self.log` vector.
+    /// Finally, the function prints the total number of unused columns found.
+    ///
     pub fn analyze_unused_columns(&mut self) {
         let mut count = 0;
         for (column, rotation) in self.cs.advice_queries.iter().cloned() {
@@ -113,7 +134,8 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
             if !used {
                 count += 1;
-                println!("unused column: {:?}", column);
+                //println!("unused column: {:?}", column);
+                self.log.push(format!("unused column: {:?}", column));
             }
         }
         println!("Finished analysis: {} unused columns found.", count);
@@ -140,8 +162,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
                                 column.index();
 
-                                if eval != AbsResult::Zero
-                                    && advices.contains(&(column.into(), rotation))
+                                if eval != AbsResult::Zero && advices.contains(&(column, rotation))
                                 {
                                     used = true;
                                 }
@@ -152,46 +173,64 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
                 if !used {
                     count += 1;
-                    println!("unconstrained cell in \"{}\" region: {:?} (rotation: {:?}) -- very likely a bug.", region.name,  reg_column, rotation);
+                    self.log.push(format!("unconstrained cell in \"{}\" region: {:?} (rotation: {:?}) -- very likely a bug.", region.name,  reg_column, rotation));
                 }
             }
         }
         println!("Finished analysis: {} unconstrained cells found.", count);
     }
-
+    /// Extracts instance columns from an equality table.
+    ///
+    /// This function takes an equality table (`eq_table`) represented as a `HashMap` with cell names as keys
+    /// and corresponding strings as values. It creates a new `HashMap` (`instance_cols_string`) and populates it
+    /// with the keys from the `eq_table`, assigning an initial value of zero to each key. The resulting `HashMap`
+    /// represents the extracted instance columns.
     pub fn extract_instance_cols(
         &mut self,
         eq_table: HashMap<String, String>,
     ) -> HashMap<String, i64> {
         let mut instance_cols_string: HashMap<String, i64> = HashMap::new();
         for cell in eq_table {
-            instance_cols_string.insert(format!("{}", cell.0), 0);
+            instance_cols_string.insert(cell.0.to_owned(), 0);
         }
         instance_cols_string
     }
-
+    /// Extracts instance columns from regions in the layouter.
+    ///
+    /// This function iterates through the regions in the layouter (`self.layouter`) and extracts the instance columns
+    /// from each region's equality table. It creates a new `HashMap` (`instance_cols_string`) and populates it with
+    /// the extracted instance columns, assigning an initial value of zero to each column. The resulting `HashMap`
+    /// represents the extracted instance columns from all regions in the layouter.
+    ///
     pub fn extract_instance_cols_from_region(&mut self) -> HashMap<String, i64> {
         let mut instance_cols_string: HashMap<String, i64> = HashMap::new();
         for region in self.layouter.regions.iter() {
-            for eq_adv in region.__eq_table.iter() {
-                instance_cols_string.insert(format!("{}", eq_adv.0), 0);
+            for eq_adv in region.eq_table.iter() {
+                instance_cols_string.insert(eq_adv.0.to_owned(), 0);
             }
         }
         instance_cols_string
     }
 
-    /// Linter
+    /// Analyzes underconstrained circuits and generates an analyzer output.
+    ///
+    /// This function performs the analysis of underconstrained circuits. It takes as input an `analyzer_input` struct
+    /// containing the required information for the analysis, and a `fixed` vector representing the vallues of fixed columns.
+    /// The function creates an SMT file, decomposes the polynomials, writes the necessary variables and assertions, and runs
+    /// the control uniqueness function to determine the `output_status` of the analysis.
+    /// The analyzer output is returned as a `Result` indicating success or an error if the analysis fails.
     pub fn analyze_underconstrained(
         &mut self,
         analyzer_input: AnalyzerInput,
         fixed: Vec<Vec<CellValue<F>>>,
-    ) -> AnalyzerOutput {
+    ) -> Result<AnalyzerOutput> {
         fs::create_dir_all("src/output/").unwrap();
         let smt_file_path = "src/output/out.smt2";
         // TODO: extract the modulus from F
         let base_field_prime = "307";
-        let mut smt_file = std::fs::File::create(smt_file_path).unwrap();
-        let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_string());
+        let mut smt_file =
+            std::fs::File::create(smt_file_path).context("Failed to create file!")?;
+        let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_owned());
 
         Self::decompose_polynomial(self, &mut printer, fixed);
 
@@ -201,16 +240,15 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             output_status: AnalyzerOutputStatus::Invalid,
         };
         for region in self.layouter.regions.iter() {
-            for eq_adv in region.__advice_eq_table.iter() {
+            for eq_adv in region.advice_eq_table.iter() {
+                smt::write_var(&mut printer, eq_adv.0.to_owned());
+                smt::write_var(&mut printer, eq_adv.1.to_owned());
 
-                smt::write_var(&mut printer, eq_adv.0.to_string());
-                smt::write_var(&mut printer, eq_adv.1.to_string());
-
-                let neg = format!("(ff.neg {})", eq_adv.1.to_string());
+                let neg = format!("(ff.neg {})", eq_adv.1);
                 let term = smt::write_term(
                     &mut printer,
-                    "add".to_string(),
-                    eq_adv.0.to_string(),
+                    "add".to_owned(),
+                    eq_adv.0.to_owned(),
                     NodeType::Advice,
                     neg,
                     NodeType::Advice,
@@ -218,7 +256,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 smt::write_assert(
                     &mut printer,
                     term,
-                    "0".to_string(),
+                    "0".to_owned(),
                     NodeType::Poly,
                     Operation::Equal,
                 );
@@ -226,15 +264,15 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         }
 
         for region in self.layouter.regions.iter() {
-            for eq_adv in region.__eq_table.iter() {
-                smt::write_var(&mut printer, eq_adv.0.to_string());
-                smt::write_var(&mut printer, eq_adv.1.to_string());
+            for eq_adv in region.eq_table.iter() {
+                smt::write_var(&mut printer, eq_adv.0.to_owned());
+                smt::write_var(&mut printer, eq_adv.1.to_owned());
 
-                let neg = format!("(ff.neg {})", eq_adv.1.to_string());
+                let neg = format!("(ff.neg {})", eq_adv.1);
                 let term = smt::write_term(
                     &mut printer,
-                    "add".to_string(),
-                    eq_adv.0.to_string(),
+                    "add".to_owned(),
+                    eq_adv.0.to_owned(),
                     NodeType::Advice,
                     neg,
                     NodeType::Advice,
@@ -242,28 +280,30 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 smt::write_assert(
                     &mut printer,
                     term,
-                    "0".to_string(),
+                    "0".to_owned(),
                     NodeType::Poly,
                     Operation::Equal,
                 );
             }
         }
 
-        let output_status: AnalyzerOutputStatus = Self::control_uniqueness(
-            smt_file_path.to_string(),
+        let output_status: AnalyzerOutputStatus = Self::uniqueness_assertion(
+            smt_file_path.to_owned(),
             &instance_string,
             &analyzer_input,
             &mut printer,
-        );
+        )
+        .context("Failed to run control uniqueness function!")?;
 
         analyzer_output.output_status = output_status;
         output_result(analyzer_input, &analyzer_output);
-        return analyzer_output;
+
+        Ok(analyzer_output)
     }
 
-    // pub fn log(&self) -> &[String] {
-    //     &self.log
-    // }
+    pub fn log(&self) -> &[String] {
+        &self.log
+    }
 
     fn decompose_expression(
         poly: &Expression<F>,
@@ -274,16 +314,15 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
     ) -> (String, NodeType) {
         match &poly {
             Expression::Constant(a) => {
-                //smt::write_const(p, format!("V-{}", counter),a.get_lower_32());
                 let term = format!("(as ff{} F)", a.get_lower_128());
                 (term, NodeType::Constant)
             }
             Expression::Selector(a) => {
                 let s = format!("S-{:?}-{}-{}", region_no, a.0, row_num);
                 if es.contains(&s) {
-                    (format!("(as ff1 F)"), NodeType::Fixed)
+                    ("(as ff1 F)".to_owned(), NodeType::Fixed)
                 } else {
-                    (format!("(as ff0 F)"), NodeType::Fixed) //*** Return like the previuus, at the and replace with 1 if enabled, 0 for disabled */
+                    ("(as ff0 F)".to_owned(), NodeType::Fixed)
                 }
             }
             Expression::Fixed {
@@ -292,14 +331,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 rotation,
             } => {
                 let term = format!("F-{}-{}-{}", region_no, *column_index, rotation.0 + row_num);
-                //let t = format!( "(as ff{} F)",a.get_lower_32());
-                //(term, NodeType::Fixed)
-                // smt::write_var(printer, term.clone());
-                // if es.contains(&term) {
-                //     (format!("(as ff1 F)"), NodeType::Fixed)
-                // } else {
-                //     (format!("(as ff0 F)"), NodeType::Fixed) //*** Return like the previuus, at the and replace with 1 if enabled, 0 for disabled */
-                // }
+
                 (term, NodeType::Fixed)
             }
             Expression::Advice {
@@ -307,7 +339,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 column_index,
                 rotation,
             } => {
-                let term = format!("A-{}-{}-{}", region_no, *column_index, rotation.0 + row_num); // ("Advice-{}-{}-{:?}", *query_index, *column_index, *rotation);
+                let term = format!("A-{}-{}-{}", region_no, *column_index, rotation.0 + row_num);
                 smt::write_var(printer, term.clone());
                 (term, NodeType::Advice)
             }
@@ -315,21 +347,21 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 query_index: _,
                 column_index: _,
                 rotation: _,
-            } => ("".to_string(), NodeType::Instance),
+            } => ("".to_owned(), NodeType::Instance),
             Expression::Negated(_poly) => {
                 let (node_str, _) =
-                    Self::decompose_expression(&_poly, printer, region_no, row_num, es);
+                    Self::decompose_expression(_poly, printer, region_no, row_num, es);
                 let term = format!("ff.neg {}", node_str);
                 (term, NodeType::Negated)
             }
             Expression::Sum(a, b) => {
                 let (node_str_left, nodet_type_left) =
-                    Self::decompose_expression(a, printer, region_no, row_num, &es);
+                    Self::decompose_expression(a, printer, region_no, row_num, es);
                 let (node_str_right, nodet_type_right) =
-                    Self::decompose_expression(b, printer, region_no, row_num, &es);
+                    Self::decompose_expression(b, printer, region_no, row_num, es);
                 let term = smt::write_term(
                     printer,
-                    "add".to_string(),
+                    "add".to_owned(),
                     node_str_left,
                     nodet_type_left,
                     node_str_right,
@@ -344,7 +376,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                     Self::decompose_expression(b, printer, region_no, row_num, es);
                 let term = smt::write_term(
                     printer,
-                    "mul".to_string(),
+                    "mul".to_owned(),
                     node_str_left,
                     nodet_type_left,
                     node_str_right,
@@ -362,10 +394,10 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                     es,
                 );
                 let (node_str_right, nodet_type_right) =
-                    Self::decompose_expression(&_poly, printer, region_no, row_num, es);
+                    Self::decompose_expression(_poly, printer, region_no, row_num, es);
                 let term = smt::write_term(
                     printer,
-                    "mul".to_string(),
+                    "mul".to_owned(),
                     node_str_left,
                     nodet_type_left,
                     node_str_right,
@@ -375,29 +407,33 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             }
         }
     }
-
+    /// Decomposes polynomials and writes assertions using an SMT printer.
+    ///
+    /// This function iterates over the regions and rows of a layouter and decomposes the polynomials
+    /// associated with gates and lookups. It writes assertions using an SMT printer based on the decomposed expressions.
+    ///
     pub fn decompose_polynomial(
         &'b mut self,
         printer: &mut smt::Printer<File>,
         fixed: Vec<Vec<CellValue<F>>>,
     ) {
-        if self.layouter.regions.len() > 0 {
+        if !self.layouter.regions.is_empty() {
             for region_no in 0..self.layouter.regions.len() {
                 for row_num in 0..self.layouter.regions[region_no].row_count {
-                    for gate in (&self).cs.gates.iter() {
+                    for gate in self.cs.gates.iter() {
                         for poly in &gate.polys {
                             let (node_str, _) = Self::decompose_expression(
                                 poly,
                                 printer,
                                 region_no,
                                 i32::try_from(row_num).ok().unwrap(),
-                                &self.layouter.regions[region_no].__enabled_selectors,
+                                &self.layouter.regions[region_no].enabled_selectors,
                             );
 
                             smt::write_assert(
                                 printer,
                                 node_str,
-                                "0".to_string(),
+                                "0".to_owned(),
                                 NodeType::Poly,
                                 Operation::Equal,
                             );
@@ -408,10 +444,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
             for region_no in 0..self.layouter.regions.len() {
                 for row_num in 0..self.layouter.regions[region_no].row_count {
-                    //println!("lookup: {:?}",self.cs.lookups.clone());
                     for lookup in self.cs.lookups.iter() {
-                        //lookups.iter() {
-                        //let mut cons_str = "".to_string();
                         let mut cons_str_vec = Vec::new();
                         for poly in &lookup.input_expressions {
                             let (node_str, _) = Self::decompose_expression(
@@ -419,10 +452,9 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                                 printer,
                                 region_no,
                                 i32::try_from(row_num).ok().unwrap(),
-                                &self.layouter.regions[region_no].__enabled_selectors,
+                                &self.layouter.regions[region_no].enabled_selectors,
                             );
                             cons_str_vec.push(node_str);
-                            //cons_str.push_str(&node_str);
                         }
                         let mut exit = false;
                         let mut col_indices = Vec::new();
@@ -430,28 +462,37 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                             if exit {
                                 break;
                             }
-                            match col {
-                                Expression::Fixed {
-                                    query_index: _,
-                                    column_index,
-                                    rotation: _,
-                                } => {
-                                    col_indices.push(column_index);
-                                }
-                                _ => {} //extract col index to col_indices
+                            // match col {
+                            //     Expression::Fixed {
+                            //         query_index: _,
+                            //         column_index,
+                            //         rotation: _,
+                            //     } => {
+                            //         col_indices.push(column_index);
+                            //     }
+                            //     _ => {}
+                            // }
+                            if let Expression::Fixed {
+                                query_index: _,
+                                column_index,
+                                rotation: _,
+                            } = col
+                            {
+                                col_indices.push(column_index);
                             }
                         }
-                        let mut big_cons_str = "".to_string();
+                        let mut big_cons_str = "".to_owned();
                         let mut big_cons = vec![];
-                        for row in 0..fixed[0].len() {//*** Iterate over look up table rows */
+                        for row in 0..fixed[0].len() {
+                            //*** Iterate over look up table rows */
                             if exit {
                                 break;
                             }
-                            //let mut cons_str = "".to_string();
                             let mut equalities = vec![];
                             let mut eq_str = String::new();
-                            for col in 0..col_indices.len() {//*** Iterate over fixed cols */
-                                let mut t = String::new();
+                            for col in 0..col_indices.len() {
+                                //*** Iterate over fixed cols */
+                                let mut t: String = String::new();
                                 match fixed[col_indices[col]][row] {
                                     CellValue::Unassigned => {
                                         exit = true;
@@ -473,11 +514,8 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                                     Operation::Equal,
                                 );
                                 equalities.push(sa);
-                                //let t =  cons_str_vec[col] == fixed[col][row];
-                                //and with t
-                                //cons_str.push_str(t);
                             }
-                            if exit{
+                            if exit {
                                 break;
                             }
                             for var in equalities.iter() {
@@ -486,13 +524,10 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                             let and_eqs = smt::get_and(printer, eq_str);
 
                             big_cons.push(and_eqs);
-                            //big_cons_str Or prev
                         }
                         for var in big_cons.iter() {
                             big_cons_str.push_str(var);
                         }
-
-                        //let or_eqs = smt::get_or(printer, big_cons_str);
 
                         smt::write_assert_bool(printer, big_cons_str, Operation::Or);
                     }
@@ -500,12 +535,19 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             }
         }
     }
-    pub fn control_uniqueness(
+    /// Checks the uniqueness inputs and returns the analysis result.
+    ///
+    /// This function checks the uniqueness by solving SMT formulas with various assignments
+    /// and constraints. It iterates over the variables and applies different rules based on the verification method
+    /// specified in the `analyzer_input`. The function writes assertions using an SMT printer and returns the
+    /// analysis result as `AnalyzerOutputStatus`.
+    ///
+    pub fn uniqueness_assertion(
         smt_file_path: String,
         instance_cols_string: &HashMap<String, i64>,
         analyzer_input: &AnalyzerInput,
         printer: &mut smt::Printer<File>,
-    ) -> AnalyzerOutputStatus {
+    ) -> Result<AnalyzerOutputStatus> {
         let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus::NotUnderconstrainedLocal;
         let mut variables: HashSet<String> = HashSet::new();
         for variable in printer.vars.keys() {
@@ -517,7 +559,7 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         match analyzer_input.verification_method {
             VerificationMethod::Specific => {
                 for var in instance_cols_string {
-                    smt::write_var(printer, var.0.to_string());
+                    smt::write_var(printer, var.0.to_owned());
                     smt::write_assert(
                         printer,
                         var.0.clone(),
@@ -531,16 +573,18 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 max_iterations = analyzer_input.verification_input.iterations;
             }
         }
-        let model = Self::solve_and_get_model(smt_file_path.clone(), &variables);
-        if matches!(model.sat, Satisfiability::UNSATISFIABLE) {
+        let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
+            .context("Failed to solve and get model!")?;
+        if matches!(model.sat, Satisfiability::Unsatisfiable) {
             result = AnalyzerOutputStatus::Overconstrained;
-            return result; // We can just break here.
+            return Ok(result); // We can just break here.
         }
         for i in 1..=max_iterations {
-            let model = Self::solve_and_get_model(smt_file_path.clone(), &variables);
-            if matches!(model.sat, Satisfiability::UNSATISFIABLE) {
+            let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
+                .context("Failed to solve and get model!")?;
+            if matches!(model.sat, Satisfiability::Unsatisfiable) {
                 result = AnalyzerOutputStatus::NotUnderconstrained;
-                return result; // We can just break here.
+                return Ok(result); // We can just break here.
             }
 
             println!("Model {} to be checked:", i);
@@ -609,14 +653,15 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
 
             // 4. find a model that satisfies these rules
             let model_with_constraint =
-                Self::solve_and_get_model(smt_file_path.clone(), &variables);
-            if matches!(model_with_constraint.sat, Satisfiability::SATISFIABLE) {
+                Self::solve_and_get_model(smt_file_path.clone(), &variables)
+                    .context("Failed to solve and get model!")?;
+            if matches!(model_with_constraint.sat, Satisfiability::Satisfiable) {
                 println!("Equivalent model for the same public input:");
                 for r in &model_with_constraint.result {
                     println!("{} : {}", r.1.name, r.1.value.element)
                 }
                 result = AnalyzerOutputStatus::Underconstrained;
-                return result;
+                return Ok(result);
             } else {
                 println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
             }
@@ -642,10 +687,17 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             }
             smt::write_assert_bool(printer, neg_model, Operation::Or);
         }
-        result
+        Ok(result)
     }
-
-    pub fn generate_copy_path(smt_file_path: String) -> String {
+    /// Generates a copy path for the SMT file.
+    ///
+    /// This function takes the original SMT file path as input and generates a copy path
+    /// for the SMT file. The copy path is constructed by appending "_temp.smt2" to the
+    /// original file's stem (i.e., file name without extension), and placing it in the
+    /// "src/output/" directory. The function then creates a copy of the original file
+    /// at the generated copy path.
+    ///
+    pub fn generate_copy_path(smt_file_path: String) -> Result<String> {
         let smt_path_clone = smt_file_path.clone();
         let smt_path_obj = Path::new(&smt_path_clone);
         let smt_file_stem = smt_path_obj.file_stem().unwrap();
@@ -655,12 +707,22 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
             smt_file_stem.to_str().unwrap(),
             "_temp.smt2"
         );
-        fs::copy(smt_file_path.clone(), smt_file_copy_path.clone()).unwrap();
-        return smt_file_copy_path;
+        fs::copy(smt_file_path, smt_file_copy_path.clone()).context("Failed to copy file!")?;
+        Ok(smt_file_copy_path)
     }
-
-    pub fn solve_and_get_model(smt_file_path: String, variables: &HashSet<String>) -> ModelResult {
-        let smt_file_copy_path = Self::generate_copy_path(smt_file_path.clone());
+    // Solves the SMT formula in the specified file and retrieves the model result.
+    ///
+    /// This function solves the SMT formula in the given `smt_file_path` by executing the CVC5 solver.
+    /// It appends the necessary commands to the SMT file for checking satisfiability and retrieving values
+    /// for the specified variables. The function then runs the CVC5 solver and captures its output.
+    /// The output is parsed to extract the model result, which is returned as a `ModelResult`.
+    ///
+    pub fn solve_and_get_model(
+        smt_file_path: String,
+        variables: &HashSet<String>,
+    ) -> Result<ModelResult> {
+        let smt_file_copy_path =
+            Self::generate_copy_path(smt_file_path).context("Failed to generate copy path!")?;
         let mut smt_file_copy = OpenOptions::new()
             .append(true)
             .open(smt_file_copy_path.clone())
@@ -672,21 +734,32 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
         for var in variables.iter() {
             smt::write_get_value(&mut copy_printer, var.clone());
         }
-        let output = Command::new("cvc5")
-            .arg(smt_file_copy_path.clone())
-            .output();
+        let output = Command::new("cvc5").arg(smt_file_copy_path).output();
         let term = output.unwrap();
         let output_string = String::from_utf8_lossy(&term.stdout);
-        let model = smt_parser::extract_model_response(output_string.to_string());
-        //fs::remove_file(smt_file_copy_path.clone());
-        return model;
+        Ok(
+            smt_parser::extract_model_response(output_string.to_string())
+                .context("Failed to parse smt result!")?,
+        )
     }
-
+/// Dispatches the analysis based on the specified analyzer type.
+///
+/// This function takes an `AnalyzerType` enum and performs the corresponding analysis
+/// based on the type. The supported analyzer types include:
+///
+/// - `UnusedGates`: Analyzes and identifies unused custom gates in the circuit.
+/// - `UnconstrainedCells`: Analyzes and identifies cells with unconstrained values in the circuit.
+/// - `UnusedColumns`: Analyzes and identifies unused columns in the circuit.
+/// - `UnderconstrainedCircuit`: Analyzes the circuit for underconstrained properties by
+///   retrieving user input for specific instance columns and conducting analysis.
+///
+/// The function performs the analysis and updates the internal state accordingly.
+///
     pub fn dispatch_analysis(
         &mut self,
         analyzer_type: AnalyzerType,
         fixed: Vec<Vec<CellValue<F>>>,
-    ) -> bool {
+    ) -> Result<(), anyhow::Error> {
         match analyzer_type {
             AnalyzerType::UnusedGates => {
                 self.analyze_unused_custom_gates();
@@ -703,10 +776,11 @@ impl<'a, 'b, F: FieldExt> Analyzer<F> {
                 let instance_cols_string_from_region = self.extract_instance_cols_from_region();
                 instance_cols_string.extend(instance_cols_string_from_region);
                 let analyzer_input: AnalyzerInput =
-                    retrieve_user_input_for_underconstrained(&instance_cols_string);
+                    retrieve_user_input_for_underconstrained(&instance_cols_string)
+                        .context("Failed to retrieve user input!")?;
                 self.analyze_underconstrained(analyzer_input, fixed);
             }
         };
-        return true;
+        Ok(())
     }
 }

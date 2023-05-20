@@ -1,28 +1,28 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use halo2_proofs::circuit:: {Layouter, Cell, Table, Region};
-use halo2_proofs::plonk::{Column, Instance};
 use halo2_proofs::arithmetic::Field;
+use halo2_proofs::circuit::{Cell, Layouter, Region, Table};
 use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::{Column, Instance};
 
 use halo2_proofs::circuit::layouter::RegionLayouter;
 
-use crate::shape::AnalyticalShape;
+use crate::circuit_analyzer::shape::AnalyticalShape;
 
 #[derive(Debug)]
 pub struct AnalyticLayouter<F: Field> {
     pub regions: Vec<AnalyticalShape>,
     _ph: PhantomData<F>,
-    pub eq_table: HashMap<String,String>
+    pub eq_table: HashMap<String, String>,
 }
 
-impl <F: Field> AnalyticLayouter<F> {
+impl<F: Field> AnalyticLayouter<F> {
     pub fn new() -> Self {
         Self {
             regions: vec![],
             _ph: PhantomData,
-            eq_table: HashMap::new()
+            eq_table: HashMap::new(),
         }
     }
 }
@@ -38,11 +38,11 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
     {
         let region_index = self.regions.len();
 
-        let mut shape: AnalyticalShape = AnalyticalShape::new(name().into(), region_index.into());
+        let mut shape: AnalyticalShape = AnalyticalShape::new(name().into(), region_index);
 
         let region: &mut dyn RegionLayouter<F> = &mut shape;
         let result = assignment(region.into())?;
-        let _a  = assignment;
+        let _a = assignment;
 
         // save region
 
@@ -63,16 +63,20 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
 
     fn constrain_instance(
         &mut self,
-        _cell: Cell,
-        _column: Column<Instance>,
-        _row: usize,
+       cell: Cell,
+        column: Column<Instance>,
+        row: usize,
     ) -> Result<(), Error> {
-        let left = format!("A-{}-{}-{:?}", _cell.region_index.0, _cell.column.index(),_cell.row_offset);
+        let left = format!(
+            "A-{}-{}-{:?}",
+            cell.region_index.0,
+            cell.column.index(),
+            cell.row_offset
+        );
 
-        let right = format!("A-{}-{}-{:?}",_cell.region_index.0, _column.index(),_row);
+        let right = format!("A-{}-{}-{:?}", cell.region_index.0, column.index(), row);
 
-        self.eq_table.insert(left,right);
-        //println!("{:?}",self.eq_table);
+        self.eq_table.insert(left, right);
         Ok(())
         //todo!("handle instance columns")
     }
