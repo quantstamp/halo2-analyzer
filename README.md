@@ -8,6 +8,7 @@
 ## How to test
 1. Go to "korrekt"
 2. Run `cargo test -- --test-threads=1`
+
 ## How it works
 
 ### Intro to Halo2
