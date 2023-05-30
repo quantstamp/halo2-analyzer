@@ -10,6 +10,16 @@
 1. Go to "korrekt"
 2. Run `cargo test -- --test-threads=1`
 
+## For linting
+
+1. Go to "korrekt"
+2. `cargo clippy --all-targets --all-features -- -D warnings`
+
+## For Formatting
+
+1. Go to "korrekt"
+2. `cargo fmt --`
+
 ## How it works
 
 ### Intro to Halo2
