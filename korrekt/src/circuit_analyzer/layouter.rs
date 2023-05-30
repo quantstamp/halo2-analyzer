@@ -86,12 +86,6 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         //todo!("handle instance columns")
     }
 
-    /*
-    fn get_challenge(&self, challenge: Challenge) -> Value<F> {
-        self.0.get_challenge(challenge)
-    }
-    */
-
     fn get_root(&mut self) -> &mut Self::Root {
         self
     }

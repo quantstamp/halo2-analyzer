@@ -84,31 +84,6 @@ mod tests {
         assert!(analyzer_input.verification_input.iterations.eq(&5));
     }
 
-    // #[test]
-    // fn decompose_polynomial_test() {
-    //     let circuit =
-    //         sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::new(
-    //             Fr::from(1),
-    //             Fr::from(1),
-    //         );
-    //     let mut analyzer = Analyzer::create_with_circuit(&circuit);
-    //     let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-    //     assert!(instance_cols.len().eq(&1));
-    //     let k: u32 = 11;
-
-    //     let public_input = vec![Fr::from(3)];
-
-    //     let prover: MockProver<Fr> =
-    //         MockProver::run(k, &circuit, vec![public_input]).unwrap();
-
-    //     let smt_file_path = "src/output/out.smt2";
-    //     let base_field_prime =
-    //         "28948022309329048855892746252171976963363056481941560715954676764349967630337";
-    //     let mut smt_file = std::fs::File::create(smt_file_path).unwrap();
-    //     let mut printer = smt_solver::smt::write_start(&mut smt_file, base_field_prime.to_owned());
-    //     analyzer.decompose_polynomial(&mut printer, prover.fixed);
-    // }
-
     #[test]
     fn not_under_constrained_enough_random_input_test() {
         let circuit =
@@ -397,32 +372,6 @@ mod tests {
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
-    // #[test]
-    // fn analyze_underconstrained_test() {
-    //     let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fp> =
-    //         sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
-    //     let mut analyzer = Analyzer::create_with_circuit(&circuit);
-
-    //     let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-    //         verification_method: VerificationMethod::Random,
-    //         verification_input: VerificationInput {
-    //             instances_string: instance_cols,
-    //             iterations: 5,
-    //         },
-    //     };
-    //     let k: u32 = 11;
-
-    //     let public_input = vec![Fr::from(3)];
-
-    //     let prover: MockProver<Fr> =
-    //         MockProver::run(k, &circuit, vec![public_input]).unwrap();
-
-    //     let output_status = analyzer
-    //         .analyze_underconstrained(analyzer_input, prover.fixed).unwrap()
-    //         .output_status;
-    //     assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
-    // }
 
     #[test]
     fn analyze_unused_columns_test() {
@@ -509,7 +458,6 @@ mod tests {
 
         let public_input = vec![a, b, out];
         let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-        //println!("prover: {:?}",prover.fixed);
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, prover.fixed)
             .unwrap()
@@ -540,7 +488,6 @@ mod tests {
 
         let public_input = vec![a, b, out];
         let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-        //println!("prover: {:?}",prover.fixed);
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, prover.fixed)
             .unwrap()
@@ -556,11 +503,9 @@ mod tests {
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
-        //for var in instance_cols.iter() {
         specified_instance_cols.insert("A-0-2-7".to_owned(), 21);
         specified_instance_cols.insert("I-0-0-1".to_owned(), 1);
         specified_instance_cols.insert("I-0-0-0".to_owned(), 1);
-        //}
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
@@ -577,7 +522,6 @@ mod tests {
 
         let public_input = vec![a, b, out];
         let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-        //println!("prover: {:?}",prover.fixed);
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, prover.fixed)
             .unwrap()
