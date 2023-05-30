@@ -83,7 +83,7 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
 
         self.eq_table.insert(left, right);
         Ok(())
-        //todo!("handle instance columns")
+        //todo!("handle instance columns") ticket created: https://quantstamp.atlassian.net/browse/ZKR-1238
     }
 
     fn get_root(&mut self) -> &mut Self::Root {
@@ -95,10 +95,10 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
-        //todo!("handle namespaces");
+        //todo!("handle namespaces");ticket created: https://quantstamp.atlassian.net/browse/ZKR-1238
     }
 
     fn pop_namespace(&mut self, _gadget_name: Option<String>) {
-        //todo!("handle namespaces");
+        //todo!("handle namespaces");ticket created: https://quantstamp.atlassian.net/browse/ZKR-1238
     }
 }
