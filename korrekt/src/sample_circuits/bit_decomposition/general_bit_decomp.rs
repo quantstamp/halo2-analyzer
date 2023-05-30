@@ -19,14 +19,6 @@ pub struct BitDecompositonConfig<const COUNT: usize> {
     s: Selector,
 }
 
-impl<F: FieldExt, const COUNT: usize> BitDecompositon<F, COUNT> {
-    // pub fn new(b: [F; COUNT]) -> Self {
-    //     BitDecompositon {
-    //         b
-    //     }
-    // }
-}
-
 impl<F: FieldExt, const COUNT: usize> Default for BitDecompositon<F, COUNT> {
     fn default() -> Self {
         BitDecompositon {
@@ -44,11 +36,11 @@ impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositon<F, COUNT> {
     }
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
-        // TODO: make this look prettier later!
         let mut b: [Column<Advice>; COUNT] = [Column::new(0, Advice); COUNT];
-        for i in 0..COUNT {
-            b[i] = meta.advice_column();
+        for item in b.iter_mut().take(COUNT) {
+            *item = meta.advice_column();
         }
+
         let x = meta.advice_column();
         let i = meta.instance_column();
         let s = meta.selector();
@@ -57,21 +49,22 @@ impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositon<F, COUNT> {
         meta.enable_equality(i);
 
         // define gates
-        for i in 0..COUNT {
-            // TODO: Figure out how to annotate with i set dynamically
-            meta.create_gate("bi_binary_check", |meta| {
-                let a = meta.query_advice(b[i], Rotation::cur());
+        for (i, item) in b.iter().enumerate().take(COUNT) {
+            let tmp = format!("b{}_binary_check", i).to_owned();
+            let name: &'static str = Box::leak(tmp.to_string().into_boxed_str());
+            meta.create_gate(name, |meta| {
+                let a = meta.query_advice(*item, Rotation::cur());
                 let dummy = meta.query_selector(s);
                 vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
-                // bi * (1-bi)
+                // adds constraint: bi * (1-bi)
             });
         }
 
         meta.create_gate("equality", |meta| {
             let mut exp = Expression::Constant(F::from(0));
             let mut t = F::from(1);
-            for i in 0..COUNT {
-                let bi = meta.query_advice(b[i], Rotation::cur());
+            for item in b.iter().take(COUNT) {
+                let bi = meta.query_advice(*item, Rotation::cur());
                 exp = exp + Expression::Constant(t) * bi;
                 t *= F::from(2);
             }
@@ -137,12 +130,6 @@ pub struct BitDecompositonUnderConstrainedConfig<const COUNT: usize> {
     s: Selector,
 }
 
-impl<F: FieldExt, const COUNT: usize> BitDecompositonUnderConstrained<F, COUNT> {
-    pub fn new(b: [F; COUNT]) -> Self {
-        BitDecompositonUnderConstrained { b }
-    }
-}
-
 impl<F: FieldExt, const COUNT: usize> Default for BitDecompositonUnderConstrained<F, COUNT> {
     fn default() -> Self {
         BitDecompositonUnderConstrained {
@@ -160,10 +147,9 @@ impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositonUnderConstra
     }
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
-        // TODO: make this look prettier later!
         let mut b: [Column<Advice>; COUNT] = [Column::new(0, Advice); COUNT];
-        for i in 0..COUNT {
-            b[i] = meta.advice_column();
+        for item in b.iter_mut().take(COUNT) {
+            *item = meta.advice_column();
         }
         let x = meta.advice_column();
         let i = meta.instance_column();
@@ -176,21 +162,22 @@ impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositonUnderConstra
         // NOTICE: introducing under-constrained bug
         // The for loop has to start from 1, but we introduce the bug by starting from 0
         // hence b[0] will be left not constrained properly.
-        for i in 1..COUNT {
-            // TODO: Figure out how to annotate with i set dynamically
-            meta.create_gate("bi_binary_check", |meta| {
-                let a = meta.query_advice(b[i], Rotation::cur());
+        for (i, item) in b.iter().enumerate().take(COUNT).skip(1) {
+            let tmp = format!("b{}_binary_check", i).to_owned();
+            let name: &'static str = Box::leak(tmp.to_string().into_boxed_str());
+            meta.create_gate(name, |meta| {
+                let a = meta.query_advice(*item, Rotation::cur());
                 let dummy = meta.query_selector(s);
                 vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
-                // bi * (1-bi)
+                //Adds Constraint for: bi * (1-bi)
             });
         }
 
         meta.create_gate("equality", |meta| {
             let mut exp = Expression::Constant(F::from(0));
             let mut t = F::from(1);
-            for i in 0..COUNT {
-                let bi = meta.query_advice(b[i], Rotation::cur());
+            for item in b.iter().take(COUNT) {
+                let bi = meta.query_advice(*item, Rotation::cur());
                 exp = exp + Expression::Constant(t) * bi;
                 t *= F::from(2);
             }

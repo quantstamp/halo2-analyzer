@@ -20,12 +20,6 @@ pub struct MultiRowTwoBitDecompCircuitConfig<F: FieldExt> {
     s: Selector,
 }
 
-impl<F: FieldExt> MultiRowTwoBitDecompCircuit<F> {
-    pub fn new(b0: F, b1: F) -> Self {
-        MultiRowTwoBitDecompCircuit { b0, b1 }
-    }
-}
-
 impl<F: FieldExt> Default for MultiRowTwoBitDecompCircuit<F> {
     fn default() -> Self {
         MultiRowTwoBitDecompCircuit {
@@ -80,7 +74,6 @@ impl<F: FieldExt> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
             instance: i,
             s,
         }
-
     }
 
     fn synthesize(

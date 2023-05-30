@@ -105,12 +105,7 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         offset: usize,
     ) -> Result<(Cell, Value<F>), Error> {
         //todo!()
-        let left = format!(
-            "I-{:?}-{}-{:?}",
-            self.region_index.0,
-            instance.index(),
-            row
-        );
+        let left = format!("I-{:?}-{}-{:?}", self.region_index.0, instance.index(), row);
 
         let right = format!(
             "A-{:?}-{}-{:?}",
@@ -120,10 +115,8 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         );
 
         self.eq_table.insert(left, right);
-        self.columns.insert((
-            Column::<Any>::from(advice).into(),
-            Rotation(offset as i32),
-        ));
+        self.columns
+            .insert((Column::<Any>::from(advice).into(), Rotation(offset as i32)));
         self.row_count = cmp::max(self.row_count, offset + 1);
 
         Ok((

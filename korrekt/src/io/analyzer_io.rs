@@ -1,5 +1,5 @@
+use anyhow::{Context, Result};
 use std::{collections::HashMap, io};
-use anyhow::{Result,Context};
 
 use crate::io::analyzer_io_type::{
     AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, VerificationInput,
@@ -13,7 +13,7 @@ use crate::io::analyzer_io_type::{
 ///
 pub fn retrieve_user_input_for_underconstrained(
     instance_cols_string: &HashMap<String, i64>,
-) ->Result<AnalyzerInput> {
+) -> Result<AnalyzerInput> {
     println!("You can verify the circuit for a specific public input or a random number of public inputs:");
     println!("1. verify the circuit for a specific public input!");
     println!("2. Verify for a random number of public inputs!");
@@ -24,7 +24,10 @@ pub fn retrieve_user_input_for_underconstrained(
     io::stdin()
         .read_line(&mut menu)
         .expect("Failed to read line");
-    let verification_type = menu.trim().parse::<i64>().context("Failed to retrieve verification type!")?;
+    let verification_type = menu
+        .trim()
+        .parse::<i64>()
+        .context("Failed to retrieve verification type!")?;
 
     let mut analyzer_input: AnalyzerInput = AnalyzerInput {
         verification_method: VerificationMethod::Random,
@@ -59,7 +62,10 @@ pub fn retrieve_user_input_for_underconstrained(
                 .read_line(&mut input_var)
                 .expect("Failed to read line");
 
-            let iterations = input_var.trim().parse::<u128>().context("Failed to retrieve number of iterations!")?;
+            let iterations = input_var
+                .trim()
+                .parse::<u128>()
+                .context("Failed to retrieve number of iterations!")?;
             analyzer_input.verification_method = VerificationMethod::Random;
             analyzer_input.verification_input.instances_string = instance_cols_string.clone();
             analyzer_input.verification_input.iterations = iterations;
@@ -98,6 +104,9 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
                 }
             }
         }
+        AnalyzerOutputStatus::UnusedCustomGates => {}
+        AnalyzerOutputStatus::UnconstrainedCells => {}
+        AnalyzerOutputStatus::UnusedColumns => {}
         AnalyzerOutputStatus::Invalid => {
             println!("The analyzer output is invalid.");
         }
@@ -124,7 +133,10 @@ pub fn retrieve_user_input_for_analyzer_type() -> Result<AnalyzerType> {
     io::stdin()
         .read_line(&mut menu)
         .expect("Failed to read line");
-    let menu_int = menu.trim().parse::<i64>().context("Failed to retrieve the type of analysis!")?;
+    let menu_int = menu
+        .trim()
+        .parse::<i64>()
+        .context("Failed to retrieve the type of analysis!")?;
 
     let analyzer_type: AnalyzerType;
     match menu_int {

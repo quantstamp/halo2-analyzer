@@ -73,9 +73,7 @@ pub fn eval_abstract<F: FieldExt>(
         Expression::Fixed { .. } => AbsResult::Variable,
         Expression::Advice { .. } => AbsResult::Variable,
         Expression::Instance { .. } => AbsResult::Variable,
-        Expression::Negated(expr) => {
-            eval_abstract(expr, selectors)
-        }
+        Expression::Negated(expr) => eval_abstract(expr, selectors),
         Expression::Sum(left, right) => {
             let res1 = eval_abstract(left, selectors);
             let res2 = eval_abstract(right, selectors);
@@ -100,7 +98,7 @@ pub fn eval_abstract<F: FieldExt>(
         }
         Expression::Scaled(expr, scale) => {
             if scale.is_zero().into() {
-                 AbsResult::Zero
+                AbsResult::Zero
             } else {
                 eval_abstract(expr, selectors)
             }

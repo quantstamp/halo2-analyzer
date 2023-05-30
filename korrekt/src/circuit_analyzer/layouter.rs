@@ -27,6 +27,12 @@ impl<F: Field> AnalyticLayouter<F> {
     }
 }
 
+impl<F: Field> Default for AnalyticLayouter<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
     type Root = Self;
 
@@ -57,13 +63,12 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         N: Fn() -> NR,
         NR: Into<String>,
     {
-        //todo!()
         Ok(())
     }
 
     fn constrain_instance(
         &mut self,
-       cell: Cell,
+        cell: Cell,
         column: Column<Instance>,
         row: usize,
     ) -> Result<(), Error> {

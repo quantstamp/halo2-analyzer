@@ -4,6 +4,7 @@ use std::time::Instant;
 use crate::circuit_analyzer::analyzer;
 use crate::io::analyzer_io_type;
 use crate::sample_circuits;
+
 /// Runs benchmark tests for various specified sizes.
 ///
 /// This function executes a series of benchmark tests using the `run_underconstrained_benchmark_for_specified_size` function.
@@ -41,7 +42,7 @@ pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
         sample_circuits::bit_decomposition::general_bit_decomp::BitDecompositonUnderConstrained::<
             Fr,
             BITS,
-        >::new([Fr::from(1); BITS]);
+        >::default();
     let public_input = Fr::from(3);
     let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![vec![public_input]]).unwrap();
     let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
@@ -54,9 +55,10 @@ pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
         },
     };
     let start = Instant::now();
-    analyzer.analyze_underconstrained(analyzer_input, prover.fixed);
+    let _result = analyzer.analyze_underconstrained(analyzer_input, prover.fixed);
     let duration = start.elapsed();
-    log::info!(
+
+    println!(
         "{} bits: Time elapsed for analyze_underconstrained() is: {:?}",
         BITS, duration
     );

@@ -21,12 +21,6 @@ pub struct TwoBitDecompCircuitConfig {
     s: Selector,
 }
 
-impl<F: FieldExt> TwoBitDecompCircuit<F> {
-    pub fn new(b0: F, b1: F) -> Self {
-        TwoBitDecompCircuit { b0, b1 }
-    }
-}
-
 impl<F: FieldExt> Default for TwoBitDecompCircuit<F> {
     fn default() -> Self {
         TwoBitDecompCircuit {
@@ -121,12 +115,6 @@ pub struct TwoBitDecompCircuitUnderConstrained<F: FieldExt> {
 #[derive(Clone)]
 pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: FieldExt> {
     _ph: PhantomData<F>,
-}
-
-impl<F: FieldExt> TwoBitDecompCircuitUnderConstrained<F> {
-    pub fn new(b0: F, b1: F) -> Self {
-        TwoBitDecompCircuitUnderConstrained { b0, b1 }
-    }
 }
 
 impl<F: FieldExt> Default for TwoBitDecompCircuitUnderConstrained<F> {

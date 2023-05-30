@@ -17,12 +17,6 @@ pub struct AddMultCircuitConfig<F: FieldExt> {
     columns: [Column<Advice>; 25],
 }
 
-impl<F: FieldExt> AddMultCircuit<F> {
-    fn new(a: F, b: F) -> Self {
-        AddMultCircuit { a, b }
-    }
-}
-
 impl<F: FieldExt> Default for AddMultCircuit<F> {
     fn default() -> Self {
         AddMultCircuit {

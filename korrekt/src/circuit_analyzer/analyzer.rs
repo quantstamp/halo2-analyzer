@@ -85,7 +85,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
     /// If an unused gate is found, it is logged in the `self.log` vector along with a suggested action.
     /// Finally, the function prints the total number of unused gates found.
     ///
-    pub fn analyze_unused_custom_gates(&mut self) {
+    pub fn analyze_unused_custom_gates(&mut self) -> Result<AnalyzerOutput> {
         let mut count = 0;
         for gate in self.cs.gates.iter() {
             let mut used = false;
@@ -109,6 +109,9 @@ impl<'b, F: FieldExt> Analyzer<F> {
             }
         }
         println!("Finished analysis: {} unused gates found.", count);
+        Ok(AnalyzerOutput {
+            output_status: AnalyzerOutputStatus::UnusedCustomGates,
+        })
     }
 
     /// Detects unused columns
@@ -118,7 +121,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
     /// If an unused column is found, it is logged in the `self.log` vector.
     /// Finally, the function prints the total number of unused columns found.
     ///
-    pub fn analyze_unused_columns(&mut self) {
+    pub fn analyze_unused_columns(&mut self) -> Result<AnalyzerOutput> {
         let mut count = 0;
         for (column, rotation) in self.cs.advice_queries.iter().cloned() {
             let mut used = false;
@@ -139,12 +142,15 @@ impl<'b, F: FieldExt> Analyzer<F> {
             }
         }
         println!("Finished analysis: {} unused columns found.", count);
+        Ok(AnalyzerOutput {
+            output_status: AnalyzerOutputStatus::UnusedColumns,
+        })
     }
 
     /// Detect assigned but unconstrained cells:
     /// (does it occur in a not-identially zero polynomial in the region?)
     /// (if not almost certainly a bug)
-    pub fn analyze_unconstrained_cells(&mut self) {
+    pub fn analyze_unconstrained_cells(&mut self) -> Result<AnalyzerOutput> {
         let mut count = 0;
         for region in self.layouter.regions.iter() {
             let selectors = HashSet::from_iter(region.selectors().into_iter());
@@ -178,6 +184,9 @@ impl<'b, F: FieldExt> Analyzer<F> {
             }
         }
         println!("Finished analysis: {} unconstrained cells found.", count);
+        Ok(AnalyzerOutput {
+            output_status: AnalyzerOutputStatus::UnconstrainedCells,
+        })
     }
     /// Extracts instance columns from an equality table.
     ///
@@ -301,6 +310,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
         Ok(analyzer_output)
     }
 
+    #[cfg(test)]
     pub fn log(&self) -> &[String] {
         &self.log
     }
@@ -492,7 +502,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                             let mut eq_str = String::new();
                             for col in 0..col_indices.len() {
                                 //*** Iterate over fixed cols */
-                                let mut t: String = String::new();
+                                let mut t = String::new();
                                 match fixed[col_indices[col]][row] {
                                     CellValue::Unassigned => {
                                         exit = true;
@@ -501,7 +511,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                                     CellValue::Assigned(f) => {
                                         t = f.get_lower_128().to_string();
                                     }
-                                    CellValue::Poison(_) => todo!(),
+                                    CellValue::Poison(_) => {}
                                 }
                                 if let CellValue::Assigned(value) = fixed[col_indices[col]][row] {
                                     t = value.get_lower_128().to_string();
@@ -737,39 +747,32 @@ impl<'b, F: FieldExt> Analyzer<F> {
         let output = Command::new("cvc5").arg(smt_file_copy_path).output();
         let term = output.unwrap();
         let output_string = String::from_utf8_lossy(&term.stdout);
-        Ok(
-            smt_parser::extract_model_response(output_string.to_string())
-                .context("Failed to parse smt result!")?,
-        )
+
+        smt_parser::extract_model_response(output_string.to_string())
+            .context("Failed to parse smt result!")
     }
-/// Dispatches the analysis based on the specified analyzer type.
-///
-/// This function takes an `AnalyzerType` enum and performs the corresponding analysis
-/// based on the type. The supported analyzer types include:
-///
-/// - `UnusedGates`: Analyzes and identifies unused custom gates in the circuit.
-/// - `UnconstrainedCells`: Analyzes and identifies cells with unconstrained values in the circuit.
-/// - `UnusedColumns`: Analyzes and identifies unused columns in the circuit.
-/// - `UnderconstrainedCircuit`: Analyzes the circuit for underconstrained properties by
-///   retrieving user input for specific instance columns and conducting analysis.
-///
-/// The function performs the analysis and updates the internal state accordingly.
-///
+    /// Dispatches the analysis based on the specified analyzer type.
+    ///
+    /// This function takes an `AnalyzerType` enum and performs the corresponding analysis
+    /// based on the type. The supported analyzer types include:
+    ///
+    /// - `UnusedGates`: Analyzes and identifies unused custom gates in the circuit.
+    /// - `UnconstrainedCells`: Analyzes and identifies cells with unconstrained values in the circuit.
+    /// - `UnusedColumns`: Analyzes and identifies unused columns in the circuit.
+    /// - `UnderconstrainedCircuit`: Analyzes the circuit for underconstrained properties by
+    ///   retrieving user input for specific instance columns and conducting analysis.
+    ///
+    /// The function performs the analysis and updates the internal state accordingly.
+    ///
     pub fn dispatch_analysis(
         &mut self,
         analyzer_type: AnalyzerType,
         fixed: Vec<Vec<CellValue<F>>>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<AnalyzerOutput> {
         match analyzer_type {
-            AnalyzerType::UnusedGates => {
-                self.analyze_unused_custom_gates();
-            }
-            AnalyzerType::UnconstrainedCells => {
-                self.analyze_unconstrained_cells();
-            }
-            AnalyzerType::UnusedColumns => {
-                self.analyze_unused_columns();
-            }
+            AnalyzerType::UnusedGates => self.analyze_unused_custom_gates(),
+            AnalyzerType::UnconstrainedCells => self.analyze_unconstrained_cells(),
+            AnalyzerType::UnusedColumns => self.analyze_unused_columns(),
             AnalyzerType::UnderconstrainedCircuit => {
                 let mut instance_cols_string =
                     self.extract_instance_cols(self.layouter.eq_table.clone());
@@ -778,9 +781,8 @@ impl<'b, F: FieldExt> Analyzer<F> {
                 let analyzer_input: AnalyzerInput =
                     retrieve_user_input_for_underconstrained(&instance_cols_string)
                         .context("Failed to retrieve user input!")?;
-                self.analyze_underconstrained(analyzer_input, fixed);
+                self.analyze_underconstrained(analyzer_input, fixed)
             }
-        };
-        Ok(())
+        }
     }
 }

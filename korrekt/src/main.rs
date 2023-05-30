@@ -8,15 +8,8 @@ mod sample_circuits;
 mod smt_solver;
 mod test;
 
-use anyhow::{Context, Error, Ok, Result};
-use io::analyzer_io;
+use anyhow::{Context, Ok, Result};
 
-use crate::circuit_analyzer::analyzer::Analyzer;
-use crate::io::{
-    analyzer_io_type,
-    analyzer_io_type::{AnalyzerOutputStatus, VerificationInput, VerificationMethod},
-};
-use std::collections::HashMap;
 use std::marker::PhantomData;
 
 fn main() -> Result<(), anyhow::Error> {
@@ -32,13 +25,16 @@ fn main() -> Result<(), anyhow::Error> {
 
     let public_input = vec![a, b, out];
 
-    let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input.clone()]).unwrap();
+    let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
-    let analyzer_type =io::analyzer_io::retrieve_user_input_for_analyzer_type().context("Failed to retrieve the user inputs!")?;
-    
-    analyzer.dispatch_analysis(analyzer_type, prover.fixed).context("Failed to perform analysis!")?;
+    let analyzer_type = io::analyzer_io::retrieve_user_input_for_analyzer_type()
+        .context("Failed to retrieve the user inputs!")?;
+
+    analyzer
+        .dispatch_analysis(analyzer_type, prover.fixed)
+        .context("Failed to perform analysis!")?;
 
     // The benchmark for underconstrained analysis.
-    //benchmark::run_benchmark();
+    //benchmarks::benchmark::run_benchmark();
     Ok(())
 }

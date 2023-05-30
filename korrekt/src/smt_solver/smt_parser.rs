@@ -7,7 +7,7 @@ pub enum Satisfiability {
     Satisfiable,
     Unsatisfiable,
 }
-use anyhow::{Result,Context};
+use anyhow::{Context, Result};
 
 #[derive(Debug, PartialEq)]
 pub struct FieldElement {
@@ -45,7 +45,7 @@ fn parse_field_element_from_string(value: &str) -> Result<FieldElement> {
 ///
 /// This function parses the SMT solver output and extracts the model response, including
 /// the satisfiability and variable assignments.
-pub fn extract_model_response(stream: String) ->Result<ModelResult> {
+pub fn extract_model_response(stream: String) -> Result<ModelResult> {
     let mut lines = stream.split('\n');
     // Initializing values
     let mut satisfiability: Satisfiability = Satisfiability::Unsatisfiable;
