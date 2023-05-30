@@ -8,7 +8,6 @@ use halo2_proofs::poly::Rotation;
 
 pub struct BitDecompositon<F: FieldExt, const COUNT: usize> {
     b: [F; COUNT],
-    // TODO: Consider adding the non decomposed version of b
 }
 
 #[derive(Clone)]
@@ -119,7 +118,6 @@ impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositon<F, COUNT> {
 
 pub struct BitDecompositonUnderConstrained<F: FieldExt, const COUNT: usize> {
     b: [F; COUNT],
-    // TODO: Consider adding the non decomposed version of b
 }
 
 #[derive(Clone)]

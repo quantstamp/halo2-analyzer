@@ -104,7 +104,6 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         advice: Column<Advice>,
         offset: usize,
     ) -> Result<(Cell, Value<F>), Error> {
-        //todo!()
         let left = format!("I-{:?}-{}-{:?}", self.region_index.0, instance.index(), row);
 
         let right = format!(

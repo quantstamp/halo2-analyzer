@@ -90,7 +90,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
         for gate in self.cs.gates.iter() {
             let mut used = false;
 
-            // To check that is this gate identically zero over regions?
+            // is this gate identically zero over regions?
             'region_search: for region in self.layouter.regions.iter() {
                 let selectors = HashSet::from_iter(region.selectors().into_iter());
                 for poly in gate.polynomials() {
@@ -104,6 +104,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
 
             if !used {
                 count += 1;
+                //println!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name());
                 self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name()));
             }
         }
@@ -234,7 +235,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
     ) -> Result<AnalyzerOutput> {
         fs::create_dir_all("src/output/").unwrap();
         let smt_file_path = "src/output/out.smt2";
-        // TODO: extract the modulus from F
+        // TODO: extract the modulus from F, ticket created: https://quantstamp.atlassian.net/browse/ZKR-1237
         let base_field_prime = "307";
         let mut smt_file =
             std::fs::File::create(smt_file_path).context("Failed to create file!")?;
@@ -471,6 +472,16 @@ impl<'b, F: FieldExt> Analyzer<F> {
                             if exit {
                                 break;
                             }
+                            // match col {
+                            //     Expression::Fixed {
+                            //         query_index: _,
+                            //         column_index,
+                            //         rotation: _,
+                            //     } => {
+                            //         col_indices.push(column_index);
+                            //     }
+                            //     _ => {}
+                            // }
                             if let Expression::Fixed {
                                 query_index: _,
                                 column_index,
@@ -483,14 +494,14 @@ impl<'b, F: FieldExt> Analyzer<F> {
                         let mut big_cons_str = "".to_owned();
                         let mut big_cons = vec![];
                         for row in 0..fixed[0].len() {
-                            //Iterate over look up table rows
+                            //*** Iterate over look up table rows */
                             if exit {
                                 break;
                             }
                             let mut equalities = vec![];
                             let mut eq_str = String::new();
                             for col in 0..col_indices.len() {
-                                //Iterate over fixed cols
+                                //*** Iterate over fixed cols */
                                 let mut t = String::new();
                                 match fixed[col_indices[col]][row] {
                                     CellValue::Unassigned => {
