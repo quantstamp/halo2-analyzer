@@ -372,7 +372,6 @@ mod tests {
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
-
     #[test]
     fn analyze_unused_columns_test() {
         let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fp> =
