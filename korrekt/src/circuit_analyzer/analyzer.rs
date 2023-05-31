@@ -104,7 +104,6 @@ impl<'b, F: FieldExt> Analyzer<F> {
 
             if !used {
                 count += 1;
-                //println!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name());
                 self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name()));
             }
         }
