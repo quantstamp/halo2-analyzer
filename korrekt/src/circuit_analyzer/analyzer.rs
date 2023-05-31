@@ -137,7 +137,6 @@ impl<'b, F: FieldExt> Analyzer<F> {
 
             if !used {
                 count += 1;
-                //println!("unused column: {:?}", column);
                 self.log.push(format!("unused column: {:?}", column));
             }
         }
@@ -472,16 +471,6 @@ impl<'b, F: FieldExt> Analyzer<F> {
                             if exit {
                                 break;
                             }
-                            // match col {
-                            //     Expression::Fixed {
-                            //         query_index: _,
-                            //         column_index,
-                            //         rotation: _,
-                            //     } => {
-                            //         col_indices.push(column_index);
-                            //     }
-                            //     _ => {}
-                            // }
                             if let Expression::Fixed {
                                 query_index: _,
                                 column_index,
