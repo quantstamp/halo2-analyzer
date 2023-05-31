@@ -57,10 +57,8 @@ mod tests {
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
-        if let Some(var) = instance_cols.into_iter().next() {
-            assert!(var.0.eq("A-0-2-0"));
-            assert!(var.1.eq(&0));
-        }
+        assert!(instance_cols.iter().next().unwrap().0.eq("A-0-2-0"));
+        assert!(instance_cols.iter().next().unwrap().1.eq(&0));
     }
 
     #[test]

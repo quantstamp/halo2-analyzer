@@ -1,9 +1,8 @@
-/target
+**/target
 **/*.rs.bk
-Cargo.lock
-.vscode
+**/Cargo.lock
+**/.vscode
 **/*.html
-/src/output
+**/src/output
 # Ignore Mac DS_Store files
-.DS_Store
 **/.DS_Store

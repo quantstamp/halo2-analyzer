@@ -89,15 +89,10 @@ impl<F: FieldExt> Circuit<F> for AddMultCircuit<F> {
                 |mut region| {
                     // do mul (into next)
                     config.s_mul.enable(&mut region, 0)?;
-
                     region.assign_advice(|| "a", config.columns[0], 0, || Value::known(self.a))?;
-
                     region.assign_advice(|| "b", config.columns[1], 0, || Value::known(self.b))?;
-
                     let c = self.a * self.b;
-
                     region.assign_advice(|| "c", config.columns[0], 1, || Value::known(c))?;
-
                     Ok(())
                 },
             )
@@ -108,15 +103,10 @@ impl<F: FieldExt> Circuit<F> for AddMultCircuit<F> {
                 || "test 2",
                 |mut region| {
                     // do mul (into next)
-
                     region.assign_advice(|| "a", config.columns[0], 0, || Value::known(self.a))?;
-
                     region.assign_advice(|| "b", config.columns[1], 0, || Value::known(self.b))?;
-
                     let c = self.a * self.b;
-
                     region.assign_advice(|| "c", config.columns[0], 1, || Value::known(c))?;
-
                     Ok(())
                 },
             )

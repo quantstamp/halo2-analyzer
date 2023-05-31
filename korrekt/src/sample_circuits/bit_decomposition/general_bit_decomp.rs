@@ -51,11 +51,11 @@ impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositon<F, COUNT> {
         for (i, item) in b.iter().enumerate().take(COUNT) {
             let tmp = format!("b{}_binary_check", i).to_owned();
             let name: &'static str = Box::leak(tmp.to_string().into_boxed_str());
+            // adds constraint: bi * (1-bi)
             meta.create_gate(name, |meta| {
                 let a = meta.query_advice(*item, Rotation::cur());
                 let dummy = meta.query_selector(s);
                 vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
-                // adds constraint: bi * (1-bi)
             });
         }
 
@@ -163,11 +163,11 @@ impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositonUnderConstra
         for (i, item) in b.iter().enumerate().take(COUNT).skip(1) {
             let tmp = format!("b{}_binary_check", i).to_owned();
             let name: &'static str = Box::leak(tmp.to_string().into_boxed_str());
+            //Adds Constraint for: bi * (1-bi)
             meta.create_gate(name, |meta| {
                 let a = meta.query_advice(*item, Rotation::cur());
                 let dummy = meta.query_selector(s);
                 vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
-                //Adds Constraint for: bi * (1-bi)
             });
         }
 
