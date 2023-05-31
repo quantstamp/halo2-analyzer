@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::str;
-use try_catch::catch;
 
 #[derive(Debug, PartialEq)]
 pub enum Satisfiability {
@@ -57,20 +56,22 @@ pub fn extract_model_response(stream: String) -> Result<ModelResult> {
             if line.trim() == "" {
                 continue;
             }
-            catch! {
-                try {
-                    // Removing the parenthesis, turning ((a #f3m11)) into a #f3m11.
-                    let cleaned_line = line.replace(&['(', ')'][..], "");
-                    let mut cleaned_parts = cleaned_line.split(' ');
-                    let variable_name = cleaned_parts.next().context("Failed to parse smt result!")?;
-                    let ff_element_string = cleaned_parts.next().context("Failed to parse smt result!")?;
-                    let ff_element = parse_field_element_from_string(ff_element_string).context("Failed to parse smt result!")?;
-                    let variable = Variable{name: variable_name.to_owned(), value: ff_element};
-                    variables.insert(variable_name.to_owned(), variable);
-                } catch err {
-                    println!("Error in parsing model: {}", err)
-                }
-            }
+            // Removing the parenthesis, turning ((a #f3m11)) into a #f3m11.
+            let cleaned_line = line.replace(&['(', ')'][..], "");
+            let mut cleaned_parts = cleaned_line.split(' ');
+            let variable_name = cleaned_parts
+                .next()
+                .context("Failed to parse smt result!")?;
+            let ff_element_string = cleaned_parts
+                .next()
+                .context("Failed to parse smt result!")?;
+            let ff_element = parse_field_element_from_string(ff_element_string)
+                .context("Error in parsing model!")?;
+            let variable = Variable {
+                name: variable_name.to_owned(),
+                value: ff_element,
+            };
+            variables.insert(variable_name.to_owned(), variable);
         }
     }
     Ok(ModelResult {

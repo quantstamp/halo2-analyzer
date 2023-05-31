@@ -49,14 +49,14 @@ impl<F: FieldExt> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
         meta.create_gate("b0_binary_check", |meta| {
             let a = meta.query_advice(x, Rotation::cur());
             let dummy = meta.query_selector(s);
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
             // b0 * (1-b0)
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(x, Rotation::next());
             let dummy = meta.query_selector(s);
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
             // b1 * (1-b1)
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
         });
         meta.create_gate("equality", |meta| {
             let a = meta.query_advice(x, Rotation::cur());
