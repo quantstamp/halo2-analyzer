@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::str;
-use try_catch::catch;
 
 #[derive(Debug, PartialEq)]
 pub enum Satisfiability {
