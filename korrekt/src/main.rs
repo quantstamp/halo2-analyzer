@@ -17,9 +17,9 @@ fn main() -> Result<(), anyhow::Error> {
     let mut analyzer = circuit_analyzer::analyzer::Analyzer::create_with_circuit(&circuit);
     let k = 6;
 
-    let a = Fp::from(1); // F[0]
-    let b = Fp::from(1); // F[1]
-    let out = Fp::from(6); // F[9]
+    let a = Fp::from(1);
+    let b = Fp::from(1);
+    let out = Fp::from(6);
 
     let public_input = vec![a, b, out];
 

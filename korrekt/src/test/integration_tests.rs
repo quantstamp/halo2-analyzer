@@ -449,9 +449,9 @@ mod tests {
         };
         let k = 11;
 
-        let a = Fp::from(1); // F[0]
-        let b = Fp::from(1); // F[1]
-        let out = Fp::from(21); // F[9]
+        let a = Fp::from(1);
+        let b = Fp::from(1);
+        let out = Fp::from(21);
 
         let public_input = vec![a, b, out];
         let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
@@ -479,9 +479,9 @@ mod tests {
 
         let k = 11;
 
-        let a = Fp::from(1); // F[0]
-        let b = Fp::from(1); // F[1]
-        let out = Fp::from(21); // F[9]
+        let a = Fp::from(1);
+        let b = Fp::from(1);
+        let out = Fp::from(21);
 
         let public_input = vec![a, b, out];
         let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
