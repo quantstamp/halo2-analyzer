@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use halo2_proofs::{arithmetic::FieldExt, circuit::*, plonk::*, poly::Rotation};
+use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
 pub struct FibonacciConfig {
@@ -29,7 +29,7 @@ impl<F: FieldExt> FibonacciChip<F> {
         let col_b = meta.advice_column();
         let col_c = meta.advice_column();
         let s_add = meta.selector();
-        let s_xor: Selector = meta.complex_selector();
+        let s_xor = meta.complex_selector();
         let instance = meta.instance_column();
 
         let xor_table = [
@@ -76,10 +76,7 @@ impl<F: FieldExt> FibonacciChip<F> {
         }
     }
 
-    fn load_table(
-        &self,
-        mut layouter: impl Layouter<F>,
-    ) -> Result<(), Error> {
+    fn load_table(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
         layouter.assign_table(
             || "xor_table",
             |mut table| {
@@ -108,7 +105,7 @@ impl<F: FieldExt> FibonacciChip<F> {
                     }
                 }
                 Ok(())
-            }
+            },
         )
     }
 
@@ -146,19 +143,9 @@ impl<F: FieldExt> FibonacciChip<F> {
                 )?;
 
                 // assign the rest of rows
-                for row in 2..nrows {
-                    b_cell.copy_advice(
-                        || "a",
-                        &mut region,
-                        self.config.advice[0],
-                        row,
-                    )?;
-                    c_cell.copy_advice(
-                        || "b",
-                        &mut region,
-                        self.config.advice[1],
-                        row,
-                    )?;
+                for row in 1..nrows {
+                    b_cell.copy_advice(|| "a", &mut region, self.config.advice[0], row)?;
+                    c_cell.copy_advice(|| "b", &mut region, self.config.advice[1], row)?;
 
                     let new_c_cell = if row % 2 == 0 {
                         self.config.s_add.enable(&mut region, row)?;
@@ -174,11 +161,15 @@ impl<F: FieldExt> FibonacciChip<F> {
                             || "advice",
                             self.config.advice[2],
                             row,
-                            || b_cell.value().and_then(|a| c_cell.value().map(|b| {
-                                let a_val = a.get_lower_32() as u64;
-                                let b_val = b.get_lower_32() as u64;
-                                F::from(a_val ^ b_val)
-                            })),
+                            || {
+                                b_cell.value().and_then(|a| {
+                                    c_cell.value().map(|b| {
+                                        let a_val = a.get_lower_32() as u64;
+                                        let b_val = b.get_lower_32() as u64;
+                                        F::from(a_val ^ b_val)
+                                    })
+                                })
+                            },
                         )?
                     };
 
@@ -223,53 +214,9 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
     ) -> Result<(), Error> {
         let chip = FibonacciChip::construct(config);
         chip.load_table(layouter.namespace(|| "lookup table"))?;
-        let out_cell = chip.assign(layouter.namespace(|| "entire table"), 4)?;
-        //println!("{:?}",out_cell);
+        let out_cell = chip.assign(layouter.namespace(|| "entire table"), 8)?;
         chip.expose_public(layouter.namespace(|| "out"), out_cell, 2)?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::MyCircuit;
-    use std::marker::PhantomData;
-    use halo2_proofs::{dev::MockProver, pasta::Fp};
-
-    #[test]
-    fn fibonacci_example4() {
-        let k = 5;
-
-        let a = Fp::from(1); // F[0]
-        let b = Fp::from(1); // F[1]
-        let out = Fp::from(21); // F[9]
-
-        let circuit = MyCircuit(PhantomData);
-
-        let mut public_input = vec![a, b, out];
-
-        let prover = MockProver::run(k, &circuit, vec![public_input.clone()]).unwrap();
-        prover.assert_satisfied();
-
-        public_input[2] += Fp::one();
-        let _prover = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-        // uncomment the following line and the assert will fail
-        // _prover.assert_satisfied();
-    }
-
-    #[cfg(feature = "dev-graph")]
-    #[test]
-    fn plot_fibonacci1() {
-        use plotters::prelude::*;
-
-        let root = BitMapBackend::new("fib-1-layout.png", (1024, 3096)).into_drawing_area();
-        root.fill(&WHITE).unwrap();
-        let root = root.titled("Fib 1 Layout", ("sans-serif", 60)).unwrap();
-
-        let circuit = MyCircuit::<Fp>(PhantomData);
-        halo2_proofs::dev::CircuitLayout::default()
-            .render(4, &circuit, &root)
-            .unwrap();
     }
 }

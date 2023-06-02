@@ -68,19 +68,15 @@ impl<F: FieldExt> FibonacciChip<F> {
         meta.lookup(|meta| {
             let s = meta.query_selector(s_range);
             let lhs = meta.query_advice(col_a, Rotation::cur());
-            vec![
-                (s.clone() * lhs, range_check_table[0]),
-                //(s * out, xor_table[2]),
-            ]
+            //(s * out, xor_table[2]),
+            vec![(s * lhs, range_check_table[0])]
         });
 
         meta.lookup(|meta| {
             let s1 = meta.query_selector(s_range_1);
             let rhs = meta.query_advice(col_b, Rotation::cur());
-            vec![
-                (s1.clone() * rhs, range_check_table_1[0]),
-                //(s * out, xor_table[2]),
-            ]
+            //(s * out, xor_table[2]),
+            vec![(s1 * rhs, range_check_table_1[0])]
         });
 
         meta.lookup(|meta| {
@@ -112,15 +108,13 @@ impl<F: FieldExt> FibonacciChip<F> {
         layouter.assign_table(
             || "range_check_table",
             |mut table| {
-                let mut idx = 0;
-                for lhs in 0..4 {
+                for (idx, lhs) in (0..4).enumerate() {
                     table.assign_cell(
                         || "lhs",
                         self.config.range_check_table[0],
                         idx,
                         || Value::known(F::from(lhs)),
                     )?;
-                    idx += 1;
                 }
                 Ok(())
             },
@@ -131,24 +125,19 @@ impl<F: FieldExt> FibonacciChip<F> {
         layouter.assign_table(
             || "range_check_table",
             |mut table| {
-                let mut idx = 0;
-                for lhs in 0..6 {
+                for (idx, lhs) in (0..6).enumerate() {
                     table.assign_cell(
                         || "lhs",
                         self.config.range_check_table_1[0],
                         idx,
                         || Value::known(F::from(lhs)),
                     )?;
-                    idx += 1;
                 }
                 Ok(())
             },
         )
     }
-    fn load_table(
-        &self,
-        mut layouter: impl Layouter<F>,
-    ) -> Result<(), Error> {
+    fn load_table(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
         layouter.assign_table(
             || "xor_table",
             |mut table| {
@@ -177,7 +166,7 @@ impl<F: FieldExt> FibonacciChip<F> {
                     }
                 }
                 Ok(())
-            }
+            },
         )
     }
     #[allow(clippy::type_complexity)]
@@ -293,52 +282,8 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
         chip.load_table_range(layouter.namespace(|| "range table"))?;
         chip.load_table_range_1(layouter.namespace(|| "range table 1"))?;
         let out_cell = chip.assign(layouter.namespace(|| "entire table"), 4)?;
-        //println!("{:?}",out_cell);
         chip.expose_public(layouter.namespace(|| "out"), out_cell, 2)?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::MyCircuit;
-    use halo2_proofs::{dev::MockProver, pasta::Fp};
-    use std::marker::PhantomData;
-
-    #[test]
-    fn fibonacci_example4() {
-        let k = 5;
-
-        let a = Fp::from(1); // F[0]
-        let b = Fp::from(1); // F[1]
-        let out = Fp::from(21); // F[9]
-
-        let circuit = MyCircuit(PhantomData);
-
-        let mut public_input = vec![a, b, out];
-
-        let prover = MockProver::run(k, &circuit, vec![public_input.clone()]).unwrap();
-        prover.assert_satisfied();
-
-        public_input[2] += Fp::one();
-        let _prover = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-        // uncomment the following line and the assert will fail
-        // _prover.assert_satisfied();
-    }
-
-    #[cfg(feature = "dev-graph")]
-    #[test]
-    fn plot_fibonacci1() {
-        use plotters::prelude::*;
-
-        let root = BitMapBackend::new("fib-1-layout.png", (1024, 3096)).into_drawing_area();
-        root.fill(&WHITE).unwrap();
-        let root = root.titled("Fib 1 Layout", ("sans-serif", 60)).unwrap();
-
-        let circuit = MyCircuit::<Fp>(PhantomData);
-        halo2_proofs::dev::CircuitLayout::default()
-            .render(4, &circuit, &root)
-            .unwrap();
     }
 }

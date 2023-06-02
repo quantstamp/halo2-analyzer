@@ -1,7 +1,0 @@
-/target
-**/*.rs.bk
-Cargo.lock
-.vscode
-**/*.html
-.DS_Store
-/src/output

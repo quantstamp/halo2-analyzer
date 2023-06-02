@@ -5,6 +5,21 @@
 1. Go to "korrekt"
 2. Run `cargo run` (the circuit is hard-coded in main.rs, in the future this should be a library)
 
+## How to test
+
+1. Go to "korrekt"
+2. Run `cargo test -- --test-threads=1`
+
+## For linting
+
+1. Go to "korrekt"
+2. `cargo clippy --all-targets --all-features -- -D warnings`
+
+## For Formatting
+
+1. Go to "korrekt"
+2. `cargo fmt --`
+
 ## How it works
 
 ### Intro to Halo2

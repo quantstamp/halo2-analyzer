@@ -1,11 +1,9 @@
-use std::marker::PhantomData;
 use halo2_proofs::arithmetic::FieldExt;
-use halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Instance, Selector,
-};
-use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, AssignedCell};
+use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
 use halo2_proofs::plonk::Error;
+use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Instance, Selector};
 use halo2_proofs::poly::Rotation;
+use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
 pub struct FibonacciConfig {
@@ -52,9 +50,7 @@ impl<F: FieldExt> FibonacciChip<F> {
             let b = meta.query_advice(col_b, Rotation::cur());
             let c = meta.query_advice(col_c, Rotation::cur());
 
-            // println!("{:?}", vec![s.clone() * (a.clone() + b.clone() - c.clone())]);
             vec![s * (a + b - c)]
-            //[Product(Selector(Selector(0, true)), Sum(Sum(Advice { query_index: 0, column_index: 0, rotation: Rotation(0) }, Advice { query_index: 1, column_index: 1, rotation: Rotation(0) }), Negated(Advice { query_index: 2, column_index: 2, rotation: Rotation(0) })))]
         });
 
         FibonacciConfig {
@@ -81,14 +77,16 @@ impl<F: FieldExt> FibonacciChip<F> {
                     self.config.instance,
                     0,
                     self.config.col_a,
-                    0)?;
+                    0,
+                )?;
 
                 let b_cell = region.assign_advice_from_instance(
                     || "f(1)",
                     self.config.instance,
                     1,
                     self.config.col_b,
-                    0)?;
+                    0,
+                )?;
 
                 let c_cell = region.assign_advice(
                     || "a + b",
@@ -114,18 +112,8 @@ impl<F: FieldExt> FibonacciChip<F> {
                 self.config.selector.enable(&mut region, 0)?;
 
                 // Copy the value from b & c in previous row to a & b in current row
-                prev_b.copy_advice(
-                    || "a",
-                    &mut region,
-                    self.config.col_a,
-                    0,
-                )?;
-                prev_c.copy_advice(
-                    || "b",
-                    &mut region,
-                    self.config.col_b,
-                    0,
-                )?;
+                prev_b.copy_advice(|| "a", &mut region, self.config.col_a, 0)?;
+                prev_c.copy_advice(|| "b", &mut region, self.config.col_b, 0)?;
 
                 let c_cell = region.assign_advice(
                     || "c",
@@ -161,8 +149,7 @@ impl<F: FieldExt> Circuit<F> for FibonacciCircuit<F> {
     }
 
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
-        let cfg = FibonacciChip::configure(meta);
-        cfg    
+        FibonacciChip::configure(meta)
     }
 
     fn synthesize(

@@ -8,12 +8,12 @@ pub enum VerificationMethod {
 #[derive(Debug)]
 pub struct VerificationInput {
     pub instances_string: HashMap<String, i64>,
-    pub iterations: u128
+    pub iterations: u128,
 }
 
 #[derive(Debug)]
 pub struct AnalyzerInput {
-    pub verification_method: VerificationMethod, 
+    pub verification_method: VerificationMethod,
     pub verification_input: VerificationInput,
 }
 
@@ -24,11 +24,14 @@ pub enum AnalyzerOutputStatus {
     Overconstrained,
     NotUnderconstrained,
     NotUnderconstrainedLocal,
+    UnusedCustomGates,
+    UnconstrainedCells,
+    UnusedColumns,
 }
 
 #[derive(Debug)]
 pub struct AnalyzerOutput {
-    pub output_status: AnalyzerOutputStatus
+    pub output_status: AnalyzerOutputStatus,
 }
 
 #[derive(Debug)]

@@ -1,11 +1,11 @@
-use std::marker::PhantomData;
 use halo2_proofs::arithmetic::FieldExt;
+use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
+use halo2_proofs::plonk::Error;
 use halo2_proofs::plonk::{
     Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
 };
-use halo2_proofs::circuit::{Layouter, Value, SimpleFloorPlanner};
-use halo2_proofs::plonk::Error;
 use halo2_proofs::poly::Rotation;
+use std::marker::PhantomData;
 
 pub struct MultiRowTwoBitDecompCircuit<F: FieldExt> {
     b0: F,
@@ -18,15 +18,6 @@ pub struct MultiRowTwoBitDecompCircuitConfig<F: FieldExt> {
     advice: Column<Advice>,
     instance: Column<Instance>,
     s: Selector,
-}
-
-impl<F: FieldExt> MultiRowTwoBitDecompCircuit<F> {
-    pub fn new(b0: F, b1: F) -> Self {
-        MultiRowTwoBitDecompCircuit {
-            b0,
-            b1,
-        }
-    }
 }
 
 impl<F: FieldExt> Default for MultiRowTwoBitDecompCircuit<F> {
@@ -58,14 +49,14 @@ impl<F: FieldExt> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
         meta.create_gate("b0_binary_check", |meta| {
             let a = meta.query_advice(x, Rotation::cur());
             let dummy = meta.query_selector(s);
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b0 * (1-b0)
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(x, Rotation::next());
             let dummy = meta.query_selector(s);
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a.clone())]
             // b1 * (1-b1)
+            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
         });
         meta.create_gate("equality", |meta| {
             let a = meta.query_advice(x, Rotation::cur());
@@ -77,14 +68,12 @@ impl<F: FieldExt> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
             vec![dummy * (a + Expression::Scaled(Box::new(b), F::from(2)) - c)]
         });
 
-        let cfg = Self::Config {
+        Self::Config {
             _ph: PhantomData,
             advice: x,
             instance: i,
             s,
-        };
-
-        cfg
+        }
     }
 
     fn synthesize(
@@ -114,7 +103,7 @@ impl<F: FieldExt> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
             )
             .unwrap();
         // expose the public input
-        layouter.constrain_instance(out.cell(), config.instance, 0)?; //*** what is this? */
+        layouter.constrain_instance(out.cell(), config.instance, 0)?;
         Ok(())
     }
 }
