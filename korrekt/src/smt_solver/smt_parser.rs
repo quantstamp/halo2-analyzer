@@ -6,8 +6,7 @@ pub enum Satisfiability {
     Satisfiable,
     Unsatisfiable,
 }
-use anyhow::anyhow;
-use anyhow::{Context, Result};
+use anyhow::{anyhow,Context, Result};
 
 #[derive(Debug, PartialEq)]
 pub struct FieldElement {
