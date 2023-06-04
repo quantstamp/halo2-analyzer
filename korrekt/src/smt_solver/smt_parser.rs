@@ -6,6 +6,7 @@ pub enum Satisfiability {
     Satisfiable,
     Unsatisfiable,
 }
+use anyhow::anyhow;
 use anyhow::{Context, Result};
 
 #[derive(Debug, PartialEq)]
@@ -47,11 +48,9 @@ fn parse_field_element_from_string(value: &str) -> Result<FieldElement> {
 pub fn extract_model_response(stream: String) -> Result<ModelResult> {
     let mut lines = stream.split('\n');
     // Initializing values
-    let mut satisfiability: Satisfiability = Satisfiability::Unsatisfiable;
     let mut variables: HashMap<String, Variable> = HashMap::new();
     let first_line = lines.next().context("Failed to parse smt result!")?;
     if first_line.trim() == "sat" {
-        satisfiability = Satisfiability::Satisfiable;
         for line in lines {
             if line.trim() == "" {
                 continue;
@@ -73,9 +72,16 @@ pub fn extract_model_response(stream: String) -> Result<ModelResult> {
             };
             variables.insert(variable_name.to_owned(), variable);
         }
+        Ok(ModelResult {
+            sat: Satisfiability::Satisfiable,
+            result: variables,
+        })
+    } else if first_line.trim() == "unsat" {
+        Ok(ModelResult {
+            sat: Satisfiability::Unsatisfiable,
+            result: variables,
+        })
+    } else {
+        return Err(anyhow!("SMT Solver Error: {}", first_line.trim()));
     }
-    Ok(ModelResult {
-        sat: satisfiability,
-        result: variables,
-    })
 }
