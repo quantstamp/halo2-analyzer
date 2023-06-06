@@ -7,6 +7,7 @@ pub enum Satisfiability {
     Unsatisfiable,
 }
 use anyhow::{anyhow,Context, Result};
+use regex::Regex;
 
 #[derive(Debug, PartialEq)]
 pub struct FieldElement {
@@ -50,26 +51,26 @@ pub fn extract_model_response(stream: String) -> Result<ModelResult> {
     let mut variables: HashMap<String, Variable> = HashMap::new();
     let first_line = lines.next().context("Failed to parse smt result!")?;
     if first_line.trim() == "sat" {
+        let re = Regex::new(r"\(\((\S+)\s+(\S+)\)\)").context("Failed to compile regex!")?;
         for line in lines {
-            if line.trim() == "" {
+            let trimmed_line = line.trim();
+            if trimmed_line.is_empty() {
                 continue;
             }
-            // Removing the parenthesis, turning ((a #f3m11)) into a #f3m11.
-            let cleaned_line = line.replace(&['(', ')'][..], "");
-            let mut cleaned_parts = cleaned_line.split(' ');
-            let variable_name = cleaned_parts
-                .next()
-                .context("Failed to parse smt result!")?;
-            let ff_element_string = cleaned_parts
-                .next()
-                .context("Failed to parse smt result!")?;
-            let ff_element = parse_field_element_from_string(ff_element_string)
-                .context("Error in parsing model!")?;
-            let variable = Variable {
-                name: variable_name.to_owned(),
-                value: ff_element,
-            };
-            variables.insert(variable_name.to_owned(), variable);
+            if let Some(captures) = re.captures(trimmed_line) {
+                if captures.len() < 3 {
+                    return Err(anyhow::anyhow!("Failed to parse smt result!"));
+                }
+                let variable_name = captures.get(1).map(|m| m.as_str()).context("Failed to extract variable name!")?;
+                let ff_element_string = captures.get(2).map(|m| m.as_str()).context("Failed to extract ff element!")?;
+                let ff_element = parse_field_element_from_string(ff_element_string)
+                    .context("Error in parsing model!")?;
+                let variable = Variable {
+                    name: variable_name.to_owned(),
+                    value: ff_element,
+                };
+                variables.insert(variable_name.to_owned(), variable);
+            }
         }
         Ok(ModelResult {
             sat: Satisfiability::Satisfiable,
