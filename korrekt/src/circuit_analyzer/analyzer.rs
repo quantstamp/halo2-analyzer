@@ -56,14 +56,14 @@ pub enum Operation {
     Or,
 }
 
-impl<'b, F: FieldExt> Analyzer<F> {
-    /// Creates an `Analyzer` instance with a circuit.
-    ///
-    /// This function creates an `Analyzer` instance by synthesizing the provided `Circuit` with an analytic layout.
-    /// It internally creates a constraint system to collect custom gates and uses the `circuit` parameter to synthesize the circuit
-    /// and populate the analytic layouter. The function returns the resulting `Analyzer` instance.
-    ///
-    pub fn create_with_circuit<C: Circuit<F>>(circuit: &C) -> Self {
+/// Creates an `Analyzer` instance with a circuit.
+///
+/// This function creates an `Analyzer` instance by synthesizing the provided `Circuit` with an analytic layouter.
+/// It internally creates a constraint system to collect custom gates and uses the `circuit` parameter to synthesize the circuit
+/// and populate the analytic layouter. The function returns the resulting `Analyzer` instance.
+///
+impl<F: FieldExt, C: Circuit<F>> From<&C> for Analyzer<F> {
+    fn from(circuit: &C) -> Self {
         // create constraint system to collect custom gates
         let mut cs: ConstraintSystem<F> = Default::default();
         let config = C::configure(&mut cs);
@@ -77,7 +77,8 @@ impl<'b, F: FieldExt> Analyzer<F> {
             counter: 0,
         }
     }
-
+}
+impl<'b, F: FieldExt> Analyzer<F> {
     /// Detects unused custom gates
     ///
     /// This function iterates through the gates in the constraint system (`self.cs`) and checks if each gate is used.

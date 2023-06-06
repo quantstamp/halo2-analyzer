@@ -14,7 +14,7 @@ use std::marker::PhantomData;
 fn main() -> Result<(), anyhow::Error> {
     //How to run our analysis on a circuit.
     let circuit = sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fp>(PhantomData);
-    let mut analyzer = circuit_analyzer::analyzer::Analyzer::create_with_circuit(&circuit);
+    let mut analyzer = circuit_analyzer::analyzer::Analyzer::from(&circuit);
     let k = 6;
 
     let a = Fp::from(1);

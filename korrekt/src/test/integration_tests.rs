@@ -39,7 +39,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
-        let analyzer = Analyzer::create_with_circuit(&circuit);
+        let analyzer = Analyzer::from(&circuit);
         assert!(analyzer.cs.gates.len().eq(&3));
         assert!(analyzer.cs.degree().eq(&3));
         assert!(analyzer.cs.num_advice_columns.eq(&3));
@@ -53,7 +53,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -66,7 +66,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -87,7 +87,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -117,7 +117,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -146,7 +146,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -175,7 +175,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -209,7 +209,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -244,7 +244,7 @@ mod tests {
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
             >::default();
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -274,7 +274,7 @@ mod tests {
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
             >::default();
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
@@ -304,7 +304,7 @@ mod tests {
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
             >::default();
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
 
@@ -340,7 +340,7 @@ mod tests {
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
             >::default();
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
 
@@ -374,7 +374,7 @@ mod tests {
     fn analyze_unused_columns_test() {
         let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fp> =
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
         let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::UnusedColumns));
         assert!(analyzer.log().len().gt(&0))
@@ -384,7 +384,7 @@ mod tests {
     fn analyze_unused_custom_gates_test() {
         let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fp> =
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
         let output_status = analyzer
             .analyze_unused_custom_gates()
             .unwrap()
@@ -397,7 +397,7 @@ mod tests {
     fn analyze_unconstrained_cells() {
         let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fp> =
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
         let output_status = analyzer
             .analyze_unconstrained_cells()
             .unwrap()
@@ -410,7 +410,7 @@ mod tests {
     fn analyze_underconstrained_fibonacci_test() {
         let circuit: sample_circuits::copy_constraint::fibonacci::FibonacciCircuit<_> =
             sample_circuits::copy_constraint::fibonacci::FibonacciCircuit::<Fp>(PhantomData);
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -437,7 +437,7 @@ mod tests {
     fn analyze_underconstrained_single_lookup_test() {
         let circuit =
             sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fp>(PhantomData);
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -466,7 +466,7 @@ mod tests {
     fn analyze_underconstrained_multiple_lookup_test() {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fp>(PhantomData);
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -495,7 +495,7 @@ mod tests {
     fn analyze_not_underconstrained_lookup_test() {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fp>(PhantomData);
-        let mut analyzer = Analyzer::create_with_circuit(&circuit);
+        let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
