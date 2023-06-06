@@ -5,20 +5,36 @@ use crate::circuit_analyzer::analyzer;
 use crate::io::analyzer_io_type;
 use crate::sample_circuits;
 
+/// `run_underconstrained_benchmarks` macro.
+///
+/// This macro runs the underconstrained benchmarks for all provided sizes.
+///
+/// # Examples
+///
+/// ```
+/// // Run underconstrained benchmarks for sizes 10 and 20.
+/// run_underconstrained_benchmarks!(10, 20);
+/// ```
+///
+/// # Parameters
+///
+/// - `$($size:expr),*`: A comma-separated list of sizes to run the underconstrained benchmarks for.
+/// 
+macro_rules! run_underconstrained_benchmarks {
+        ($($size:expr),*) => {
+            $(
+                run_underconstrained_benchmark_for_specified_size::<$size>();
+            )*
+        };
+}
+
 /// Runs benchmark tests for various specified sizes.
 ///
 /// This function executes a series of benchmark tests using the `run_underconstrained_benchmark_for_specified_size` function.
 /// It runs the benchmark for different specified sizes: 2, 4, 8, 16, 32, 64, and 128. The `run_underconstrained_benchmark_for_specified_size`
 /// function is called for each specified size.
 pub fn run_benchmark() {
-    run_underconstrained_benchmark_for_specified_size::<2>();
-    run_underconstrained_benchmark_for_specified_size::<2>();
-    run_underconstrained_benchmark_for_specified_size::<4>();
-    run_underconstrained_benchmark_for_specified_size::<8>();
-    run_underconstrained_benchmark_for_specified_size::<16>();
-    run_underconstrained_benchmark_for_specified_size::<32>();
-    run_underconstrained_benchmark_for_specified_size::<64>();
-    run_underconstrained_benchmark_for_specified_size::<128>();
+    run_underconstrained_benchmarks!(2, 2, 4, 8, 16, 32, 64, 128);
 }
 /// Runs an underconstrained benchmark for a specified size.
 ///
