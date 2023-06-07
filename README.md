@@ -1,5 +1,59 @@
 # Korrekt
 
+## Prerequisites
+
+Before you begin, ensure you have Installed CVC5 FOR Finite Field.
+
+## Installing CVC5 FOR Finite Field
+
+These are the steps to install CVC5 on MacOS (probably transferable to Linux).
+Instructions taken from: https://github.com/cvc5/cvc5/blob/main/INSTALL.rst 
+
+1. Clone CVC5 from official repo
+```
+git clone https://github.com/cvc5/cvc5
+```
+You can also download the source code from https://github.com/cvc5/cvc5/releases/tag/cvc5-1.0.5 but using the repo is recommended.
+2. Install all dependencies and set proper ENV variables. See [dependencies](#Dependencies) section below
+3. Run
+```
+./configure.sh —cocoa —auto-download
+```
+4. The do:
+```
+cd build
+make -j4
+make check
+sudo make install
+```
+
+## Dependencies 
+- Python 3.9 (you might need to install pip or update it): 
+```
+brew install python@3.9
+python3.9 -m pip install toml 
+python3.9 -m pip install pyparsing
+```
+- Java. Go to the following link and install the latest Java
+https://www.oracle.com/java/technologies/downloads/
+
+- Necessary for cocoa
+```
+brew install gmp
+brew install libpgm
+```
+
+- Now that you have `gmp` installed you need to tell CVC5 where to find it. The easiest way is through an env variable. If you install gap via homebrew, the path will look something like the following
+```
+export GMP_LIB=/opt/homebrew/Cellar/gmp/6.2.1_1/lib/libgmp.a
+```
+
+- If you’re having trouble finding it you can search for it with:
+
+```
+find /usr /opt -name "libgmp.a"
+```
+
 ## How to run
 
 1. Go to "korrekt"
