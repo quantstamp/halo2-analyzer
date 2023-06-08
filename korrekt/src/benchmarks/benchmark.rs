@@ -1,4 +1,5 @@
-use halo2_proofs::{dev::MockProver, pasta::Fp as Fr};
+use halo2_proofs::{dev::MockProver};
+use halo2_proofs::halo2curves::bn256::Fr;
 use std::time::Instant;
 
 use crate::circuit_analyzer::analyzer;
@@ -61,7 +62,7 @@ pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
         >::default();
     let public_input = Fr::from(3);
     let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![vec![public_input]]).unwrap();
-    let mut analyzer = analyzer::Analyzer::create_with_circuit(&circuit);
+    let mut analyzer = analyzer::Analyzer::from(&circuit);
     let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
         verification_method: analyzer_io_type::VerificationMethod::Random,

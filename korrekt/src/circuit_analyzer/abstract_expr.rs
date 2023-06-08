@@ -1,5 +1,5 @@
 use halo2_proofs::{
-    arithmetic::FieldExt,
+    arithmetic::Field,
     plonk::{Advice, Any, Column, Expression, Selector},
     poly::Rotation,
 };
@@ -20,16 +20,12 @@ pub enum AbsResult {
 /// This function traverses an expression tree and extracts the columns and rotations used within the expression.
 /// It recursively examines the expression and adds any encountered `Expression::Advice` columns and their corresponding rotations
 /// to the resulting set.
-pub fn extract_columns<F: FieldExt>(expr: &Expression<F>) -> HashSet<(Column<Any>, Rotation)> {
-    fn recursion<F: FieldExt>(dst: &mut HashSet<(Column<Any>, Rotation)>, expr: &Expression<F>) {
+pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, Rotation)> {
+    fn recursion<F: Field>(dst: &mut HashSet<(Column<Any>, Rotation)>, expr: &Expression<F>) {
         match expr {
-            Expression::Advice {
-                query_index: _,
-                column_index,
-                rotation,
-            } => {
-                let column = Column::<Advice>::new(*column_index, Advice {});
-                dst.insert((column.into(), *rotation));
+            Expression::Advice (advice_query) => {
+                let column = Column{index: advice_query.column_index, column_type: Advice{}};
+                dst.insert((column.into(), advice_query.rotation));
             }
             Expression::Sum(left, right) => {
                 recursion(dst, left);
@@ -54,7 +50,7 @@ pub fn extract_columns<F: FieldExt>(expr: &Expression<F>) -> HashSet<(Column<Any
 /// It recursively traverses the expression tree and applies the corresponding evaluation rules to determine the result.
 /// The abstract result can be one of the following: `AbsResult::Zero`, `AbsResult::NonZero`, or `AbsResult::Variable`.
 ///
-pub fn eval_abstract<F: FieldExt>(
+pub fn eval_abstract<F: Field>(
     expr: &Expression<F>,
     selectors: &HashSet<Selector>,
 ) -> AbsResult {
