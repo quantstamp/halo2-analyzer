@@ -334,30 +334,17 @@ impl<'b, F: FieldExt> Analyzer<F> {
                     ("(as ff0 F)".to_owned(), NodeType::Fixed)
                 }
             }
-            Expression::Fixed {
-                query_index: _,
-                column_index,
-                rotation,
-            } => {
-                let term = format!("F-{}-{}-{}", region_no, *column_index, rotation.0 + row_num);
+            Expression::Fixed (fixed_query) => {
+                let term = format!("F-{}-{}-{}", region_no, fixed_query.column_index, fixed_query.rotation.0 + row_num);
 
                 (term, NodeType::Fixed)
             }
-            Expression::Advice {
-                query_index: _,
-                column_index,
-                rotation,
-            } => {
-                let term = format!("A-{}-{}-{}", region_no, *column_index, rotation.0 + row_num);
+            Expression::Advice(advice_query) => {
+                let term = format!("A-{}-{}-{}", region_no, advice_query.column_index, advice_query.rotation.0 + row_num);
                 smt::write_var(printer, term.clone());
                 (term, NodeType::Advice)
             }
-            Expression::Instance {
-                query_index: _,
-                column_index: _,
-                rotation: _,
-            } => ("".to_owned(), NodeType::Instance),
-            
+            Expression::Instance (instance_query) => ("".to_owned(), NodeType::Instance),
             Expression::Negated(poly) => {
                 let (node_str, node_type) =
                     Self::decompose_expression(poly, printer, region_no, row_num, es);
@@ -441,7 +428,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                 for row_num in 0..self.layouter.regions[region_no].row_count {
                     for gate in self.cs.gates.iter() {
                         for poly in &gate.polys {
-                            let (node_str, node_type) = Self::decompose_expression(
+                            let (node_str, _) = Self::decompose_expression(
                                 poly,
                                 printer,
                                 region_no,
@@ -453,7 +440,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                                 printer,
                                 node_str,
                                 "0".to_owned(),
-                                node_type,
+                                NodeType::Poly,
                                 Operation::Equal,
                             );
                         }
@@ -481,13 +468,9 @@ impl<'b, F: FieldExt> Analyzer<F> {
                             if exit {
                                 break;
                             }
-                            if let Expression::Fixed {
-                                query_index: _,
-                                column_index,
-                                rotation: _,
-                            } = col
+                            if let Expression::Fixed(fixed_query) = col
                             {
-                                col_indices.push(column_index);
+                                col_indices.push(fixed_query.column_index);
                             }
                         }
                         let mut big_cons_str = "".to_owned();

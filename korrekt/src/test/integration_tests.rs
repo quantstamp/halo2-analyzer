@@ -6,10 +6,10 @@ mod tests {
         analyzer_io_type::{AnalyzerOutputStatus, VerificationInput, VerificationMethod},
     };
     use crate::sample_circuits;
-    use halo2_proofs::pasta::Fp;
-    use halo2_proofs::{dev::MockProver, pasta::Fp as Fr};
+    use halo2_proofs::{dev::MockProver};
     use std::collections::HashMap;
     use std::marker::PhantomData;
+    use halo2_proofs::halo2curves::bn256::Fr;
 
     #[test]
     fn create_two_bit_decomp_circuit() {
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn analyze_unused_columns_test() {
-        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fp> =
+        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let mut analyzer = Analyzer::from(&circuit);
         let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
@@ -382,7 +382,7 @@ mod tests {
 
     #[test]
     fn analyze_unused_custom_gates_test() {
-        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fp> =
+        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let mut analyzer = Analyzer::from(&circuit);
         let output_status = analyzer
@@ -395,7 +395,7 @@ mod tests {
 
     #[test]
     fn analyze_unconstrained_cells() {
-        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fp> =
+        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let mut analyzer = Analyzer::from(&circuit);
         let output_status = analyzer
@@ -409,7 +409,7 @@ mod tests {
     #[test]
     fn analyze_underconstrained_fibonacci_test() {
         let circuit: sample_circuits::copy_constraint::fibonacci::FibonacciCircuit<_> =
-            sample_circuits::copy_constraint::fibonacci::FibonacciCircuit::<Fp>(PhantomData);
+            sample_circuits::copy_constraint::fibonacci::FibonacciCircuit::<Fr>(PhantomData);
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
@@ -436,7 +436,7 @@ mod tests {
     #[test]
     fn analyze_underconstrained_single_lookup_test() {
         let circuit =
-            sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fp>(PhantomData);
+            sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fr>(PhantomData);
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
@@ -449,12 +449,12 @@ mod tests {
         };
         let k = 11;
 
-        let a = Fp::from(1);
-        let b = Fp::from(1);
-        let out = Fp::from(21);
+        let a = Fr::from(1);
+        let b = Fr::from(1);
+        let out = Fr::from(21);
 
         let public_input = vec![a, b, out];
-        let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, prover.fixed)
             .unwrap()
@@ -465,7 +465,7 @@ mod tests {
     #[test]
     fn analyze_underconstrained_multiple_lookup_test() {
         let circuit =
-            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fp>(PhantomData);
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
@@ -479,12 +479,12 @@ mod tests {
 
         let k = 11;
 
-        let a = Fp::from(1);
-        let b = Fp::from(1);
-        let out = Fp::from(21);
+        let a = Fr::from(1);
+        let b = Fr::from(1);
+        let out = Fr::from(21);
 
         let public_input = vec![a, b, out];
-        let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, prover.fixed)
             .unwrap()
@@ -494,7 +494,7 @@ mod tests {
     #[test]
     fn analyze_not_underconstrained_lookup_test() {
         let circuit =
-            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fp>(PhantomData);
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
@@ -513,12 +513,12 @@ mod tests {
         };
         let k = 11;
 
-        let a = Fp::from(1); // F[0]
-        let b = Fp::from(1); // F[1]
-        let out = Fp::from(21); // F[9]
+        let a = Fr::from(1); // F[0]
+        let b = Fr::from(1); // F[1]
+        let out = Fr::from(21); // F[9]
 
         let public_input = vec![a, b, out];
-        let prover: MockProver<Fp> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, prover.fixed)
             .unwrap()

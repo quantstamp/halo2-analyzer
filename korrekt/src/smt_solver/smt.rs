@@ -120,8 +120,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     ) {
         let a = if (matches!(nt, NodeType::Advice)
             || matches!(nt, NodeType::Instance)
-            || matches!(nt, NodeType::Fixed)
-            || matches!(nt, NodeType::Constant))
+            || matches!(nt, NodeType::Fixed))
         {
             poly
         } else {
