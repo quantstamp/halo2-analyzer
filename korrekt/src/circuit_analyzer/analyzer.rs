@@ -357,10 +357,20 @@ impl<'b, F: FieldExt> Analyzer<F> {
                 column_index: _,
                 rotation: _,
             } => ("".to_owned(), NodeType::Instance),
-            Expression::Negated(_poly) => {
-                let (node_str, _) =
-                    Self::decompose_expression(_poly, printer, region_no, row_num, es);
-                let term = format!("ff.neg {}", node_str);
+            
+            Expression::Negated(poly) => {
+                let (node_str, node_type) =
+                    Self::decompose_expression(poly, printer, region_no, row_num, es);
+                let term = if (matches!(node_type, NodeType::Advice)
+                    || matches!(node_type, NodeType::Instance)
+                    || matches!(node_type, NodeType::Fixed)
+                    || matches!(node_type, NodeType::Constant))
+                {
+                    format!("ff.neg {}", node_str)
+                } else {
+                    format!("ff.neg ({})", node_str)
+                };
+                //let term = format!("ff.neg {}", node_str);
                 (term, NodeType::Negated)
             }
             Expression::Sum(a, b) => {
@@ -431,7 +441,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                 for row_num in 0..self.layouter.regions[region_no].row_count {
                     for gate in self.cs.gates.iter() {
                         for poly in &gate.polys {
-                            let (node_str, _) = Self::decompose_expression(
+                            let (node_str, node_type) = Self::decompose_expression(
                                 poly,
                                 printer,
                                 region_no,
@@ -443,7 +453,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                                 printer,
                                 node_str,
                                 "0".to_owned(),
-                                NodeType::Poly,
+                                node_type,
                                 Operation::Equal,
                             );
                         }
