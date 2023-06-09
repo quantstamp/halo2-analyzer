@@ -7,8 +7,6 @@ edition = "2021"
 halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v2022_08_19" }
 gadgets = { git = "https://github.com/privacy-scaling-explorations/zkevm-circuits.git", rev = "2783eba338274a52036bf3db7fbc29575e24aa9f", package = "gadgets" }
 
-
-
 env_logger = "0.9.0"
 log = "0.4.17"
 try-catch = "0.2.2"
