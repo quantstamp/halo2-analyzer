@@ -4,12 +4,19 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-halo2_proofs = { version = "0.2.0", path = "../halo2/halo2_proofs" }
+halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v2022_08_19" }
+gadgets = { git = "https://github.com/privacy-scaling-explorations/zkevm-circuits.git", rev = "2783eba338274a52036bf3db7fbc29575e24aa9f", package = "gadgets" }
+
+
+
 env_logger = "0.9.0"
 log = "0.4.17"
 try-catch = "0.2.2"
 anyhow = "1.0.71"
 regex = "1.8.4"
+
+[patch."https://github.com/privacy-scaling-explorations/halo2.git"]
+halo2_proofs = { version = "0.2.0", git = "https://github.com/quantstamp/halo2.git" }
 
 [features]
 default = []
