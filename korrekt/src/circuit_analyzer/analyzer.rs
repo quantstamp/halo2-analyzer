@@ -235,7 +235,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
         fs::create_dir_all("src/output/").unwrap();
         let smt_file_path = "src/output/out.smt2";
         // TODO: extract the modulus from F, ticket created: https://quantstamp.atlassian.net/browse/ZKR-1237
-        let base_field_prime = "307";
+        let base_field_prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
         let mut smt_file =
             std::fs::File::create(smt_file_path).context("Failed to create file!")?;
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_owned());
