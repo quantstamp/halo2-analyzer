@@ -13,9 +13,11 @@ try-catch = "0.2.2"
 anyhow = "1.0.71"
 regex = "1.8.4"
 
-[patch."https://github.com/privacy-scaling-explorations/halo2.git"]
-halo2_proofs = { version = "0.2.0", git = "https://github.com/quantstamp/halo2.git" }
-
 [features]
 default = []
 benches = []
+
+[lib]
+name = "korrekt"
+path = "src/lib.rs"
+

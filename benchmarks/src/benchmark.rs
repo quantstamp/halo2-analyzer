@@ -2,9 +2,11 @@ use halo2_proofs::{dev::MockProver};
 use halo2_proofs::halo2curves::bn256::Fr;
 use std::time::Instant;
 
-use crate::circuit_analyzer::analyzer;
-use crate::io::analyzer_io_type;
-use crate::sample_circuits;
+use korrekt;
+
+use korrekt::circuit_analyzer::analyzer;
+use korrekt::io::analyzer_io_type;
+use korrekt::sample_circuits;
 
 /// `run_underconstrained_benchmarks` macro.
 ///

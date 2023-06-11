@@ -1,17 +1,8 @@
 use halo2_proofs::{dev::MockProver};
 use halo2_proofs::halo2curves::bn256::Fr;
 
-
-mod benchmarks;
-mod circuit_analyzer;
-mod io;
-mod sample_circuits;
-mod smt_solver;
-mod test;
-
 use anyhow::{Context, Ok, Result};
-
-use std::marker::PhantomData;
+use korrekt::{sample_circuits, circuit_analyzer,io};
 
 fn main() -> Result<(), anyhow::Error> {
     //How to run our analysis on a circuit.
