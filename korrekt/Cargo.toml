@@ -13,10 +13,6 @@ try-catch = "0.2.2"
 anyhow = "1.0.71"
 regex = "1.8.4"
 
-[features]
-default = []
-benches = []
-
 [lib]
 name = "korrekt"
 path = "src/lib.rs"
