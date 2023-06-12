@@ -20,6 +20,11 @@
 1. Go to "korrekt"
 2. `cargo fmt --`
 
+## For Benchmark
+
+1. Go to "benchmarks"
+2. Run `cargo run`
+
 ## How it works
 
 ### Intro to Halo2

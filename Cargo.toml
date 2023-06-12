@@ -1,0 +1,9 @@
+[workspace]
+members = [
+  "korrekt",
+  "benchmarks"
+]
+
+
+[patch."https://github.com/privacy-scaling-explorations/halo2.git"]
+halo2_proofs = { version = "0.2.0", git = "https://github.com/quantstamp/halo2.git" }
