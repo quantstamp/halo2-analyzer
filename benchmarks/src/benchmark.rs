@@ -1,5 +1,7 @@
 use halo2_proofs::dev::MockProver;
+use halo2_proofs::halo2curves::bn256;
 use halo2_proofs::halo2curves::bn256::Fr;
+use num::{BigInt, Num};
 use std::time::Instant;
 
 use korrekt;
@@ -22,7 +24,7 @@ use korrekt::sample_circuits;
 /// # Parameters
 ///
 /// - `$($size:expr),*`: A comma-separated list of sizes to run the underconstrained benchmarks for.
-/// 
+///
 macro_rules! run_underconstrained_benchmarks {
         ($($size:expr),*) => {
             $(
@@ -73,8 +75,15 @@ pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
             iterations: 1,
         },
     };
+
+    let modulus = bn256::fr::MODULUS_STR;
+    let without_prefix = modulus.trim_start_matches("0x");
+    let prime = BigInt::from_str_radix(without_prefix, 16)
+        .unwrap()
+        .to_string();
+
     let start = Instant::now();
-    let _result = analyzer.analyze_underconstrained(analyzer_input, prover.fixed);
+    let _result = analyzer.analyze_underconstrained(analyzer_input, prover.fixed, &prime);
     let duration = start.elapsed();
 
     println!(
