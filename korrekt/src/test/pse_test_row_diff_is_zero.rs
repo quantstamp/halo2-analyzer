@@ -20,7 +20,7 @@ mod test {
         ($values:expr, $checks:expr) => {{
             // let k = usize::BITS - $values.len().leading_zeros();
 
-            // TODO: remove zk blinding factors in halo2 to restore the
+            // TODO(from PSE): remove zk blinding factors in halo2 to restore the
             // correct k (without the extra + 2).
             let k = usize::BITS - $values.len().leading_zeros() + 2;
             let circuit = TestCircuit::<Fp> {
