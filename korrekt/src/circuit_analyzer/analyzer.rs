@@ -165,8 +165,6 @@ impl<'b, F: FieldExt> Analyzer<F> {
                                 let advices = abstract_expr::extract_columns(poly);
                                 let eval = abstract_expr::eval_abstract(poly, &selectors);
 
-                                column.index();
-
                                 if eval != AbsResult::Zero && advices.contains(&(column, rotation))
                                 {
                                     used = true;
