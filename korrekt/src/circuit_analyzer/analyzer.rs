@@ -88,8 +88,9 @@ impl<'b, F: FieldExt> Analyzer<F> {
     ///
     pub fn analyze_unused_custom_gates(&mut self) -> Result<AnalyzerOutput> {
         let mut count = 0;
+        let mut used;
         for gate in self.cs.gates.iter() {
-            let mut used = false;
+            used = false;
 
             // is this gate identically zero over regions?
             'region_search: for region in self.layouter.regions.iter() {
@@ -123,8 +124,9 @@ impl<'b, F: FieldExt> Analyzer<F> {
     ///
     pub fn analyze_unused_columns(&mut self) -> Result<AnalyzerOutput> {
         let mut count = 0;
+        let mut used;
         for (column, rotation) in self.cs.advice_queries.iter().cloned() {
-            let mut used = false;
+            used = false;
 
             for gate in self.cs.gates.iter() {
                 for poly in gate.polynomials() {
@@ -153,9 +155,9 @@ impl<'b, F: FieldExt> Analyzer<F> {
         let mut count = 0;
         for region in self.layouter.regions.iter() {
             let selectors = HashSet::from_iter(region.selectors().into_iter());
-
+            let mut used;
             for (reg_column, rotation) in region.columns.iter().cloned() {
-                let mut used = false;
+                used = false;
 
                 match reg_column {
                     RegionColumn::Selector(_) => continue,
@@ -235,7 +237,8 @@ impl<'b, F: FieldExt> Analyzer<F> {
         fs::create_dir_all("src/output/").unwrap();
         let smt_file_path = "src/output/out.smt2";
         // TODO: extract the modulus from F, ticket created: https://quantstamp.atlassian.net/browse/ZKR-1237
-        let base_field_prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        let base_field_prime =
+            "28948022309329048855892746252171976963363056481941560715954676764349967630337";
         let mut smt_file =
             std::fs::File::create(smt_file_path).context("Failed to create file!")?;
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_owned());
@@ -334,17 +337,27 @@ impl<'b, F: FieldExt> Analyzer<F> {
                     ("(as ff0 F)".to_owned(), NodeType::Fixed)
                 }
             }
-            Expression::Fixed (fixed_query) => {
-                let term = format!("F-{}-{}-{}", region_no, fixed_query.column_index, fixed_query.rotation.0 + row_num);
+            Expression::Fixed(fixed_query) => {
+                let term = format!(
+                    "F-{}-{}-{}",
+                    region_no,
+                    fixed_query.column_index,
+                    fixed_query.rotation.0 + row_num
+                );
 
                 (term, NodeType::Fixed)
             }
             Expression::Advice(advice_query) => {
-                let term = format!("A-{}-{}-{}", region_no, advice_query.column_index, advice_query.rotation.0 + row_num);
+                let term = format!(
+                    "A-{}-{}-{}",
+                    region_no,
+                    advice_query.column_index,
+                    advice_query.rotation.0 + row_num
+                );
                 smt::write_var(printer, term.clone());
                 (term, NodeType::Advice)
             }
-            Expression::Instance (instance_query) => ("".to_owned(), NodeType::Instance),
+            Expression::Instance(instance_query) => ("".to_owned(), NodeType::Instance),
             Expression::Negated(poly) => {
                 let (node_str, node_type) =
                     Self::decompose_expression(poly, printer, region_no, row_num, es);
@@ -468,8 +481,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                             if exit {
                                 break;
                             }
-                            if let Expression::Fixed(fixed_query) = col
-                            {
+                            if let Expression::Fixed(fixed_query) = col {
                                 col_indices.push(fixed_query.column_index);
                             }
                         }

@@ -1,27 +1,27 @@
 use std::collections::HashMap;
 use std::str;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Satisfiability {
     Satisfiable,
     Unsatisfiable,
 }
-use anyhow::{anyhow,Context, Result};
+use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct FieldElement {
     pub order: String,
     pub element: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Variable {
     pub name: String,
     pub value: FieldElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ModelResult {
     pub sat: Satisfiability,
     pub result: HashMap<String, Variable>,
@@ -61,8 +61,14 @@ pub fn extract_model_response(stream: String) -> Result<ModelResult> {
                 if captures.len() < 3 {
                     return Err(anyhow::anyhow!("Failed to parse smt result!"));
                 }
-                let variable_name = captures.get(1).map(|m| m.as_str()).context("Failed to extract variable name!")?;
-                let ff_element_string = captures.get(2).map(|m| m.as_str()).context("Failed to extract ff element!")?;
+                let variable_name = captures
+                    .get(1)
+                    .map(|m| m.as_str())
+                    .context("Failed to extract variable name!")?;
+                let ff_element_string = captures
+                    .get(2)
+                    .map(|m| m.as_str())
+                    .context("Failed to extract ff element!")?;
                 let ff_element = parse_field_element_from_string(ff_element_string)
                     .context("Error in parsing model!")?;
                 let variable = Variable {
@@ -82,6 +88,6 @@ pub fn extract_model_response(stream: String) -> Result<ModelResult> {
             result: variables,
         })
     } else {
-        return Err(anyhow!("SMT Solver Error: {}", first_line.trim()));
+        Err(anyhow!("SMT Solver Error: {}", first_line.trim()))
     }
 }

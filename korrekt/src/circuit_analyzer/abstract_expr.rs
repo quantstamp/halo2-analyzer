@@ -23,8 +23,11 @@ pub enum AbsResult {
 pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, Rotation)> {
     fn recursion<F: Field>(dst: &mut HashSet<(Column<Any>, Rotation)>, expr: &Expression<F>) {
         match expr {
-            Expression::Advice (advice_query) => {
-                let column = Column{index: advice_query.column_index, column_type: Advice{}};
+            Expression::Advice(advice_query) => {
+                let column = Column {
+                    index: advice_query.column_index,
+                    column_type: Advice {},
+                };
                 dst.insert((column.into(), advice_query.rotation));
             }
             Expression::Sum(left, right) => {
@@ -50,10 +53,7 @@ pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, 
 /// It recursively traverses the expression tree and applies the corresponding evaluation rules to determine the result.
 /// The abstract result can be one of the following: `AbsResult::Zero`, `AbsResult::NonZero`, or `AbsResult::Variable`.
 ///
-pub fn eval_abstract<F: Field>(
-    expr: &Expression<F>,
-    selectors: &HashSet<Selector>,
-) -> AbsResult {
+pub fn eval_abstract<F: Field>(expr: &Expression<F>, selectors: &HashSet<Selector>) -> AbsResult {
     match expr {
         Expression::Constant(v) => {
             if v.is_zero().into() {

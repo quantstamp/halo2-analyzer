@@ -55,7 +55,7 @@ impl<F: FieldExt> FibonacciChip<F> {
             vec![s * (a + b - c)]
         });
 
-        meta.lookup("XOR_lookup",|meta| {
+        meta.lookup("XOR_lookup", |meta| {
             let s = meta.query_selector(s_xor);
             let lhs = meta.query_advice(col_a, Rotation::cur());
             let rhs = meta.query_advice(col_b, Rotation::cur());

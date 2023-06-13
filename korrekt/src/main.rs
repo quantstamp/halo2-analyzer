@@ -1,12 +1,13 @@
-use halo2_proofs::{dev::MockProver};
+use halo2_proofs::dev::MockProver;
 use halo2_proofs::halo2curves::bn256::Fr;
 
 use anyhow::{Context, Ok, Result};
-use korrekt::{sample_circuits, circuit_analyzer,io};
+use korrekt::{circuit_analyzer, io, sample_circuits};
 
 fn main() -> Result<(), anyhow::Error> {
     //How to run our analysis on a circuit.
-    let circuit = sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fr>::default();
+    let circuit =
+        sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fr>::default();
     let mut analyzer = circuit_analyzer::analyzer::Analyzer::from(&circuit);
     let k = 6;
 
