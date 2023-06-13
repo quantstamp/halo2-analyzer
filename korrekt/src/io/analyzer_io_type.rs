@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum VerificationMethod {
     Specific,
     Random,
@@ -17,7 +17,7 @@ pub struct AnalyzerInput {
     pub verification_input: VerificationInput,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum AnalyzerOutputStatus {
     Invalid,
     Underconstrained,

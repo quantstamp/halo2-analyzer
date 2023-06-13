@@ -6,10 +6,10 @@ mod tests {
         analyzer_io_type::{AnalyzerOutputStatus, VerificationInput, VerificationMethod},
     };
     use crate::sample_circuits;
-    use halo2_proofs::{dev::MockProver};
+    use halo2_proofs::dev::MockProver;
+    use halo2_proofs::halo2curves::bn256::Fr;
     use std::collections::HashMap;
     use std::marker::PhantomData;
-    use halo2_proofs::halo2curves::bn256::Fr;
 
     #[test]
     fn create_two_bit_decomp_circuit() {

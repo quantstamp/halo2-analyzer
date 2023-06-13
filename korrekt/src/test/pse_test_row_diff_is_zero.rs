@@ -163,9 +163,6 @@ mod test {
             }
         }
 
-        try_test_circuit!(
-            vec![1, 2, 3, 4, 5],
-            vec![false, false, false, false]
-        );
+        try_test_circuit!(vec![1, 2, 3, 4, 5], vec![false, false, false, false]);
     }
 }

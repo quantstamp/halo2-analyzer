@@ -69,7 +69,7 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
 
     fn assign_advice<'v>(
         &'v mut self,
-        _: &'v (dyn Fn() -> String + 'v),
+        _annotation: &'v (dyn Fn() -> String + 'v),
         column: Column<Advice>,
         offset: usize,
         _to: &'v mut (dyn FnMut() -> Value<Assigned<F>> + 'v),
