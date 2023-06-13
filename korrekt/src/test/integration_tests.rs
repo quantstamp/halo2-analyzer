@@ -7,7 +7,9 @@ mod tests {
     };
     use crate::sample_circuits;
     use halo2_proofs::dev::MockProver;
+    use halo2_proofs::halo2curves::bn256;
     use halo2_proofs::halo2curves::bn256::Fr;
+    use num::{BigInt, Num};
     use std::collections::HashMap;
     use std::marker::PhantomData;
 
@@ -98,6 +100,12 @@ mod tests {
 
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -106,7 +114,7 @@ mod tests {
             },
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
@@ -121,6 +129,12 @@ mod tests {
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -135,7 +149,7 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -150,6 +164,12 @@ mod tests {
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -164,7 +184,7 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -184,6 +204,12 @@ mod tests {
             specified_instance_cols.insert(var.0.clone(), 3);
         }
 
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
@@ -198,7 +224,7 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -218,6 +244,12 @@ mod tests {
             specified_instance_cols.insert(var.0.clone(), 1);
         }
 
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
@@ -232,7 +264,7 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -248,6 +280,12 @@ mod tests {
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -262,7 +300,7 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -278,6 +316,12 @@ mod tests {
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -292,7 +336,7 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -314,6 +358,12 @@ mod tests {
             specified_instance_cols.insert(var.0.clone(), 3);
         }
 
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
@@ -328,7 +378,7 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -350,6 +400,12 @@ mod tests {
             specified_instance_cols.insert(var.0.clone(), 1);
         }
 
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
@@ -364,7 +420,7 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -413,6 +469,12 @@ mod tests {
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -427,7 +489,7 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -440,6 +502,12 @@ mod tests {
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -456,7 +524,7 @@ mod tests {
         let public_input = vec![a, b, out];
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -469,6 +537,12 @@ mod tests {
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -486,7 +560,7 @@ mod tests {
         let public_input = vec![a, b, out];
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -504,6 +578,12 @@ mod tests {
         specified_instance_cols.insert("I-0-0-1".to_owned(), 1);
         specified_instance_cols.insert("I-0-0-0".to_owned(), 1);
 
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
@@ -520,7 +600,7 @@ mod tests {
         let public_input = vec![a, b, out];
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed)
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
