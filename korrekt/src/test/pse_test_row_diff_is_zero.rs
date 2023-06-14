@@ -10,17 +10,19 @@ mod test {
         arithmetic::FieldExt,
         circuit::{Layouter, SimpleFloorPlanner, Value},
         dev::MockProver,
+        halo2curves::bn256,
         halo2curves::bn256::Fr as Fp,
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Selector},
         poly::Rotation,
     };
+    use num::{BigInt, Num};
     use std::marker::PhantomData;
 
     macro_rules! try_test_circuit {
         ($values:expr, $checks:expr) => {{
             // let k = usize::BITS - $values.len().leading_zeros();
 
-            // TODO(from PSE): remove zk blinding factors in halo2 to restore the
+            // TODO (from PSE): remove zk blinding factors in halo2 to restore the
             // correct k (without the extra + 2).
             let k = usize::BITS - $values.len().leading_zeros() + 2;
             let circuit = TestCircuit::<Fp> {
@@ -29,6 +31,12 @@ mod test {
                 _marker: PhantomData,
             };
             let prover = MockProver::<Fp>::run(k, &circuit, vec![]).unwrap();
+
+            let modulus = bn256::fr::MODULUS_STR;
+            let without_prefix = modulus.trim_start_matches("0x");
+            let prime = BigInt::from_str_radix(without_prefix, 16)
+                .unwrap()
+                .to_string();
 
             let mut analyzer = Analyzer::from(&circuit);
 
@@ -41,7 +49,7 @@ mod test {
                 },
             };
             let output_status = analyzer
-                .analyze_underconstrained(analyzer_input, prover.fixed)
+                .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
                 .unwrap()
                 .output_status;
             assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));

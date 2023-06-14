@@ -5,4 +5,6 @@ edition = "2021"
 
 [dependencies]
 halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v2022_08_19" }
+halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', tag = "0.2.1" }
 korrekt = { path = "../korrekt" }
+num = "0.4.0"

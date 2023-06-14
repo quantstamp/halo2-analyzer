@@ -233,12 +233,10 @@ impl<'b, F: FieldExt> Analyzer<F> {
         &mut self,
         analyzer_input: AnalyzerInput,
         fixed: Vec<Vec<CellValue<F>>>,
+        base_field_prime: &str,
     ) -> Result<AnalyzerOutput> {
         fs::create_dir_all("src/output/").unwrap();
         let smt_file_path = "src/output/out.smt2";
-        // TODO: extract the modulus from F, ticket created: https://quantstamp.atlassian.net/browse/ZKR-1237
-        let base_field_prime =
-            "28948022309329048855892746252171976963363056481941560715954676764349967630337";
         let mut smt_file =
             std::fs::File::create(smt_file_path).context("Failed to create file!")?;
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_owned());
@@ -357,7 +355,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                 smt::write_var(printer, term.clone());
                 (term, NodeType::Advice)
             }
-            Expression::Instance(instance_query) => ("".to_owned(), NodeType::Instance),
+            Expression::Instance(_instance_query) => ("".to_owned(), NodeType::Instance),
             Expression::Negated(poly) => {
                 let (node_str, node_type) =
                     Self::decompose_expression(poly, printer, region_no, row_num, es);
@@ -762,6 +760,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
         &mut self,
         analyzer_type: AnalyzerType,
         fixed: Vec<Vec<CellValue<F>>>,
+        prime: &str,
     ) -> Result<AnalyzerOutput> {
         match analyzer_type {
             AnalyzerType::UnusedGates => self.analyze_unused_custom_gates(),
@@ -775,7 +774,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                 let analyzer_input: AnalyzerInput =
                     retrieve_user_input_for_underconstrained(&instance_cols_string)
                         .context("Failed to retrieve user input!")?;
-                self.analyze_underconstrained(analyzer_input, fixed)
+                self.analyze_underconstrained(analyzer_input, fixed, prime)
             }
         }
     }

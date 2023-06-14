@@ -6,14 +6,15 @@ edition = "2021"
 [dependencies]
 halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v2022_08_19" }
 gadgets = { git = "https://github.com/privacy-scaling-explorations/zkevm-circuits.git", rev = "2783eba338274a52036bf3db7fbc29575e24aa9f", package = "gadgets" }
+halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', tag = "0.2.1" }
 
 env_logger = "0.9.0"
 log = "0.4.17"
 try-catch = "0.2.2"
 anyhow = "1.0.71"
 regex = "1.8.4"
+num = "0.4.0"
 
 [lib]
 name = "korrekt"
 path = "src/lib.rs"
-
