@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, Ok};
 use halo2_proofs::{
     arithmetic::FieldExt as Field,
     circuit::layouter::RegionColumn,
@@ -455,7 +455,7 @@ impl<'b, F: Field> Analyzer<F> {
         &'b mut self,
         printer: &mut smt::Printer<File>,
         fixed: Vec<Vec<CellValue<F>>>,
-    ) {
+    ) ->Result<(), anyhow::Error>{
         if !self.layouter.regions.is_empty() {
             for region_no in 0..self.layouter.regions.len() {
                 for row_num in 0..self.layouter.regions[region_no].row_count {
@@ -536,7 +536,7 @@ impl<'b, F: Field> Analyzer<F> {
                                     t,
                                     NodeType::Mult,
                                     Operation::Equal,
-                                );
+                                ).context("Failled to generate assert!")?;
                                 equalities.push(sa);
                             }
                             if exit {
@@ -558,6 +558,7 @@ impl<'b, F: Field> Analyzer<F> {
                 }
             }
         }
+        Ok(())
     }
     /// Checks the uniqueness inputs and returns the analysis result.
     ///
@@ -644,7 +645,7 @@ impl<'b, F: Field> Analyzer<F> {
                         result_from_model.value.element.clone(),
                         NodeType::Instance,
                         Operation::Equal,
-                    );
+                    ).context("Failled to generate assert!")?;
                     same_assignments.push(sa);
                 } else {
                     //2. Change the other vars
@@ -655,7 +656,7 @@ impl<'b, F: Field> Analyzer<F> {
                         result_from_model.value.element.clone(),
                         NodeType::Instance,
                         Operation::NotEqual,
-                    );
+                    ).context("Failled to generate assert!")?;
                     diff_assignments.push(sa);
                 }
             }
@@ -701,7 +702,7 @@ impl<'b, F: Field> Analyzer<F> {
                         res.1.value.element.clone(),
                         NodeType::Instance,
                         Operation::NotEqual,
-                    );
+                    ).context("Failled to generate assert!")?;
                     negated_model_variable_assignments.push(sa);
                 }
             }
