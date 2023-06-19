@@ -128,7 +128,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         };
         if matches!(op, analyzer::Operation::Equal) {
             writeln!(&mut self.writer, "(assert ( = {} (as ff{} F)))", a, value).unwrap();
-        } else {
+        } else if matches!(op, analyzer::Operation::NotEqual) {
             writeln!(
                 &mut self.writer,
                 "(assert (not ( = {} (as ff{} F))))",
@@ -174,8 +174,10 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         };
         if matches!(op, analyzer::Operation::Equal) {
             format!("( = {} (as ff{} F))", a, value)
-        } else {
+        } else if matches!(op, analyzer::Operation::NotEqual) {
             format!("(not ( = {} (as ff{} F)))", a, value)
+        } else {
+            String::new()
         }
     }
     /// Writes a "get-value" command in the SMT-LIB file to retrieve the value of a variable.

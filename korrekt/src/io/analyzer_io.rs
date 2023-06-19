@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use std::{collections::HashMap, io};
 
 use crate::io::analyzer_io_type::{
@@ -53,6 +53,7 @@ pub fn retrieve_user_input_for_underconstrained(
 
             analyzer_input.verification_method = VerificationMethod::Specific;
             analyzer_input.verification_input.instances_string = specified_instance_cols_string;
+            Ok(analyzer_input)
         }
         RANDOM => {
             let mut input_var = String::new();
@@ -69,11 +70,12 @@ pub fn retrieve_user_input_for_underconstrained(
             analyzer_input.verification_method = VerificationMethod::Random;
             analyzer_input.verification_input.instances_string = instance_cols_string.clone();
             analyzer_input.verification_input.iterations = iterations;
+            Ok(analyzer_input)
         }
-        _ => {}
-    };
-
-    Ok(analyzer_input)
+        _ => {
+            Err(anyhow!("Option {} Is Invalid", verification_type))
+        }
+    }
 }
 /// Outputs the result of the analysis.
 ///

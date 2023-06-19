@@ -7,6 +7,21 @@ use halo2_proofs::plonk::{
 use halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
+// `MultiRowTwoBitDecompCircuit`: This circuit is designed to perform binary decomposition
+// on a two-digit binary number. It receives two field elements, `b0` and `b1`, which
+// are intended to be binary digits. These digits are then used to form a two-bit binary
+// number. The circuit implements custom gates to ensure the binarity of `b0` and `b1`, 
+// and to enforce the correct formation of the combined binary number.
+// This implematation uses one advice column which implies access to multiple rows in the table.
+/// |   Row   | advice  |instance|    s     |      
+/// |---------|---------|--------|----------| 
+/// |   0     |   b0    |  x     |    1     | 
+/// |   1     |   b1    |        |          |
+/// |   2     |   x     |        |          |
+/// 
+///    Gate: b0_binary_check:  s*b0*(1-b0) 
+///    Gate: b0_binary_check:  s*b1*(1-b1)
+///    Gate:        equality:  s*(b0+2*b1-x)
 pub struct MultiRowTwoBitDecompCircuit<F: FieldExt> {
     b0: F,
     b1: F,
