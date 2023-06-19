@@ -1,6 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, Ok};
 use halo2_proofs::{
-    arithmetic::FieldExt,
+    arithmetic::FieldExt as Field,
     circuit::layouter::RegionColumn,
     dev::CellValue,
     plonk::{Circuit, ConstraintSystem, Expression},
@@ -30,7 +30,7 @@ use crate::smt_solver::{
 use layouter::AnalyticLayouter;
 
 #[derive(Debug)]
-pub struct Analyzer<F: FieldExt> {
+pub struct Analyzer<F: Field> {
     pub cs: ConstraintSystem<F>,
     pub layouter: layouter::AnalyticLayouter<F>,
     pub log: Vec<String>,
@@ -62,7 +62,7 @@ pub enum Operation {
 /// It internally creates a constraint system to collect custom gates and uses the `circuit` parameter to synthesize the circuit
 /// and populate the analytic layouter. The function returns the resulting `Analyzer` instance.
 ///
-impl<F: FieldExt, C: Circuit<F>> From<&C> for Analyzer<F> {
+impl<F: Field, C: Circuit<F>> From<&C> for Analyzer<F> {
     fn from(circuit: &C) -> Self {
         // create constraint system to collect custom gates
         let mut cs: ConstraintSystem<F> = Default::default();
@@ -78,7 +78,7 @@ impl<F: FieldExt, C: Circuit<F>> From<&C> for Analyzer<F> {
         }
     }
 }
-impl<'b, F: FieldExt> Analyzer<F> {
+impl<'b, F: Field> Analyzer<F> {
     /// Detects unused custom gates
     ///
     /// This function iterates through the gates in the constraint system (`self.cs`) and checks if each gate is used.
@@ -314,7 +314,29 @@ impl<'b, F: FieldExt> Analyzer<F> {
     pub fn log(&self) -> &[String] {
         &self.log
     }
-
+    /**
+     * Decomposes an `Expression` into its corresponding SMT-LIB format (`String`) and its type (`NodeType`).
+     *
+     * # Arguments
+     *
+     * * `poly` - A reference to an `Expression` instance that is to be decomposed into SMT-LIB v2 format.
+     * * `printer` - A mutable reference to a `Printer` instance which is used for writing the decomposed expression.
+     * * `region_no` - An integer that represents the region number.
+     * * `row_num` - An integer that represents the row number in region.
+     * * `es` - A reference to a `HashSet` of Strings representing enabled selectors. These selectors are checked during the decomposition.
+     *
+     * # Returns
+     *
+     * A tuple of two elements:
+     * * `String` - The SMT-LIB v2 formatted string representation of the decomposed expression.
+     * * `NodeType` - The type of the node that the expression corresponds to.
+     *
+     * # Behavior
+     *
+     * The function formats a string representation of the expression in SMT-LIB v2 format and identifies its polynomial type as a NodeType.
+     *  The function has a recursive behavior in the cases of `Negated`, `Sum`, `Product`,
+     * and `Scaled` variants of `Expression`, where it decomposes the nested expressions by calling itself.
+     */
     fn decompose_expression(
         poly: &Expression<F>,
         printer: &mut smt::Printer<File>,
@@ -433,7 +455,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
         &'b mut self,
         printer: &mut smt::Printer<File>,
         fixed: Vec<Vec<CellValue<F>>>,
-    ) {
+    ) ->Result<(), anyhow::Error>{
         if !self.layouter.regions.is_empty() {
             for region_no in 0..self.layouter.regions.len() {
                 for row_num in 0..self.layouter.regions[region_no].row_count {
@@ -514,7 +536,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                                     t,
                                     NodeType::Mult,
                                     Operation::Equal,
-                                );
+                                ).context("Failled to generate assert!")?;
                                 equalities.push(sa);
                             }
                             if exit {
@@ -536,6 +558,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                 }
             }
         }
+        Ok(())
     }
     /// Checks the uniqueness inputs and returns the analysis result.
     ///
@@ -622,7 +645,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                         result_from_model.value.element.clone(),
                         NodeType::Instance,
                         Operation::Equal,
-                    );
+                    ).context("Failled to generate assert!")?;
                     same_assignments.push(sa);
                 } else {
                     //2. Change the other vars
@@ -633,7 +656,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                         result_from_model.value.element.clone(),
                         NodeType::Instance,
                         Operation::NotEqual,
-                    );
+                    ).context("Failled to generate assert!")?;
                     diff_assignments.push(sa);
                 }
             }
@@ -679,7 +702,7 @@ impl<'b, F: FieldExt> Analyzer<F> {
                         res.1.value.element.clone(),
                         NodeType::Instance,
                         Operation::NotEqual,
-                    );
+                    ).context("Failled to generate assert!")?;
                     negated_model_variable_assignments.push(sa);
                 }
             }

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
+use anyhow::{anyhow, Context, Result};
 
 use crate::circuit_analyzer::analyzer::{self, NodeType};
 
@@ -128,7 +129,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         };
         if matches!(op, analyzer::Operation::Equal) {
             writeln!(&mut self.writer, "(assert ( = {} (as ff{} F)))", a, value).unwrap();
-        } else {
+        } else if matches!(op, analyzer::Operation::NotEqual) {
             writeln!(
                 &mut self.writer,
                 "(assert (not ( = {} (as ff{} F))))",
@@ -163,7 +164,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         value: String,
         nt: analyzer::NodeType,
         op: analyzer::Operation,
-    ) -> String {
+    ) -> Result<String> {
         let a = if (matches!(nt, NodeType::Advice)
             || matches!(nt, NodeType::Instance)
             || matches!(nt, NodeType::Fixed))
@@ -173,9 +174,11 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
             format!("({})", poly)
         };
         if matches!(op, analyzer::Operation::Equal) {
-            format!("( = {} (as ff{} F))", a, value)
+            Ok(format!("( = {} (as ff{} F))", a, value))
+        } else if matches!(op, analyzer::Operation::NotEqual) {
+            Ok(format!("(not ( = {} (as ff{} F)))", a, value))
         } else {
-            format!("(not ( = {} (as ff{} F)))", a, value)
+            Err(anyhow!("Invalid Operation: {:?}.", op))
         }
     }
     /// Writes a "get-value" command in the SMT-LIB file to retrieve the value of a variable.
@@ -275,7 +278,7 @@ pub fn get_assert(
     value: String,
     nt: analyzer::NodeType,
     op: analyzer::Operation,
-) -> String {
+) -> Result<String> {
     p.get_assert(poly, value, nt, op)
 }
 
