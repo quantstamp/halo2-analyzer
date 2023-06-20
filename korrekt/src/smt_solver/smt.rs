@@ -11,16 +11,7 @@ pub struct Printer<'a, W: 'a> {
 }
 
 fn get_logic_string() -> String {
-    let ff = true;
-    let bv = false;
-    let nia = false;
-
-    format!(
-        "QF_{}{}{}",
-        if bv { "BV" } else { "" },
-        if ff { "FF" } else { "" },
-        if nia { "NIA" } else { "" },
-    )
+    String::from("QF_FF")
 }
 
 impl<'a, W: 'a + Write> Printer<'a, W> {
