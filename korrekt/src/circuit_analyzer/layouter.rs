@@ -83,6 +83,8 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
 
         self.eq_table.insert(left, right);
         Ok(())
+
+        //todo!("handle instance columns"); Quantstamp ticket ZKR-1881
     }
 
     fn get_root(&mut self) -> &mut Self::Root {
@@ -94,8 +96,10 @@ impl<'a, F: Field> Layouter<F> for &'a mut AnalyticLayouter<F> {
         NR: Into<String>,
         N: FnOnce() -> NR,
     {
+        // implementation not needed at this time
     }
 
     fn pop_namespace(&mut self, _gadget_name: Option<String>) {
+        // implementation not needed at this time
     }
 }
