@@ -22,7 +22,6 @@ fn main() -> Result<(), anyhow::Error> {
 
     let modulus = bn256::fr::MODULUS_STR;
     let without_prefix = modulus.trim_start_matches("0x");
-    //let prime = "307";
     let prime = BigInt::from_str_radix(without_prefix, 16)
         .unwrap()
         .to_string();

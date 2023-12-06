@@ -7,7 +7,7 @@ mod tests {
     };
     use crate::sample_circuits;
     use halo2_proofs::dev::MockProver;
-    //use halo2_proofs::halo2curves::bn256;
+    use halo2curves::bn256;
     //use halo2_proofs::halo2curves::bn256::Fr;
     use num::{BigInt, Num};
     use std::collections::HashMap;
@@ -101,12 +101,12 @@ mod tests {
 
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
-        let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+        //let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
@@ -131,12 +131,12 @@ mod tests {
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
-        let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+        //let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
@@ -167,13 +167,13 @@ mod tests {
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
 
-        let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        //let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -208,12 +208,12 @@ mod tests {
             specified_instance_cols.insert(var.0.clone(), 3);
         }
 
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
-        let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+        //let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
@@ -249,12 +249,12 @@ mod tests {
             specified_instance_cols.insert(var.0.clone(), 1);
         }
 
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
-        let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+        //let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
@@ -286,13 +286,11 @@ mod tests {
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
-
-        let prime = "307";
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
@@ -324,12 +322,12 @@ mod tests {
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
         assert!(instance_cols.len().eq(&1));
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
-        let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+        //let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
@@ -367,12 +365,12 @@ mod tests {
             specified_instance_cols.insert(var.0.clone(), 3);
         }
 
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
-        let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+        //let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
@@ -410,12 +408,12 @@ mod tests {
             specified_instance_cols.insert(var.0.clone(), 1);
         }
 
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
-        let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+        //let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Specific,
@@ -480,12 +478,12 @@ mod tests {
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-        // let modulus = bn256::fr::MODULUS_STR;
-        // let without_prefix = modulus.trim_start_matches("0x");
-        // let prime = BigInt::from_str_radix(without_prefix, 16)
-        //     .unwrap()
-        //     .to_string();
-        let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+        //let prime = "28948022309329048855892746252171976963363056481941560715954676764349967630337";
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
@@ -507,114 +505,114 @@ mod tests {
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
-    //#[test]
-    // fn analyze_underconstrained_single_lookup_test() {
-    //     let circuit =
-    //         sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fr>(PhantomData);
-    //     let mut analyzer = Analyzer::from(&circuit);
+    #[test]
+    fn analyze_underconstrained_single_lookup_test() {
+        let circuit =
+            sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fr>(PhantomData);
+        let mut analyzer = Analyzer::from(&circuit);
 
-    //     let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-    //     let modulus = bn256::fr::MODULUS_STR;
-    //     let without_prefix = modulus.trim_start_matches("0x");
-    //     let prime = BigInt::from_str_radix(without_prefix, 16)
-    //         .unwrap()
-    //         .to_string();
+        let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
 
-    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-    //         verification_method: VerificationMethod::Random,
-    //         verification_input: VerificationInput {
-    //             instances_string: instance_cols,
-    //             iterations: 5,
-    //         },
-    //     };
-    //     let k = 11;
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: instance_cols,
+                iterations: 5,
+            },
+        };
+        let k = 11;
 
-    //     let a = Fr::from(1);
-    //     let b = Fr::from(1);
-    //     let out = Fr::from(21);
+        let a = Fr::from(1);
+        let b = Fr::from(1);
+        let out = Fr::from(21);
 
-    //     let public_input = vec![a, b, out];
-    //     let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-    //     let output_status = analyzer
-    //         .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
-    //         .unwrap()
-    //         .output_status;
-    //     assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
-    // }
+        let public_input = vec![a, b, out];
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    }
 
-    // #[test]
-    // fn analyze_underconstrained_multiple_lookup_test() {
-    //     let circuit =
-    //         sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
-    //     let mut analyzer = Analyzer::from(&circuit);
+    #[test]
+    fn analyze_underconstrained_multiple_lookup_test() {
+        let circuit =
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+        let mut analyzer = Analyzer::from(&circuit);
 
-    //     let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-    //     let modulus = bn256::fr::MODULUS_STR;
-    //     let without_prefix = modulus.trim_start_matches("0x");
-    //     let prime = BigInt::from_str_radix(without_prefix, 16)
-    //         .unwrap()
-    //         .to_string();
+        let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
 
-    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-    //         verification_method: VerificationMethod::Random,
-    //         verification_input: VerificationInput {
-    //             instances_string: instance_cols,
-    //             iterations: 5,
-    //         },
-    //     };
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: instance_cols,
+                iterations: 5,
+            },
+        };
 
-    //     let k = 11;
+        let k = 11;
 
-    //     let a = Fr::from(1);
-    //     let b = Fr::from(1);
-    //     let out = Fr::from(21);
+        let a = Fr::from(1);
+        let b = Fr::from(1);
+        let out = Fr::from(21);
 
-    //     let public_input = vec![a, b, out];
-    //     let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-    //     let output_status = analyzer
-    //         .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
-    //         .unwrap()
-    //         .output_status;
-    //     assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
-    // }
-    // #[test]
-    // fn analyze_not_underconstrained_lookup_test() {
-    //     let circuit =
-    //         sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
-    //     let mut analyzer = Analyzer::from(&circuit);
+        let public_input = vec![a, b, out];
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    }
+    #[test]
+    fn analyze_not_underconstrained_lookup_test() {
+        let circuit =
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+        let mut analyzer = Analyzer::from(&circuit);
 
-    //     let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-    //     assert!(instance_cols.len().eq(&1));
-    //     let mut specified_instance_cols = HashMap::new();
-    //     specified_instance_cols.insert("A-0-2-7".to_owned(), 21);
-    //     specified_instance_cols.insert("I-0-0-1".to_owned(), 1);
-    //     specified_instance_cols.insert("I-0-0-0".to_owned(), 1);
+        let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
+        assert!(instance_cols.len().eq(&1));
+        let mut specified_instance_cols = HashMap::new();
+        specified_instance_cols.insert("A-0-2-7".to_owned(), 21);
+        specified_instance_cols.insert("I-0-0-1".to_owned(), 1);
+        specified_instance_cols.insert("I-0-0-0".to_owned(), 1);
 
-    //     let modulus = bn256::fr::MODULUS_STR;
-    //     let without_prefix = modulus.trim_start_matches("0x");
-    //     let prime = BigInt::from_str_radix(without_prefix, 16)
-    //         .unwrap()
-    //         .to_string();
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
 
-    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-    //         verification_method: VerificationMethod::Specific,
-    //         verification_input: VerificationInput {
-    //             instances_string: specified_instance_cols,
-    //             iterations: 1,
-    //         },
-    //     };
-    //     let k = 11;
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Specific,
+            verification_input: VerificationInput {
+                instances_string: specified_instance_cols,
+                iterations: 1,
+            },
+        };
+        let k = 11;
 
-    //     let a = Fr::from(1); // F[0]
-    //     let b = Fr::from(1); // F[1]
-    //     let out = Fr::from(21); // F[9]
+        let a = Fr::from(1); // F[0]
+        let b = Fr::from(1); // F[1]
+        let out = Fr::from(21); // F[9]
 
-    //     let public_input = vec![a, b, out];
-    //     let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-    //     let output_status = analyzer
-    //         .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
-    //         .unwrap()
-    //         .output_status;
-    //     assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
-    // }
+        let public_input = vec![a, b, out];
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+    }
 }

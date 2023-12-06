@@ -532,7 +532,7 @@ impl<'b, F: Field> Analyzer<F> {
                                     CellValue::Poison(_) => {}
                                 }
                                 if let CellValue::Assigned(value) = fixed[col_indices[col]][row] {
-                                    t = format!("{:?}", value); //value.get_lower_128().to_string();
+                                    t = u64::from_str_radix(format!("{:?}",value).strip_prefix("0x").unwrap(), 16).unwrap().to_string();//format!("{:?}", value); //value.get_lower_128().to_string();
                                 }
                                 let sa = smt::get_assert(
                                     printer,
