@@ -1,32 +1,33 @@
-use halo2_proofs::arithmetic::FieldExt;
+//use halo2_proofs::arithmetic::Field;
+use ff::Field;
 use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Selector};
 use halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-pub struct AddMultCircuit<F: FieldExt> {
+pub struct AddMultCircuit<F: Field> {
     a: F,
     b: F,
 }
 
 #[derive(Clone)]
-pub struct AddMultCircuitConfig<F: FieldExt> {
+pub struct AddMultCircuitConfig<F: Field> {
     _ph: PhantomData<F>,
     s_mul: Selector,
     columns: [Column<Advice>; 25],
 }
 
-impl<F: FieldExt> Default for AddMultCircuit<F> {
+impl<F: Field> Default for AddMultCircuit<F> {
     fn default() -> Self {
         AddMultCircuit {
-            a: F::one(),
-            b: F::one(),
+            a: F::ONE,
+            b: F::ONE,
         }
     }
 }
 
-impl<F: FieldExt> Circuit<F> for AddMultCircuit<F> {
+impl<F: Field> Circuit<F> for AddMultCircuit<F> {
     type Config = AddMultCircuitConfig<F>;
     type FloorPlanner = SimpleFloorPlanner;
 

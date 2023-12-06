@@ -1,5 +1,5 @@
 use halo2_proofs::{
-    arithmetic::FieldExt as Field,
+    arithmetic::Field as Field,
     plonk::{Advice, Any, Column, Expression, Selector},
     poly::Rotation,
 };

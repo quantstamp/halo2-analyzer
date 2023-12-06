@@ -1,4 +1,5 @@
-use halo2_proofs::arithmetic::FieldExt;
+//use halo2_proofs::arithmetic::Field;
+//use ff::Field;
 use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::plonk::{
@@ -6,6 +7,7 @@ use halo2_proofs::plonk::{
 };
 use halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
+use group::ff::{Field, PrimeField};
 
 /// `TwoBitDecompCircuit` is a circuit designed to perform binary decomposition 
 /// on a two-digit binary number.
@@ -25,7 +27,7 @@ use std::marker::PhantomData;
 /// Gate: b1_binary_check: s*b1*(1-b1)
 /// Gate:        equality: s*(2*b1+b0-x)
 
-pub struct TwoBitDecompCircuit<F: FieldExt> {
+pub struct TwoBitDecompCircuit<F: PrimeField> {
     b0: F,
     b1: F,
 }
@@ -39,16 +41,16 @@ pub struct TwoBitDecompCircuitConfig {
     s: Selector,
 }
 
-impl<F: FieldExt> Default for TwoBitDecompCircuit<F> {
+impl<F: PrimeField> Default for TwoBitDecompCircuit<F> {
     fn default() -> Self {
         TwoBitDecompCircuit {
-            b0: F::one(),
-            b1: F::one(),
+            b0: F::ONE,
+            b1: F::ONE,
         }
     }
 }
 
-impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuit<F> {
+impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuit<F> {
     type Config = TwoBitDecompCircuitConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -71,13 +73,13 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuit<F> {
             let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b0 * (1-b0)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(b1, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b1 * (1-b1)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("equality", |meta| {
             let a = meta.query_advice(b0, Rotation::cur());
@@ -138,26 +140,26 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuit<F> {
 /// |---------|---------|---------|--------|-----|----------|-----------------------|-----------------------|----------------|
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |       s*b0*(1-b0)     |       s*b0*(1-b0)     |  s*(2*b1+b0-x) |
 /// 
-pub struct TwoBitDecompCircuitUnderConstrained<F: FieldExt> {
+pub struct TwoBitDecompCircuitUnderConstrained<F: PrimeField> {
     b0: F,
     b1: F,
 }
 
 #[derive(Clone)]
-pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: FieldExt> {
+pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: PrimeField> {
     _ph: PhantomData<F>,
 }
 
-impl<F: FieldExt> Default for TwoBitDecompCircuitUnderConstrained<F> {
+impl<F: PrimeField> Default for TwoBitDecompCircuitUnderConstrained<F> {
     fn default() -> Self {
         TwoBitDecompCircuitUnderConstrained {
-            b0: F::one(),
-            b1: F::one(),
+            b0: F::ONE,
+            b1: F::ONE,
         }
     }
 }
 
-impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
+impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
     type Config = TwoBitDecompCircuitConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -180,13 +182,13 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
             let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b0 * (1-b0)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b1 * (1-b1)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("equality", |meta| {
             let a = meta.query_advice(b0, Rotation::cur());

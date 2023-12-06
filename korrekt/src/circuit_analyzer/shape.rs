@@ -171,4 +171,9 @@ impl<F: Field> RegionLayouter<F> for AnalyticalShape {
         self.advice_eq_table.insert(left_name, right_name);
         Ok(())
     }
+
+    fn instance_value(&mut self, instance: Column<Instance>, row: usize)
+        -> Result<Value<F>, Error> {
+        todo!()
+    }
 }

@@ -1,10 +1,13 @@
-use anyhow::{Context, Result, Ok};
+use anyhow::{Context, Ok, Result};
 use halo2_proofs::{
-    arithmetic::FieldExt as Field,
     circuit::layouter::RegionColumn,
     dev::CellValue,
     plonk::{Circuit, ConstraintSystem, Expression},
 };
+//use ff::Field;
+use group::ff::Field;
+use halo2_proofs::pasta::Fp;
+
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -28,6 +31,7 @@ use crate::smt_solver::{
     smt_parser::{self, ModelResult, Satisfiability},
 };
 use layouter::AnalyticLayouter;
+// use halo2_proofs::pasta::Fp;
 
 #[derive(Debug)]
 pub struct Analyzer<F: Field> {
@@ -344,7 +348,9 @@ impl<'b, F: Field> Analyzer<F> {
     ) -> (String, NodeType) {
         match &poly {
             Expression::Constant(a) => {
-                let term = format!("(as ff{} F)", a.get_lower_128());
+                let constant_decimal_value  = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();
+
+                let term = format!("(as ff{:?} F)", constant_decimal_value);
                 (term, NodeType::Constant)
             }
             Expression::Selector(a) => {
@@ -453,7 +459,7 @@ impl<'b, F: Field> Analyzer<F> {
         &'b mut self,
         printer: &mut smt::Printer<File>,
         fixed: Vec<Vec<CellValue<F>>>,
-    ) ->Result<(), anyhow::Error>{
+    ) -> Result<(), anyhow::Error> {
         if !self.layouter.regions.is_empty() {
             for region_no in 0..self.layouter.regions.len() {
                 for row_num in 0..self.layouter.regions[region_no].row_count {
@@ -521,12 +527,12 @@ impl<'b, F: Field> Analyzer<F> {
                                         break;
                                     }
                                     CellValue::Assigned(f) => {
-                                        t = f.get_lower_128().to_string();
+                                        t = format!("{:?}", f);
                                     }
                                     CellValue::Poison(_) => {}
                                 }
                                 if let CellValue::Assigned(value) = fixed[col_indices[col]][row] {
-                                    t = value.get_lower_128().to_string();
+                                    t = format!("{:?}", value); //value.get_lower_128().to_string();
                                 }
                                 let sa = smt::get_assert(
                                     printer,
@@ -534,7 +540,8 @@ impl<'b, F: Field> Analyzer<F> {
                                     t,
                                     NodeType::Mult,
                                     Operation::Equal,
-                                ).context("Failled to generate assert!")?;
+                                )
+                                .context("Failled to generate assert!")?;
                                 equalities.push(sa);
                             }
                             if exit {
@@ -643,7 +650,8 @@ impl<'b, F: Field> Analyzer<F> {
                         result_from_model.value.element.clone(),
                         NodeType::Instance,
                         Operation::Equal,
-                    ).context("Failled to generate assert!")?;
+                    )
+                    .context("Failled to generate assert!")?;
                     same_assignments.push(sa);
                 } else {
                     //2. Change the other vars
@@ -654,7 +662,8 @@ impl<'b, F: Field> Analyzer<F> {
                         result_from_model.value.element.clone(),
                         NodeType::Instance,
                         Operation::NotEqual,
-                    ).context("Failled to generate assert!")?;
+                    )
+                    .context("Failled to generate assert!")?;
                     diff_assignments.push(sa);
                 }
             }
@@ -700,7 +709,8 @@ impl<'b, F: Field> Analyzer<F> {
                         res.1.value.element.clone(),
                         NodeType::Instance,
                         Operation::NotEqual,
-                    ).context("Failled to generate assert!")?;
+                    )
+                    .context("Failled to generate assert!")?;
                     negated_model_variable_assignments.push(sa);
                 }
             }

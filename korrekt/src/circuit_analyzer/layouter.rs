@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-use halo2_proofs::arithmetic::FieldExt as Field;
+//use halo2_proofs::arithmetic::Field as Field;
+use ff::Field;
 use halo2_proofs::circuit::{Cell, Layouter, Region, Table};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::plonk::{Column, Instance};

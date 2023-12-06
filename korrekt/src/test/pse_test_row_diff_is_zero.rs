@@ -7,7 +7,7 @@ mod test {
     };
     use gadgets::is_zero::{IsZeroChip, IsZeroConfig, IsZeroInstruction};
     use halo2_proofs::{
-        arithmetic::FieldExt,
+        //arithmetic::Field,
         circuit::{Layouter, SimpleFloorPlanner, Value},
         dev::MockProver,
         halo2curves::bn256,
@@ -15,6 +15,7 @@ mod test {
         plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Selector},
         poly::Rotation,
     };
+    use ff::Field;
     use num::{BigInt, Num};
     use std::marker::PhantomData;
 
@@ -67,14 +68,14 @@ mod test {
         }
 
         #[derive(Default)]
-        struct TestCircuit<F: FieldExt> {
+        struct TestCircuit<F: Field> {
             values: Option<Vec<u64>>,
             // checks[i] = is_zero(values[i + 1] - values[i])
             checks: Option<Vec<bool>>,
             _marker: PhantomData<F>,
         }
 
-        impl<F: FieldExt> Circuit<F> for TestCircuit<F> {
+        impl<F: Field> Circuit<F> for TestCircuit<F> {
             type Config = TestCircuitConfig<F>;
             type FloorPlanner = SimpleFloorPlanner;
 

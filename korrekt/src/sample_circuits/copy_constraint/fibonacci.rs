@@ -1,4 +1,4 @@
-use halo2_proofs::arithmetic::FieldExt;
+use halo2_proofs::arithmetic::Field;
 use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
 use halo2_proofs::plonk::Error;
 use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Instance, Selector};
@@ -15,12 +15,12 @@ pub struct FibonacciConfig {
 }
 
 #[derive(Debug, Clone)]
-struct FibonacciChip<F: FieldExt> {
+struct FibonacciChip<F: Field> {
     config: FibonacciConfig,
     _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> FibonacciChip<F> {
+impl<F: Field> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
         Self {
             config,
@@ -140,7 +140,7 @@ impl<F: FieldExt> FibonacciChip<F> {
 #[derive(Default)]
 pub struct FibonacciCircuit<F>(pub PhantomData<F>);
 
-impl<F: FieldExt> Circuit<F> for FibonacciCircuit<F> {
+impl<F: Field> Circuit<F> for FibonacciCircuit<F> {
     type Config = FibonacciConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
