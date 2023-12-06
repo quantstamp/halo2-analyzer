@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, Ok};
+use anyhow::{Context, Result, Ok, Error};
 use halo2_proofs::{
     arithmetic::FieldExt as Field,
     circuit::layouter::RegionColumn,
@@ -455,6 +455,8 @@ impl<'b, F: Field> Analyzer<F> {
         fixed: Vec<Vec<CellValue<F>>>,
     ) ->Result<(), anyhow::Error>{
         if !self.layouter.regions.is_empty() {
+            println!("self.cs: {:?}",self.cs);
+            return Ok(());
             for region_no in 0..self.layouter.regions.len() {
                 for row_num in 0..self.layouter.regions[region_no].row_count {
                     for gate in self.cs.gates.iter() {
