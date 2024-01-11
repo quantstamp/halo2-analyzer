@@ -60,11 +60,13 @@ pub enum Operation {
 /// This function creates an `Analyzer` instance from MockProver struct.
 impl<F: Field> From<MockProver<F>> for Analyzer<F> {
     fn from(mock_prover: MockProver<F>) -> Self {
-        
         let (permutation,instace_cells) = Analyzer::<F>::extract_permutations(mock_prover.permutation);
+        let regions = mock_prover.regions.into_iter()
+        .filter(|r| !r.enabled_selectors.is_empty()) 
+        .collect();
         Analyzer {
             cs: mock_prover.cs,
-            regions: mock_prover.regions,
+            regions,
             log: vec![],
             permutation,
             fixed: mock_prover.fixed,
