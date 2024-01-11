@@ -1,22 +1,19 @@
 use anyhow::{Context, Result, Ok};
 use halo2_proofs::{
     arithmetic::FieldExt as Field,
-    circuit::layouter::RegionColumn,
-    dev::CellValue,
-    plonk::{Circuit, ConstraintSystem, Expression},
+    dev::{CellValue, MockProver, Region},
+    plonk::{ConstraintSystem, Expression, Selector,permutation},
 };
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    fs::File,
-    fs::OpenOptions,
+    fs::{File, OpenOptions},
     path::Path,
     process::Command,
 };
 
 use crate::circuit_analyzer::{
     abstract_expr::{self, AbsResult},
-    layouter,
 };
 use crate::io::analyzer_io::{output_result, retrieve_user_input_for_underconstrained};
 use crate::io::analyzer_io_type::{
@@ -27,13 +24,15 @@ use crate::smt_solver::{
     smt::Printer,
     smt_parser::{self, ModelResult, Satisfiability},
 };
-use layouter::AnalyticLayouter;
 
 #[derive(Debug)]
 pub struct Analyzer<F: Field> {
     pub cs: ConstraintSystem<F>,
-    pub layouter: layouter::AnalyticLayouter<F>,
+    pub regions: Vec<Region>,
     pub log: Vec<String>,
+    pub permutation: HashMap<String, String>,
+    fixed: Vec<Vec<CellValue<F>>>,
+    pub instace_cells: HashMap<String, i64>,
     pub counter: u32,
 }
 #[derive(Debug)]
@@ -56,24 +55,20 @@ pub enum Operation {
     Or,
 }
 
-/// Creates an `Analyzer` instance with a circuit.
+/// Creates an `Analyzer` instance with a MockProver.
 ///
-/// This function creates an `Analyzer` instance by synthesizing the provided `Circuit` with an analytic layouter.
-/// It internally creates a constraint system to collect custom gates and uses the `circuit` parameter to synthesize the circuit
-/// and populate the analytic layouter. The function returns the resulting `Analyzer` instance.
-///
-impl<F: Field, C: Circuit<F>> From<&C> for Analyzer<F> {
-    fn from(circuit: &C) -> Self {
-        // create constraint system to collect custom gates
-        let mut cs: ConstraintSystem<F> = Default::default();
-        let config = C::configure(&mut cs);
-        // synthesize the circuit with analytic layout
-        let mut layouter = AnalyticLayouter::new();
-        circuit.synthesize(config, &mut layouter).unwrap();
+/// This function creates an `Analyzer` instance from MockProver struct.
+impl<F: Field> From<MockProver<F>> for Analyzer<F> {
+    fn from(mock_prover: MockProver<F>) -> Self {
+        
+        let (permutation,instace_cells) = Analyzer::<F>::extract_permutations(mock_prover.permutation);
         Analyzer {
-            cs,
-            layouter,
+            cs: mock_prover.cs,
+            regions: mock_prover.regions,
             log: vec![],
+            permutation,
+            fixed: mock_prover.fixed,
+            instace_cells,
             counter: 0,
         }
     }
@@ -86,34 +81,34 @@ impl<'b, F: Field> Analyzer<F> {
     /// If an unused gate is found, it is logged in the `self.log` vector along with a suggested action.
     /// Finally, the function prints the total number of unused gates found.
     ///
-    pub fn analyze_unused_custom_gates(&mut self) -> Result<AnalyzerOutput> {
-        let mut count = 0;
-        let mut used;
-        for gate in self.cs.gates.iter() {
-            used = false;
+    // pub fn analyze_unused_custom_gates(&mut self) -> Result<AnalyzerOutput> {
+    //     let mut count = 0;
+    //     let mut used;
+    //     for gate in self.cs.gates.iter() {
+    //         used = false;
 
-            // is this gate identically zero over regions?
-            'region_search: for region in self.layouter.regions.iter() {
-                let selectors = HashSet::from_iter(region.selectors().into_iter());
-                for poly in gate.polynomials() {
-                    let res = abstract_expr::eval_abstract(poly, &selectors);
-                    if res != AbsResult::Zero {
-                        used = true;
-                        break 'region_search;
-                    }
-                }
-            }
+    //         // is this gate identically zero over regions?
+    //         'region_search: for region in self.regions.iter() {
+    //             let selectors = HashSet::from_iter(region.selectors().into_iter());
+    //             for poly in gate.polynomials() {
+    //                 let res = abstract_expr::eval_abstract(poly, &selectors);
+    //                 if res != AbsResult::Zero {
+    //                     used = true;
+    //                     break 'region_search;
+    //                 }
+    //             }
+    //         }
 
-            if !used {
-                count += 1;
-                self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name()));
-            }
-        }
-        println!("Finished analysis: {} unused gates found.", count);
-        Ok(AnalyzerOutput {
-            output_status: AnalyzerOutputStatus::UnusedCustomGates,
-        })
-    }
+    //         if !used {
+    //             count += 1;
+    //             self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name()));
+    //         }
+    //     }
+    //     println!("Finished analysis: {} unused gates found.", count);
+    //     Ok(AnalyzerOutput {
+    //         output_status: AnalyzerOutputStatus::UnusedCustomGates,
+    //     })
+    // }
 
     /// Detects unused columns
     ///
@@ -122,103 +117,158 @@ impl<'b, F: Field> Analyzer<F> {
     /// If an unused column is found, it is logged in the `self.log` vector.
     /// Finally, the function prints the total number of unused columns found.
     ///
-    pub fn analyze_unused_columns(&mut self) -> Result<AnalyzerOutput> {
-        let mut count = 0;
-        let mut used;
-        for (column, rotation) in self.cs.advice_queries.iter().cloned() {
-            used = false;
+    // pub fn analyze_unused_columns(&mut self) -> Result<AnalyzerOutput> {
+    //     let mut count = 0;
+    //     let mut used;
+    //     for (column, rotation) in self.cs.advice_queries.iter().cloned() {
+    //         used = false;
 
-            for gate in self.cs.gates.iter() {
-                for poly in gate.polynomials() {
-                    let advices = abstract_expr::extract_columns(poly);
-                    if advices.contains(&(column.into(), rotation)) {
-                        used = true;
-                    }
-                }
-            }
+    //         for gate in self.cs.gates.iter() {
+    //             for poly in gate.polynomials() {
+    //                 let advices = abstract_expr::extract_columns(poly);
+    //                 if advices.contains(&(column.into(), rotation)) {
+    //                     used = true;
+    //                 }
+    //             }
+    //         }
 
-            if !used {
-                count += 1;
-                self.log.push(format!("unused column: {:?}", column));
-            }
-        }
-        println!("Finished analysis: {} unused columns found.", count);
-        Ok(AnalyzerOutput {
-            output_status: AnalyzerOutputStatus::UnusedColumns,
-        })
-    }
+    //         if !used {
+    //             count += 1;
+    //             self.log.push(format!("unused column: {:?}", column));
+    //         }
+    //     }
+    //     println!("Finished analysis: {} unused columns found.", count);
+    //     Ok(AnalyzerOutput {
+    //         output_status: AnalyzerOutputStatus::UnusedColumns,
+    //     })
+    // }
 
     /// Detect assigned but unconstrained cells:
     /// (does it occur in a not-identially zero polynomial in the region?)
     /// (if not almost certainly a bug)
-    pub fn analyze_unconstrained_cells(&mut self) -> Result<AnalyzerOutput> {
-        let mut count = 0;
-        for region in self.layouter.regions.iter() {
-            let selectors = HashSet::from_iter(region.selectors().into_iter());
-            let mut used;
-            for (reg_column, rotation) in region.columns.iter().cloned() {
-                used = false;
+    // pub fn analyze_unconstrained_cells(&mut self) -> Result<AnalyzerOutput> {
+    //     let mut count = 0;
+    //     for region in self.layouter.regions.iter() {
+    //         let selectors = HashSet::from_iter(region.selectors().into_iter());
+    //         let mut used;
+    //         for (reg_column, rotation) in region.columns.iter().cloned() {
+    //             used = false;
 
-                match reg_column {
-                    RegionColumn::Selector(_) => continue,
-                    RegionColumn::Column(column) => {
-                        for gate in self.cs.gates.iter() {
-                            for poly in gate.polynomials() {
-                                let advices = abstract_expr::extract_columns(poly);
-                                let eval = abstract_expr::eval_abstract(poly, &selectors);
+    //             match reg_column {
+    //                 RegionColumn::Selector(_) => continue,
+    //                 RegionColumn::Column(column) => {
+    //                     for gate in self.cs.gates.iter() {
+    //                         for poly in gate.polynomials() {
+    //                             let advices = abstract_expr::extract_columns(poly);
+    //                             let eval = abstract_expr::eval_abstract(poly, &selectors);
 
-                                if eval != AbsResult::Zero && advices.contains(&(column, rotation))
-                                {
-                                    used = true;
-                                }
-                            }
+    //                             if eval != AbsResult::Zero && advices.contains(&(column, rotation))
+    //                             {
+    //                                 used = true;
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             };
+
+    //             if !used {
+    //                 count += 1;
+    //                 self.log.push(format!("unconstrained cell in \"{}\" region: {:?} (rotation: {:?}) -- very likely a bug.", region.name,  reg_column, rotation));
+    //             }
+    //         }
+    //     }
+    //     println!("Finished analysis: {} unconstrained cells found.", count);
+    //     Ok(AnalyzerOutput {
+    //         output_status: AnalyzerOutputStatus::UnconstrainedCells,
+    //     })
+    // }
+
+    pub fn extract_permutations(permutation: permutation::keygen::Assembly)->(HashMap<String, String>,HashMap<String, i64>){
+        
+        let mut pairs = HashMap::<String,String>::new();
+        let mut instances = HashMap::<String, i64>::new();
+        for col in 0..permutation.sizes.len() {
+            for row in 0..permutation.sizes[col].len(){
+                if permutation.sizes[col][row] > 1{
+                    let mut cycle_length = permutation.sizes[col][row];
+                    let mut cycle_col = col;
+                    let mut cycle_row = row;
+                    while cycle_length > 1 {
+                        let mut is_instance: bool = false;
+                        let left_cell = permutation.columns[cycle_col];
+                        let left_column_abr = match  left_cell.column_type() {
+                            halo2_proofs::plonk::Any::Advice => 'A',
+                            halo2_proofs::plonk::Any::Fixed => 'F',
+                            halo2_proofs::plonk::Any::Instance => {
+                                is_instance = true;
+                                'I'
+                            },
+                        };
+
+                        let left_column_index =  left_cell.index;
+                        let left = format!("{}-{}-{}",left_column_abr,left_column_index,cycle_row);
+                        if is_instance {
+                            instances.insert(left.clone(), 0);
                         }
+                        is_instance = false;
+                        let (right_cell_col,right_cell_row) = permutation.mapping[cycle_col][cycle_row];
+                        let right_cell = permutation.columns[right_cell_col];
+                        let right_column_abr = match  right_cell.column_type() {
+                            halo2_proofs::plonk::Any::Advice => 'A',
+                            halo2_proofs::plonk::Any::Fixed => 'F',
+                            halo2_proofs::plonk::Any::Instance => {
+                                is_instance = true;
+                                'I'
+                            },
+                        };
+                        let right_column_index =  right_cell.index;
+                        let right = format!("{}-{}-{}",right_column_abr,right_column_index,right_cell_row);
+                        if is_instance {
+                            instances.insert(right.clone(), 0);
+                        }
+                        pairs.insert(left, right);
+                        cycle_col = right_cell_col;
+                        cycle_row = right_cell_row;
+                        cycle_length -= 1;
                     }
-                };
-
-                if !used {
-                    count += 1;
-                    self.log.push(format!("unconstrained cell in \"{}\" region: {:?} (rotation: {:?}) -- very likely a bug.", region.name,  reg_column, rotation));
                 }
             }
         }
-        println!("Finished analysis: {} unconstrained cells found.", count);
-        Ok(AnalyzerOutput {
-            output_status: AnalyzerOutputStatus::UnconstrainedCells,
-        })
+        (pairs,instances)
     }
-    /// Extracts instance columns from an equality table.
-    ///
-    /// This function takes an equality table (`eq_table`) represented as a `HashMap` with cell names as keys
-    /// and corresponding strings as values. It creates a new `HashMap` (`instance_cols_string`) and populates it
-    /// with the keys from the `eq_table`, assigning an initial value of zero to each key. The resulting `HashMap`
-    /// represents the extracted instance columns.
-    pub fn extract_instance_cols(
-        &mut self,
-        eq_table: HashMap<String, String>,
-    ) -> HashMap<String, i64> {
-        let mut instance_cols_string: HashMap<String, i64> = HashMap::new();
-        for cell in eq_table {
-            instance_cols_string.insert(cell.0.to_owned(), 0);
-        }
-        instance_cols_string
-    }
-    /// Extracts instance columns from regions in the layouter.
-    ///
-    /// This function iterates through the regions in the layouter (`self.layouter`) and extracts the instance columns
-    /// from each region's equality table. It creates a new `HashMap` (`instance_cols_string`) and populates it with
-    /// the extracted instance columns, assigning an initial value of zero to each column. The resulting `HashMap`
-    /// represents the extracted instance columns from all regions in the layouter.
-    ///
-    pub fn extract_instance_cols_from_region(&mut self) -> HashMap<String, i64> {
-        let mut instance_cols_string: HashMap<String, i64> = HashMap::new();
-        for region in self.layouter.regions.iter() {
-            for eq_adv in region.eq_table.iter() {
-                instance_cols_string.insert(eq_adv.0.to_owned(), 0);
-            }
-        }
-        instance_cols_string
-    }
+    // /// Extracts instance columns from an equality table.
+    // ///
+    // /// This function takes an equality table (`eq_table`) represented as a `HashMap` with cell names as keys
+    // /// and corresponding strings as values. It creates a new `HashMap` (`instance_cols_string`) and populates it
+    // /// with the keys from the `eq_table`, assigning an initial value of zero to each key. The resulting `HashMap`
+    // /// represents the extracted instance columns.
+    // /// 
+    // pub fn extract_instance_cols(
+    //     &mut self,
+    //     eq_table: HashMap<String, String>,
+    // ) -> HashMap<String, i64> {
+    //     let mut instance_cols_string: HashMap<String, i64> = HashMap::new();
+    //     for cell in eq_table {
+    //         instance_cols_string.insert(cell.0.to_owned(), 0);
+    //     }
+    //     instance_cols_string
+    // }
+    // /// Extracts instance columns from regions in the layouter.
+    // ///
+    // /// This function iterates through the regions in the layouter (`self.layouter`) and extracts the instance columns
+    // /// from each region's equality table. It creates a new `HashMap` (`instance_cols_string`) and populates it with
+    // /// the extracted instance columns, assigning an initial value of zero to each column. The resulting `HashMap`
+    // /// represents the extracted instance columns from all regions in the layouter.
+    // ///
+    // pub fn extract_instance_cols_from_region(&mut self) -> HashMap<String, i64> {
+    //     let mut instance_cols_string: HashMap<String, i64> = HashMap::new();
+    //     for region in self.layouter.regions.iter() {
+    //         for eq_adv in region.eq_table.iter() {
+    //             instance_cols_string.insert(eq_adv.0.to_owned(), 0);
+    //         }
+    //     }
+    //     instance_cols_string
+    // }
 
     /// Analyzes underconstrained circuits and generates an analyzer output.
     ///
@@ -230,7 +280,6 @@ impl<'b, F: Field> Analyzer<F> {
     pub fn analyze_underconstrained(
         &mut self,
         analyzer_input: AnalyzerInput,
-        fixed: Vec<Vec<CellValue<F>>>,
         base_field_prime: &str,
     ) -> Result<AnalyzerOutput> {
         fs::create_dir_all("src/output/").unwrap();
@@ -239,23 +288,23 @@ impl<'b, F: Field> Analyzer<F> {
             std::fs::File::create(smt_file_path).context("Failed to create file!")?;
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_owned());
 
-        Self::decompose_polynomial(self, &mut printer, fixed);
+        Self::decompose_polynomial(self, &mut printer);
 
         let instance_string = analyzer_input.verification_input.instances_string.clone();
 
         let mut analyzer_output: AnalyzerOutput = AnalyzerOutput {
             output_status: AnalyzerOutputStatus::Invalid,
         };
-        for region in self.layouter.regions.iter() {
-            for eq_adv in region.advice_eq_table.iter() {
-                smt::write_var(&mut printer, eq_adv.0.to_owned());
-                smt::write_var(&mut printer, eq_adv.1.to_owned());
 
-                let neg = format!("(ff.neg {})", eq_adv.1);
+        for permutation in &self.permutation {
+                smt::write_var(&mut printer, permutation.0.to_owned());
+                smt::write_var(&mut printer, permutation.1.to_owned());
+
+                let neg = format!("(ff.neg {})", permutation.1);
                 let term = smt::write_term(
                     &mut printer,
                     "add".to_owned(),
-                    eq_adv.0.to_owned(),
+                    permutation.0.to_owned(),
                     NodeType::Advice,
                     neg,
                     NodeType::Advice,
@@ -267,32 +316,54 @@ impl<'b, F: Field> Analyzer<F> {
                     NodeType::Poly,
                     Operation::Equal,
                 );
-            }
         }
+        // for region in self.regions.iter() {
+        //     for eq_adv in region.advice_eq_table.iter() {
+        //         smt::write_var(&mut printer, eq_adv.0.to_owned());
+        //         smt::write_var(&mut printer, eq_adv.1.to_owned());
 
-        for region in self.layouter.regions.iter() {
-            for eq_adv in region.eq_table.iter() {
-                smt::write_var(&mut printer, eq_adv.0.to_owned());
-                smt::write_var(&mut printer, eq_adv.1.to_owned());
+        //         let neg = format!("(ff.neg {})", eq_adv.1);
+        //         let term = smt::write_term(
+        //             &mut printer,
+        //             "add".to_owned(),
+        //             eq_adv.0.to_owned(),
+        //             NodeType::Advice,
+        //             neg,
+        //             NodeType::Advice,
+        //         );
+        //         smt::write_assert(
+        //             &mut printer,
+        //             term,
+        //             "0".to_owned(),
+        //             NodeType::Poly,
+        //             Operation::Equal,
+        //         );
+        //     }
+        // }
 
-                let neg = format!("(ff.neg {})", eq_adv.1);
-                let term = smt::write_term(
-                    &mut printer,
-                    "add".to_owned(),
-                    eq_adv.0.to_owned(),
-                    NodeType::Advice,
-                    neg,
-                    NodeType::Advice,
-                );
-                smt::write_assert(
-                    &mut printer,
-                    term,
-                    "0".to_owned(),
-                    NodeType::Poly,
-                    Operation::Equal,
-                );
-            }
-        }
+        // for region in self.regions.iter() {
+        //     for eq_adv in region.eq_table.iter() {
+        //         smt::write_var(&mut printer, eq_adv.0.to_owned());
+        //         smt::write_var(&mut printer, eq_adv.1.to_owned());
+
+        //         let neg = format!("(ff.neg {})", eq_adv.1);
+        //         let term = smt::write_term(
+        //             &mut printer,
+        //             "add".to_owned(),
+        //             eq_adv.0.to_owned(),
+        //             NodeType::Advice,
+        //             neg,
+        //             NodeType::Advice,
+        //         );
+        //         smt::write_assert(
+        //             &mut printer,
+        //             term,
+        //             "0".to_owned(),
+        //             NodeType::Poly,
+        //             Operation::Equal,
+        //         );
+        //     }
+        // }
 
         let output_status: AnalyzerOutputStatus = Self::uniqueness_assertion(
             smt_file_path.to_owned(),
@@ -338,9 +409,11 @@ impl<'b, F: Field> Analyzer<F> {
     fn decompose_expression(
         poly: &Expression<F>,
         printer: &mut smt::Printer<File>,
-        region_no: usize,
+        region_begin: usize,
+        region_end: usize,
         row_num: i32,
-        es: &HashSet<String>,
+        es: &HashMap<Selector, Vec<usize>>,
+        fixed: &Vec<Vec<CellValue<F>>>,
     ) -> (String, NodeType) {
         match &poly {
             Expression::Constant(a) => {
@@ -348,29 +421,29 @@ impl<'b, F: Field> Analyzer<F> {
                 (term, NodeType::Constant)
             }
             Expression::Selector(a) => {
-                let s = format!("S-{:?}-{}-{}", region_no, a.0, row_num);
-                if es.contains(&s) {
+                if es.contains_key(a) {
                     ("(as ff1 F)".to_owned(), NodeType::Fixed)
                 } else {
                     ("(as ff0 F)".to_owned(), NodeType::Fixed)
                 }
             }
             Expression::Fixed(fixed_query) => {
-                let term = format!(
-                    "F-{}-{}-{}",
-                    region_no,
-                    fixed_query.column_index,
-                    fixed_query.rotation.0 + row_num
-                );
+                let col= fixed_query.column_index;
+                let row = (fixed_query.rotation.0 + row_num)   as usize + region_begin;
+                
+                let mut t= 0;
+                if let CellValue::Assigned(fixed_val) = fixed[col][row] {
+                    t = fixed_val.get_lower_128();
+                }
+                let term = format!("(as ff{:?} F)",t);
 
                 (term, NodeType::Fixed)
             }
             Expression::Advice(advice_query) => {
                 let term = format!(
-                    "A-{}-{}-{}",
-                    region_no,
+                    "A-{}-{}",
                     advice_query.column_index,
-                    advice_query.rotation.0 + row_num
+                    advice_query.rotation.0 + row_num + region_begin as i32
                 );
                 smt::write_var(printer, term.clone());
                 (term, NodeType::Advice)
@@ -378,7 +451,7 @@ impl<'b, F: Field> Analyzer<F> {
             Expression::Instance(_instance_query) => ("".to_owned(), NodeType::Instance),
             Expression::Negated(poly) => {
                 let (node_str, node_type) =
-                    Self::decompose_expression(poly, printer, region_no, row_num, es);
+                    Self::decompose_expression(poly, printer, region_begin,region_end, row_num, es,fixed);
                 let term = if (matches!(node_type, NodeType::Advice)
                     || matches!(node_type, NodeType::Instance)
                     || matches!(node_type, NodeType::Fixed)
@@ -393,9 +466,9 @@ impl<'b, F: Field> Analyzer<F> {
             }
             Expression::Sum(a, b) => {
                 let (node_str_left, nodet_type_left) =
-                    Self::decompose_expression(a, printer, region_no, row_num, es);
+                    Self::decompose_expression(a, printer, region_begin,region_end, row_num, es,fixed);
                 let (node_str_right, nodet_type_right) =
-                    Self::decompose_expression(b, printer, region_no, row_num, es);
+                    Self::decompose_expression(b, printer, region_begin,region_end, row_num, es,fixed);
                 let term = smt::write_term(
                     printer,
                     "add".to_owned(),
@@ -408,9 +481,9 @@ impl<'b, F: Field> Analyzer<F> {
             }
             Expression::Product(a, b) => {
                 let (node_str_left, nodet_type_left) =
-                    Self::decompose_expression(a, printer, region_no, row_num, es);
+                    Self::decompose_expression(a, printer, region_begin,region_end, row_num, es,fixed);
                 let (node_str_right, nodet_type_right) =
-                    Self::decompose_expression(b, printer, region_no, row_num, es);
+                    Self::decompose_expression(b, printer, region_begin,region_end, row_num, es,fixed);
                 let term = smt::write_term(
                     printer,
                     "mul".to_owned(),
@@ -426,12 +499,14 @@ impl<'b, F: Field> Analyzer<F> {
                 let (node_str_left, nodet_type_left) = Self::decompose_expression(
                     &Expression::Constant(*c),
                     printer,
-                    region_no,
+                    region_begin,
+                    region_end,
                     row_num,
                     es,
+                    fixed
                 );
                 let (node_str_right, nodet_type_right) =
-                    Self::decompose_expression(_poly, printer, region_no, row_num, es);
+                    Self::decompose_expression(_poly, printer, region_begin,region_end, row_num, es,fixed);
                 let term = smt::write_term(
                     printer,
                     "mul".to_owned(),
@@ -452,19 +527,21 @@ impl<'b, F: Field> Analyzer<F> {
     pub fn decompose_polynomial(
         &'b mut self,
         printer: &mut smt::Printer<File>,
-        fixed: Vec<Vec<CellValue<F>>>,
     ) ->Result<(), anyhow::Error>{
-        if !self.layouter.regions.is_empty() {
-            for region_no in 0..self.layouter.regions.len() {
-                for row_num in 0..self.layouter.regions[region_no].row_count {
+        if !self.regions.is_empty() {
+            for region in &self.regions {
+                let (region_begin, region_end) = region.rows.unwrap();
+                for row_num in 0..region_end - region_begin + 1 {
                     for gate in self.cs.gates.iter() {
                         for poly in &gate.polys {
                             let (node_str, _) = Self::decompose_expression(
                                 poly,
                                 printer,
-                                region_no,
+                                region_begin,
+                                region_end,
                                 i32::try_from(row_num).ok().unwrap(),
-                                &self.layouter.regions[region_no].enabled_selectors,
+                                &region.enabled_selectors,
+                                &self.fixed
                             );
 
                             smt::write_assert(
@@ -479,17 +556,20 @@ impl<'b, F: Field> Analyzer<F> {
                 }
             }
 
-            for region_no in 0..self.layouter.regions.len() {
-                for row_num in 0..self.layouter.regions[region_no].row_count {
+            for region in &self.regions {
+                let (region_begin, region_end) = region.rows.unwrap();
+                for row_num in 0..region_end - region_begin + 1 {
                     for lookup in self.cs.lookups.iter() {
                         let mut cons_str_vec = Vec::new();
                         for poly in &lookup.input_expressions {
                             let (node_str, _) = Self::decompose_expression(
                                 poly,
                                 printer,
-                                region_no,
+                                region_begin,
+                                region_end,
                                 i32::try_from(row_num).ok().unwrap(),
-                                &self.layouter.regions[region_no].enabled_selectors,
+                                &region.enabled_selectors,
+                                &self.fixed
                             );
                             cons_str_vec.push(node_str);
                         }
@@ -505,7 +585,7 @@ impl<'b, F: Field> Analyzer<F> {
                         }
                         let mut big_cons_str = "".to_owned();
                         let mut big_cons = vec![];
-                        for row in 0..fixed[0].len() {
+                        for row in 0..self.fixed[0].len() {
                             //*** Iterate over look up table rows */
                             if exit {
                                 break;
@@ -515,7 +595,7 @@ impl<'b, F: Field> Analyzer<F> {
                             for col in 0..col_indices.len() {
                                 //*** Iterate over fixed cols */
                                 let mut t = String::new();
-                                match fixed[col_indices[col]][row] {
+                                match self.fixed[col_indices[col]][row] {
                                     CellValue::Unassigned => {
                                         exit = true;
                                         break;
@@ -525,7 +605,7 @@ impl<'b, F: Field> Analyzer<F> {
                                     }
                                     CellValue::Poison(_) => {}
                                 }
-                                if let CellValue::Assigned(value) = fixed[col_indices[col]][row] {
+                                if let CellValue::Assigned(value) = self.fixed[col_indices[col]][row] {
                                     t = value.get_lower_128().to_string();
                                 }
                                 let sa = smt::get_assert(
@@ -780,22 +860,17 @@ impl<'b, F: Field> Analyzer<F> {
     pub fn dispatch_analysis(
         &mut self,
         analyzer_type: AnalyzerType,
-        fixed: Vec<Vec<CellValue<F>>>,
         prime: &str,
     ) -> Result<AnalyzerOutput> {
         match analyzer_type {
-            AnalyzerType::UnusedGates => self.analyze_unused_custom_gates(),
-            AnalyzerType::UnconstrainedCells => self.analyze_unconstrained_cells(),
-            AnalyzerType::UnusedColumns => self.analyze_unused_columns(),
+            AnalyzerType::UnusedGates => todo!(),//self.analyze_unused_custom_gates(),
+            AnalyzerType::UnconstrainedCells => todo!(),//self.analyze_unconstrained_cells(),
+            AnalyzerType::UnusedColumns => todo!(),//self.analyze_unused_columns(),
             AnalyzerType::UnderconstrainedCircuit => {
-                let mut instance_cols_string =
-                    self.extract_instance_cols(self.layouter.eq_table.clone());
-                let instance_cols_string_from_region = self.extract_instance_cols_from_region();
-                instance_cols_string.extend(instance_cols_string_from_region);
                 let analyzer_input: AnalyzerInput =
-                    retrieve_user_input_for_underconstrained(&instance_cols_string)
+                    retrieve_user_input_for_underconstrained(&self.instace_cells)
                         .context("Failed to retrieve user input!")?;
-                self.analyze_underconstrained(analyzer_input, fixed, prime)
+                self.analyze_underconstrained(analyzer_input, prime)
             }
         }
     }

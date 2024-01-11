@@ -89,17 +89,14 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
-        let mut analyzer = Analyzer::from(&circuit);
-
-        let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-        assert!(instance_cols.len().eq(&1));
 
         let k: u32 = 11;
 
         let public_input = vec![Fr::from(3)];
 
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-
+        let mut analyzer = Analyzer::from(prover);
+        assert!(analyzer.instace_cells.len().eq(&1));
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
         let prime = BigInt::from_str_radix(without_prefix, 16)
@@ -109,12 +106,12 @@ mod tests {
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
-                instances_string: instance_cols,
+                instances_string: analyzer.instace_cells,
                 iterations: 5,
             },
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
+            .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));

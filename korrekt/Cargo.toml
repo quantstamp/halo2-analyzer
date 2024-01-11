@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v2022_08_19" }
+# halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v2022_08_19" }
+halo2_proofs = { path = "../../halo2/halo2_proofs" }
 gadgets = { git = "https://github.com/privacy-scaling-explorations/zkevm-circuits.git", rev = "2783eba338274a52036bf3db7fbc29575e24aa9f", package = "gadgets" }
 halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', tag = "0.2.1" }
 
