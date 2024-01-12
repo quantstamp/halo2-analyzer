@@ -33,12 +33,23 @@ fn main() -> Result<(), anyhow::Error> {
     // let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
     // let mut analyzer = circuit_analyzer::analyzer::Analyzer::from(prover);
 
-    let circuit: sample_circuits::copy_constraint::fibonacci::FibonacciCircuit<_> =
-    sample_circuits::copy_constraint::fibonacci::FibonacciCircuit::<Fr>(PhantomData);
-    let k: u32 = 11;
+    // let circuit: sample_circuits::copy_constraint::fibonacci::FibonacciCircuit<_> =
+    // sample_circuits::copy_constraint::fibonacci::FibonacciCircuit::<Fr>(PhantomData);
+    // let k: u32 = 11;
 
-    let public_input = vec![Fr::from(3)];
+    // let public_input = vec![Fr::from(3)];
 
+    // let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+    // let mut analyzer = circuit_analyzer::analyzer::Analyzer::from(prover);
+
+    let circuit = sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+    let k = 11;
+
+    let a = Fr::from(1); // F[0]
+    let b = Fr::from(1); // F[1]
+    let out = Fr::from(21); // F[9]
+
+    let public_input = vec![a, b, out];
     let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
     let mut analyzer = circuit_analyzer::analyzer::Analyzer::from(prover);
     
