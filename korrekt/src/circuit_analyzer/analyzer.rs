@@ -158,9 +158,9 @@ impl<'b, F: Field> Analyzer<F> {
             let selectors = region.enabled_selectors.keys().cloned().collect();
             let mut used;
             for cell in region.cells.clone() {
-                let (reg_column, rotation) = (cell, cell.1);
+                let (reg_column, rotation) = (cell.0.0, cell.1);
                 used = false;
-                match reg_column.0.0.column_type {
+                match reg_column.column_type {
                     Any::Fixed => continue,
                     _ => {
                         for gate in self.cs.gates.iter() {
@@ -168,7 +168,7 @@ impl<'b, F: Field> Analyzer<F> {
                                 let advices = abstract_expr::extract_columns(poly);
                                 let eval = abstract_expr::eval_abstract(poly, &selectors);
 
-                                if eval != AbsResult::Zero && advices.contains(&(reg_column.0.0, Rotation(rotation as i32)))
+                                if eval != AbsResult::Zero && advices.contains(&(reg_column, Rotation(rotation as i32)))
                                 {
                                     used = true;
                                 }
