@@ -2,10 +2,8 @@ use anyhow::{Context, Ok, Result};
 use halo2_proofs::{
     arithmetic::FieldExt as Field,
     dev::{CellValue, MockProver, Region},
-    plonk::{
-        permutation, Any, ConstraintSystem, Expression,
-         Selector
-    }, poly::Rotation,
+    plonk::{permutation, Any, ConstraintSystem, Expression, Selector},
+    poly::Rotation,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -63,11 +61,7 @@ impl<F: Field> From<MockProver<F>> for Analyzer<F> {
     fn from(mock_prover: MockProver<F>) -> Self {
         let (permutation, instace_cells) =
             Analyzer::<F>::extract_permutations(mock_prover.permutation);
-        let regions = mock_prover
-            .regions
-            .into_iter()
-            .filter(|r| !r.enabled_selectors.is_empty())
-            .collect();
+        let regions = mock_prover.regions;
         Analyzer {
             cs: mock_prover.cs,
             regions,
@@ -95,9 +89,18 @@ impl<'b, F: Field> Analyzer<F> {
 
             // is this gate identically zero over regions?
             'region_search: for region in self.regions.iter() {
+                let (region_begin, region_end) = region.rows.unwrap();
+                let row_num = (region_end - region_begin + 1) as i32;
                 let selectors = region.enabled_selectors.keys().cloned().collect();
                 for poly in gate.polynomials() {
-                    let res = abstract_expr::eval_abstract(poly, &selectors);
+                    let res = abstract_expr::eval_abstract(
+                        poly,
+                        &selectors,
+                        region_begin,
+                        region_end,
+                        row_num,
+                        &self.fixed,
+                    );
                     if res != AbsResult::Zero {
                         used = true;
                         break 'region_search;
@@ -111,9 +114,15 @@ impl<'b, F: Field> Analyzer<F> {
             }
         }
         println!("Finished analysis: {} unused gates found.", count);
-        Ok(AnalyzerOutput {
-            output_status: AnalyzerOutputStatus::UnusedCustomGates,
-        })
+        if count > 0 {
+            Ok(AnalyzerOutput {
+                output_status: AnalyzerOutputStatus::UnusedCustomGates,
+            })
+        } else {
+            Ok(AnalyzerOutput {
+                output_status: AnalyzerOutputStatus::NoUnusedCustomGates,
+            })
+        }
     }
 
     /// Detects unused columns
@@ -144,9 +153,15 @@ impl<'b, F: Field> Analyzer<F> {
             }
         }
         println!("Finished analysis: {} unused columns found.", count);
-        Ok(AnalyzerOutput {
-            output_status: AnalyzerOutputStatus::UnusedColumns,
-        })
+        if count > 0 {
+            Ok(AnalyzerOutput {
+                output_status: AnalyzerOutputStatus::UnusedColumns,
+            })
+        } else {
+            Ok(AnalyzerOutput {
+                output_status: AnalyzerOutputStatus::NoUnusedColumns,
+            })
+        }
     }
 
     /// Detect assigned but unconstrained cells:
@@ -156,9 +171,11 @@ impl<'b, F: Field> Analyzer<F> {
         let mut count = 0;
         for region in self.regions.iter() {
             let selectors = region.enabled_selectors.keys().cloned().collect();
+            let (region_begin, region_end) = region.rows.unwrap();
+            let row_num = (region_end - region_begin + 1) as i32;
             let mut used;
             for cell in region.cells.clone() {
-                let (reg_column, rotation) = (cell.0.0, cell.1);
+                let (reg_column, rotation) = (cell.0 .0, cell.1);
                 used = false;
                 match reg_column.column_type {
                     Any::Fixed => continue,
@@ -166,9 +183,16 @@ impl<'b, F: Field> Analyzer<F> {
                         for gate in self.cs.gates.iter() {
                             for poly in gate.polynomials() {
                                 let advices = abstract_expr::extract_columns(poly);
-                                let eval = abstract_expr::eval_abstract(poly, &selectors);
-
-                                if eval != AbsResult::Zero && advices.contains(&(reg_column, Rotation(rotation as i32)))
+                                let eval = abstract_expr::eval_abstract(
+                                    poly,
+                                    &selectors,
+                                    region_begin,
+                                    region_end,
+                                    row_num,
+                                    &self.fixed,
+                                );
+                                if eval != AbsResult::Zero
+                                    && advices.contains(&(reg_column, Rotation(rotation as i32)))
                                 {
                                     used = true;
                                 }
@@ -184,9 +208,15 @@ impl<'b, F: Field> Analyzer<F> {
             }
         }
         println!("Finished analysis: {} unconstrained cells found.", count);
-        Ok(AnalyzerOutput {
-            output_status: AnalyzerOutputStatus::UnconstrainedCells,
-        })
+        if count > 0 {
+            Ok(AnalyzerOutput {
+                output_status: AnalyzerOutputStatus::UnconstrainedCells,
+            })
+        } else {
+            Ok(AnalyzerOutput {
+                output_status: AnalyzerOutputStatus::NoUnconstrainedCells,
+            })
+        }
     }
 
     pub fn extract_permutations(
@@ -537,111 +567,115 @@ impl<'b, F: Field> Analyzer<F> {
     ) -> Result<(), anyhow::Error> {
         if !self.regions.is_empty() {
             for region in &self.regions {
-                let (region_begin, region_end) = region.rows.unwrap();
-                for row_num in 0..region_end - region_begin + 1 {
-                    for gate in self.cs.gates.iter() {
-                        for poly in &gate.polys {
-                            let (node_str, _) = Self::decompose_expression(
-                                poly,
-                                printer,
-                                region_begin,
-                                region_end,
-                                i32::try_from(row_num).ok().unwrap(),
-                                &region.enabled_selectors,
-                                &self.fixed,
-                            );
+                if !region.enabled_selectors.is_empty() {
+                    let (region_begin, region_end) = region.rows.unwrap();
+                    for row_num in 0..region_end - region_begin + 1 {
+                        for gate in self.cs.gates.iter() {
+                            for poly in &gate.polys {
+                                let (node_str, _) = Self::decompose_expression(
+                                    poly,
+                                    printer,
+                                    region_begin,
+                                    region_end,
+                                    i32::try_from(row_num).ok().unwrap(),
+                                    &region.enabled_selectors,
+                                    &self.fixed,
+                                );
 
-                            smt::write_assert(
-                                printer,
-                                node_str,
-                                "0".to_owned(),
-                                NodeType::Poly,
-                                Operation::Equal,
-                            );
+                                smt::write_assert(
+                                    printer,
+                                    node_str,
+                                    "0".to_owned(),
+                                    NodeType::Poly,
+                                    Operation::Equal,
+                                );
+                            }
                         }
                     }
                 }
             }
 
             for region in &self.regions {
-                let (region_begin, region_end) = region.rows.unwrap();
-                for row_num in 0..region_end - region_begin + 1 {
-                    for lookup in self.cs.lookups.iter() {
-                        let mut cons_str_vec = Vec::new();
-                        for poly in &lookup.input_expressions {
-                            let (node_str, _) = Self::decompose_expression(
-                                poly,
-                                printer,
-                                region_begin,
-                                region_end,
-                                i32::try_from(row_num).ok().unwrap(),
-                                &region.enabled_selectors,
-                                &self.fixed,
-                            );
-                            cons_str_vec.push(node_str);
-                        }
-                        let mut exit = false;
-                        let mut col_indices = Vec::new();
-                        for col in lookup.table_expressions.clone() {
-                            if exit {
-                                break;
-                            }
-                            if let Expression::Fixed(fixed_query) = col {
-                                col_indices.push(fixed_query.column_index);
-                            }
-                        }
-                        let mut big_cons_str = "".to_owned();
-                        let mut big_cons = vec![];
-                        for row in 0..self.fixed[0].len() {
-                            //*** Iterate over look up table rows */
-                            if exit {
-                                break;
-                            }
-                            let mut equalities = vec![];
-                            let mut eq_str = String::new();
-                            for col in 0..col_indices.len() {
-                                //*** Iterate over fixed cols */
-                                let mut t = String::new();
-                                match self.fixed[col_indices[col]][row] {
-                                    CellValue::Unassigned => {
-                                        exit = true;
-                                        break;
-                                    }
-                                    CellValue::Assigned(f) => {
-                                        t = f.get_lower_128().to_string();
-                                    }
-                                    CellValue::Poison(_) => {}
-                                }
-                                if let CellValue::Assigned(value) =
-                                    self.fixed[col_indices[col]][row]
-                                {
-                                    t = value.get_lower_128().to_string();
-                                }
-                                let sa = smt::get_assert(
+                if !region.enabled_selectors.is_empty() {
+                    let (region_begin, region_end) = region.rows.unwrap();
+                    for row_num in 0..region_end - region_begin + 1 {
+                        for lookup in self.cs.lookups.iter() {
+                            let mut cons_str_vec = Vec::new();
+                            for poly in &lookup.input_expressions {
+                                let (node_str, _) = Self::decompose_expression(
+                                    poly,
                                     printer,
-                                    cons_str_vec[col].clone(),
-                                    t,
-                                    NodeType::Mult,
-                                    Operation::Equal,
-                                )
-                                .context("Failled to generate assert!")?;
-                                equalities.push(sa);
+                                    region_begin,
+                                    region_end,
+                                    i32::try_from(row_num).ok().unwrap(),
+                                    &region.enabled_selectors,
+                                    &self.fixed,
+                                );
+                                cons_str_vec.push(node_str);
                             }
-                            if exit {
-                                break;
+                            let mut exit = false;
+                            let mut col_indices = Vec::new();
+                            for col in lookup.table_expressions.clone() {
+                                if exit {
+                                    break;
+                                }
+                                if let Expression::Fixed(fixed_query) = col {
+                                    col_indices.push(fixed_query.column_index);
+                                }
                             }
-                            for var in equalities.iter() {
-                                eq_str.push_str(var);
-                            }
-                            let and_eqs = smt::get_and(printer, eq_str);
+                            let mut big_cons_str = "".to_owned();
+                            let mut big_cons = vec![];
+                            for row in 0..self.fixed[0].len() {
+                                //*** Iterate over look up table rows */
+                                if exit {
+                                    break;
+                                }
+                                let mut equalities = vec![];
+                                let mut eq_str = String::new();
+                                for col in 0..col_indices.len() {
+                                    //*** Iterate over fixed cols */
+                                    let mut t = String::new();
+                                    match self.fixed[col_indices[col]][row] {
+                                        CellValue::Unassigned => {
+                                            exit = true;
+                                            break;
+                                        }
+                                        CellValue::Assigned(f) => {
+                                            t = f.get_lower_128().to_string();
+                                        }
+                                        CellValue::Poison(_) => {}
+                                    }
+                                    if let CellValue::Assigned(value) =
+                                        self.fixed[col_indices[col]][row]
+                                    {
+                                        t = value.get_lower_128().to_string();
+                                    }
+                                    let sa = smt::get_assert(
+                                        printer,
+                                        cons_str_vec[col].clone(),
+                                        t,
+                                        NodeType::Mult,
+                                        Operation::Equal,
+                                    )
+                                    .context("Failled to generate assert!")?;
+                                    equalities.push(sa);
+                                }
+                                if exit {
+                                    break;
+                                }
+                                for var in equalities.iter() {
+                                    eq_str.push_str(var);
+                                }
+                                let and_eqs = smt::get_and(printer, eq_str);
 
-                            big_cons.push(and_eqs);
-                        }
-                        for var in big_cons.iter() {
-                            big_cons_str.push_str(var);
-                        }
+                                big_cons.push(and_eqs);
+                            }
+                            for var in big_cons.iter() {
+                                big_cons_str.push_str(var);
+                            }
 
-                        smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                            smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                        }
                     }
                 }
             }

@@ -69,11 +69,8 @@ mod tests {
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
         let mut analyzer = Analyzer::from(prover);
-        println!("analyzer.instace_cells{:?}",analyzer.instace_cells);
         assert!(analyzer.instace_cells.len().eq(&1));
-        assert!(analyzer
-            .instace_cells
-            .contains_key("I-0-0"));
+        assert!(analyzer.instace_cells.contains_key("I-0-0"));
         assert!(analyzer.instace_cells.iter().next().unwrap().1.eq(&0));
     }
 
@@ -435,41 +432,51 @@ mod tests {
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
-    // #[test]
-    // fn analyze_unused_columns_test() {
-    //     let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
-    //         sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
-    //     let mut analyzer = Analyzer::from(prover);
-    //     let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
-    //     assert!(output_status.eq(&AnalyzerOutputStatus::UnusedColumns));
-    //     assert!(analyzer.log().len().gt(&0))
-    // }
+    #[test]
+    fn analyze_unused_columns_test() {
+        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
+            sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
+        let k = 5;
 
-    // #[test]
-    // fn analyze_unused_custom_gates_test() {
-    //     let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
-    //         sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
-    //     let mut analyzer = Analyzer::from(prover);
-    //     let output_status = analyzer
-    //         .analyze_unused_custom_gates()
-    //         .unwrap()
-    //         .output_status;
-    //     assert!(output_status.eq(&AnalyzerOutputStatus::UnusedCustomGates));
-    //     assert!(analyzer.log().len().gt(&0))
-    // }
+        let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
 
-    // #[test]
-    // fn analyze_unconstrained_cells() {
-    //     let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
-    //         sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
-    //     let mut analyzer = Analyzer::from(prover);
-    //     let output_status = analyzer
-    //         .analyze_unconstrained_cells()
-    //         .unwrap()
-    //         .output_status;
-    //     assert!(output_status.eq(&AnalyzerOutputStatus::UnconstrainedCells));
-    //     assert!(analyzer.log().len().gt(&0))
-    // }
+        let mut analyzer = Analyzer::from(prover);
+        let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::UnusedColumns));
+        assert!(analyzer.log().len().gt(&0))
+    }
+
+    #[test]
+    fn analyze_unused_custom_gates_test() {
+        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
+            sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
+        let k = 5;
+
+        let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
+        let output_status = analyzer
+            .analyze_unused_custom_gates()
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::UnusedCustomGates));
+        assert!(analyzer.log().len().gt(&0))
+    }
+
+    #[test]
+    fn analyze_unconstrained_cells() {
+        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
+            sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
+        let k = 5;
+
+        let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
+        let output_status = analyzer
+            .analyze_unconstrained_cells()
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::UnconstrainedCells));
+        assert!(analyzer.log().len().gt(&0))
+    }
 
     #[test]
     fn analyze_underconstrained_fibonacci_test() {

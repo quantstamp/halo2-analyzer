@@ -1,5 +1,6 @@
 use halo2_proofs::{
     arithmetic::FieldExt as Field,
+    dev::CellValue,
     plonk::{Advice, Any, Column, Expression, Selector},
     poly::Rotation,
 };
@@ -53,7 +54,14 @@ pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, 
 /// It recursively traverses the expression tree and applies the corresponding evaluation rules to determine the result.
 /// The abstract result can be one of the following: `AbsResult::Zero`, `AbsResult::NonZero`, or `AbsResult::Variable`.
 ///
-pub fn eval_abstract<F: Field>(expr: &Expression<F>, selectors: &HashSet<Selector>) -> AbsResult {
+pub fn eval_abstract<F: Field>(
+    expr: &Expression<F>,
+    selectors: &HashSet<Selector>,
+    region_begin: usize,
+    region_end: usize,
+    row_num: i32,
+    fixed: &Vec<Vec<CellValue<F>>>,
+) -> AbsResult {
     match expr {
         Expression::Constant(v) => {
             if v.is_zero().into() {
@@ -66,13 +74,28 @@ pub fn eval_abstract<F: Field>(expr: &Expression<F>, selectors: &HashSet<Selecto
             true => AbsResult::NonZero,
             false => AbsResult::Zero,
         },
-        Expression::Fixed { .. } => AbsResult::Variable,
+        Expression::Fixed(fixed_query) 
+        => 
+        {
+            let col = fixed_query.column_index;
+            let row = (fixed_query.rotation.0 + row_num) as usize + region_begin;
+
+            let mut t = 0;
+            if let CellValue::Assigned(fixed_val) = fixed[col][row] {
+                t = fixed_val.get_lower_128();
+            }
+            if t == 0 {
+                AbsResult::Zero
+            } else {
+                AbsResult::Variable
+            }
+        }
         Expression::Advice { .. } => AbsResult::Variable,
         Expression::Instance { .. } => AbsResult::Variable,
-        Expression::Negated(expr) => eval_abstract(expr, selectors),
+        Expression::Negated(expr) => eval_abstract(expr, selectors,region_begin,region_end,row_num,fixed),
         Expression::Sum(left, right) => {
-            let res1 = eval_abstract(left, selectors);
-            let res2 = eval_abstract(right, selectors);
+            let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed);
+            let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed);
             match (res1, res2) {
                 (AbsResult::Variable, _) => AbsResult::Variable,
                 (_, AbsResult::Variable) => AbsResult::Variable,
@@ -83,8 +106,8 @@ pub fn eval_abstract<F: Field>(expr: &Expression<F>, selectors: &HashSet<Selecto
             }
         }
         Expression::Product(left, right) => {
-            let res1 = eval_abstract(left, selectors);
-            let res2 = eval_abstract(right, selectors);
+            let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed);
+            let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed);
             match (res1, res2) {
                 (AbsResult::Zero, _) => AbsResult::Zero,
                 (_, AbsResult::Zero) => AbsResult::Zero,
@@ -96,7 +119,7 @@ pub fn eval_abstract<F: Field>(expr: &Expression<F>, selectors: &HashSet<Selecto
             if scale.is_zero().into() {
                 AbsResult::Zero
             } else {
-                eval_abstract(expr, selectors)
+                eval_abstract(expr, selectors,region_begin,region_end,row_num,fixed)
             }
         }
     }

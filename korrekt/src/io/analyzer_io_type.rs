@@ -25,8 +25,11 @@ pub enum AnalyzerOutputStatus {
     NotUnderconstrained,
     NotUnderconstrainedLocal,
     UnusedCustomGates,
+    NoUnusedCustomGates,
     UnconstrainedCells,
+    NoUnconstrainedCells,
     UnusedColumns,
+    NoUnusedColumns
 }
 
 #[derive(Debug)]
