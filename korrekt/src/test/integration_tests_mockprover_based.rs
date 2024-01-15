@@ -14,7 +14,7 @@ mod tests {
     use std::marker::PhantomData;
 
     #[test]
-    fn create_two_bit_decomp_circuit() {
+    fn create_two_bit_decomp_circuit_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
@@ -22,22 +22,22 @@ mod tests {
 
         let public_input = Fr::from(3);
         //mockprover verify passes
-        //let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]).unwrap();
-        //assert!(prover.verify().eq(&Ok(())));
+        let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]).unwrap();
+        assert!(prover.verify().eq(&Ok(())));
     }
     #[test]
-    fn create_multtrow_two_bit_decomp_circuit() {
+    fn create_multtrow_two_bit_decomp_circuit_mpb() {
         let circuit = sample_circuits::bit_decomposition::two_bit_decomp_multirow::MultiRowTwoBitDecompCircuit::<Fr>::default();
         let k = 5;
 
         let public_input = Fr::from(3);
         //mockprover verify passes
-        //let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]).unwrap();
-        //assert!(prover.verify().eq(&Ok(())));
+        let prover = MockProver::<Fr>::run(k, &circuit, vec![vec![public_input]]).unwrap();
+        assert!(prover.verify().eq(&Ok(())));
     }
 
     #[test]
-    fn create_analyzer_test() {
+    fn create_analyzer_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
@@ -45,19 +45,20 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.cs.gates.len().eq(&3));
         assert!(analyzer.cs.degree().eq(&3));
         assert!(analyzer.cs.num_advice_columns().eq(&3));
         assert!(analyzer.cs.num_instance_columns().eq(&1));
-        assert!(analyzer.cs.num_selectors.eq(&1) || analyzer.cs.num_fixed_columns().eq(&1));
+        assert!(analyzer.cs.num_selectors.eq(&1));
+        assert!(analyzer.cs.num_fixed_columns().eq(&1));
     }
 
     #[test]
-    fn extract_instance_cols_test() {
+    fn extract_instance_cols_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
@@ -65,16 +66,16 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
         assert!(analyzer.instace_cells.len().eq(&1));
         assert!(analyzer.instace_cells.contains_key("I-0-0"));
         assert!(analyzer.instace_cells.iter().next().unwrap().1.eq(&0));
     }
 
     #[test]
-    fn set_user_input_test() {
+    fn set_user_input_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
@@ -82,9 +83,9 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -101,7 +102,7 @@ mod tests {
     }
 
     #[test]
-    fn not_under_constrained_enough_random_input_test() {
+    fn not_under_constrained_enough_random_input_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
@@ -109,9 +110,9 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
-        let mut analyzer = Analyzer::new(&circuit,k, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.clone().len().eq(&1));
 
@@ -136,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn not_under_constrained_not_enough_input_test() {
+    fn not_under_constrained_not_enough_input_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
@@ -144,8 +145,8 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.clone().len().eq(&1));
         let modulus = bn256::fr::MODULUS_STR;
@@ -170,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn not_under_constrained_not_enough_input_1_test() {
+    fn not_under_constrained_not_enough_input_1_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
@@ -178,8 +179,8 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.clone().len().eq(&1));
         let modulus = bn256::fr::MODULUS_STR;
@@ -204,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn not_under_constrained_exact_spec_input_test() {
+    fn not_under_constrained_exact_spec_input_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
@@ -212,8 +213,8 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
@@ -243,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn not_under_constrained_not_exact_spec_input_test() {
+    fn not_under_constrained_not_exact_spec_input_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
@@ -251,8 +252,8 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
@@ -282,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn under_constrained_enough_random_input_test() {
+    fn under_constrained_enough_random_input_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
@@ -291,8 +292,9 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
+
         assert!(analyzer.instace_cells.clone().len().eq(&1));
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
@@ -316,7 +318,7 @@ mod tests {
     }
 
     #[test]
-    fn under_constrained_not_enough_random_input_test() {
+    fn under_constrained_not_enough_random_input_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
@@ -325,8 +327,8 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.clone().len().eq(&1));
         let modulus = bn256::fr::MODULUS_STR;
@@ -351,7 +353,7 @@ mod tests {
     }
 
     #[test]
-    fn under_constrained_exact_spec_input_test() {
+    fn under_constrained_exact_spec_input_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
@@ -360,8 +362,8 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
@@ -391,7 +393,7 @@ mod tests {
     }
 
     #[test]
-    fn under_constrained_not_exact_spec_input_test() {
+    fn under_constrained_not_exact_spec_input_test_mpb() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
@@ -400,8 +402,8 @@ mod tests {
 
         let public_input = vec![Fr::from(3)];
 
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
@@ -431,27 +433,27 @@ mod tests {
     }
 
     #[test]
-    fn analyze_unused_columns_test() {
+    fn analyze_unused_columns_test_mpb() {
         let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let k = 5;
 
-        //let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
+        let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
         let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::UnusedColumns));
         assert!(analyzer.log().len().gt(&0))
     }
 
     #[test]
-    fn analyze_unused_custom_gates_test() {
+    fn analyze_unused_custom_gates_test_mpb() {
         let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let k = 5;
 
-        //let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
-        let mut analyzer = Analyzer::new(&circuit,k,vec![]).unwrap();
+        let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
         let output_status = analyzer
             .analyze_unused_custom_gates()
             .unwrap()
@@ -461,13 +463,13 @@ mod tests {
     }
 
     #[test]
-    fn analyze_unconstrained_cells() {
+    fn analyze_unconstrained_cells_mpb() {
         let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<Fr> =
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let k = 5;
 
-        //let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
-        let mut analyzer = Analyzer::new(&circuit,k,vec![]).unwrap();
+        let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
         let output_status = analyzer
             .analyze_unconstrained_cells()
             .unwrap()
@@ -477,15 +479,15 @@ mod tests {
     }
 
     #[test]
-    fn analyze_underconstrained_fibonacci_test() {
+    fn analyze_underconstrained_fibonacci_test_mpb() {
         let circuit: sample_circuits::copy_constraint::fibonacci::FibonacciCircuit<_> =
             sample_circuits::copy_constraint::fibonacci::FibonacciCircuit::<Fr>(PhantomData);
         let k: u32 = 11;
 
         let public_input = vec![Fr::from(3)];
 
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
@@ -510,7 +512,7 @@ mod tests {
     }
 
     #[test]
-    fn analyze_underconstrained_single_lookup_test() {
+    fn analyze_underconstrained_single_lookup_test_mpb() {
         let circuit =
             sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fr>(PhantomData);
         let k = 11;
@@ -520,9 +522,9 @@ mod tests {
         let out = Fr::from(21);
 
         let public_input = vec![a, b, out];
-        
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
@@ -545,7 +547,7 @@ mod tests {
     }
 
     #[test]
-    fn analyze_underconstrained_multiple_lookup_test() {
+    fn analyze_underconstrained_multiple_lookup_test_mpb() {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
 
@@ -556,8 +558,8 @@ mod tests {
         let out = Fr::from(21);
 
         let public_input = vec![a, b, out];
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
@@ -579,7 +581,7 @@ mod tests {
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
     #[test]
-    fn analyze_not_underconstrained_lookup_test() {
+    fn analyze_not_underconstrained_lookup_test_mpb() {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
         let k = 11;
@@ -589,8 +591,8 @@ mod tests {
         let out = Fr::from(21); // F[9]
 
         let public_input = vec![a, b, out];
-        
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::from(prover);
 
         assert!(analyzer.instace_cells.len().eq(&3));
         let mut specified_instance_cols = HashMap::new();
@@ -618,4 +620,3 @@ mod tests {
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 }
-
