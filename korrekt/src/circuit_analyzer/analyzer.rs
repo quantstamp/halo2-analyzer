@@ -32,20 +32,16 @@ use super::analyzable::Analyzable;
 
 #[derive(Debug)]
 pub struct Analyzer<F: Field> {
-    /// Visibility changed for analyzer
     pub cs: ConstraintSystem<F>,
-    /// Visibility changed for analyzer
     /// The regions in the circuit.
     pub regions: Vec<Region>,
 
     // The fixed cells in the circuit, arranged as [column][row].
-    /// Visibility changed for analyzer
     pub fixed: Vec<Vec<CellValue<F>>>,
 
-    /// Visibility changed for analyzer
     pub selectors: Vec<Vec<bool>>,
     pub log: Vec<String>,
-    pub permutation_mapping: HashMap<String, String>,
+    pub permutation: HashMap<String, String>,
     pub instace_cells: HashMap<String, i64>,
     pub counter: u32,
 }
@@ -76,7 +72,7 @@ impl<'b, F: Field> Analyzer<F> {
         //instance: Vec<Vec<F>>,
     ) -> Result<Self, Error> {
         let analyzable = Analyzable::ConfigAndSyntheis(circuit, k)?;
-        let (permutation_mapping, instace_cells) =
+        let (permutation, instace_cells) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
 
         Ok(Analyzer {
@@ -85,7 +81,7 @@ impl<'b, F: Field> Analyzer<F> {
             fixed: analyzable.fixed,
             selectors: analyzable.selectors,
             log: Vec::new(),
-            permutation_mapping,
+            permutation,
             instace_cells,
             counter: 0,
         })
@@ -322,7 +318,7 @@ impl<'b, F: Field> Analyzer<F> {
             output_status: AnalyzerOutputStatus::Invalid,
         };
 
-        for permutation in &self.permutation_mapping {
+        for permutation in &self.permutation {
             smt::write_var(&mut printer, permutation.0.to_owned());
             smt::write_var(&mut printer, permutation.1.to_owned());
 
