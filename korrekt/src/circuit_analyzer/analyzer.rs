@@ -71,7 +71,7 @@ impl<'b, F: Field> Analyzer<F> {
         k: u32,
         //instance: Vec<Vec<F>>,
     ) -> Result<Self, Error> {
-        let analyzable = Analyzable::ConfigAndSyntheis(circuit, k)?;
+        let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
         let (permutation, instace_cells) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
 
