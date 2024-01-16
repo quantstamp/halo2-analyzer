@@ -1,15 +1,14 @@
-use anyhow::{Context, Error, Ok, Result};
+use anyhow::{Context, Result};
 use halo2_proofs::{
-    arithmetic::{FieldExt as Field, Group},
-    circuit,
+    arithmetic::FieldExt as Field,
+    
     dev::{CellValue, Region},
     plonk::{
-        permutation, Advice, Any, Assigned, Assignment, Circuit, Column, ConstraintSystem,
-        Error as Halo2Error, Expression, Fixed, FloorPlanner, Instance, Selector,
+        permutation, Any, Circuit, ConstraintSystem, Error,
+        Expression, Selector,
     },
     poly::Rotation,
 };
-use std::ops::{Add, Mul, Neg, Range};
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -17,7 +16,6 @@ use std::{
     path::Path,
     process::Command,
 };
-use halo2_proofs::dev::MockProver as halo2MockProver;
 
 use crate::circuit_analyzer::abstract_expr::{self, AbsResult};
 use crate::io::analyzer_io::{output_result, retrieve_user_input_for_underconstrained};
@@ -30,13 +28,24 @@ use crate::smt_solver::{
     smt_parser::{self, ModelResult, Satisfiability},
 };
 
+use super::analyzable::Analyzable;
+
 #[derive(Debug)]
 pub struct Analyzer<F: Field> {
+    /// Visibility changed for analyzer
     pub cs: ConstraintSystem<F>,
+    /// Visibility changed for analyzer
+    /// The regions in the circuit.
     pub regions: Vec<Region>,
+
+    // The fixed cells in the circuit, arranged as [column][row].
+    /// Visibility changed for analyzer
+    pub fixed: Vec<Vec<CellValue<F>>>,
+
+    /// Visibility changed for analyzer
+    pub selectors: Vec<Vec<bool>>,
     pub log: Vec<String>,
-    pub permutation: HashMap<String, String>,
-    fixed: Vec<Vec<CellValue<F>>>,
+    pub permutation_mapping: HashMap<String, String>,
     pub instace_cells: HashMap<String, i64>,
     pub counter: u32,
 }
@@ -60,348 +69,28 @@ pub enum Operation {
     Or,
 }
 
-#[derive(Debug)]
-pub struct MockProver<F: Group + Field> {
-    /// Visibility changed for analyzer
-    pub k: u32,
-    /// Visibility changed for analyzer
-    pub n: u32,
-    /// Visibility changed for analyzer
-    pub cs: ConstraintSystem<F>,
-    /// Visibility changed for analyzer
-    /// The regions in the circuit.
-    pub regions: Vec<Region>,
-    /// The current region being assigned to. Will be `None` after the circuit has been
-    /// synthesized.
-    /// Visibility changed for analyzer
-    pub current_region: Option<Region>,
-
-    // The fixed cells in the circuit, arranged as [column][row].
-    /// Visibility changed for analyzer
-    pub fixed: Vec<Vec<CellValue<F>>>,
-    // The advice cells in the circuit, arranged as [column][row].
-    /// Visibility changed for analyzer
-    pub advice: Vec<Vec<CellValue<F>>>,
-    // The instance cells in the circuit, arranged as [column][row].
-    /// Visibility changed for analyzer
-    pub instance: Vec<Vec<F>>,
-
-    /// Visibility changed for analyzer
-    pub selectors: Vec<Vec<bool>>,
-    /// Visibility changed for analyzer
-    pub permutation: permutation::keygen::Assembly,
-
-    // A range of available rows for assignment and copies.
-    /// Visibility changed for analyzer
-    pub usable_rows: Range<usize>,
-}
-
-impl<F: Field + Group> Assignment<F> for MockProver<F> {
-    fn enter_region<NR, N>(&mut self, name: N)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-    {
-        assert!(self.current_region.is_none());
-        self.current_region = Some(Region {
-            name: name().into(),
-            columns: HashSet::default(),
-            rows: None,
-            enabled_selectors: HashMap::default(),
-            cells: HashMap::default(),
-        });
-    }
-
-    fn exit_region(&mut self) {
-        self.regions.push(self.current_region.take().unwrap());
-    }
-
-    fn enable_selector<A, AR>(
-        &mut self,
-        _: A,
-        selector: &Selector,
-        row: usize,
-    ) -> Result<(), Halo2Error>
-    where
-        A: FnOnce() -> AR,
-        AR: Into<String>,
-    {
-        if !self.usable_rows.contains(&row) {
-            return Err(Halo2Error::not_enough_rows_available(self.k));
-        }
-
-        // Track that this selector was enabled. We require that all selectors are enabled
-        // inside some region (i.e. no floating selectors).
-        self.current_region
-            .as_mut()
-            .unwrap()
-            .enabled_selectors
-            .entry(*selector)
-            .or_default()
-            .push(row);
-
-        self.selectors[selector.0][row] = true;
-
-        core::result::Result::Ok(())
-    }
-
-    fn query_instance(
-        &self,
-        column: Column<Instance>,
-        row: usize,
-    ) -> Result<circuit::Value<F>, Halo2Error> {
-        if !self.usable_rows.contains(&row) {
-            return Err(Halo2Error::not_enough_rows_available(self.k));
-        }
-
-        self.instance
-            .get(column.index())
-            .and_then(|column| column.get(row))
-            .map(|v| circuit::Value::known(*v))
-            .ok_or(Halo2Error::BoundsFailure)
-    }
-
-    fn assign_advice<V, VR, A, AR>(
-        &mut self,
-        _: A,
-        column: Column<Advice>,
-        row: usize,
-        to: V,
-    ) -> Result<(), Halo2Error>
-    where
-        V: FnOnce() -> circuit::Value<VR>,
-        VR: Into<Assigned<F>>,
-        A: FnOnce() -> AR,
-        AR: Into<String>,
-    {
-        if !self.usable_rows.contains(&row) {
-            return Err(Halo2Error::not_enough_rows_available(self.k));
-        }
-
-        if let Some(region) = self.current_region.as_mut() {
-            region.update_extent(column.into(), row);
-            region
-                .cells
-                .entry((column.into(), row))
-                .and_modify(|count| *count += 1)
-                .or_default();
-        }
-
-        *self
-            .advice
-            .get_mut(column.index())
-            .and_then(|v| v.get_mut(row))
-            .ok_or(Halo2Error::BoundsFailure)? =
-            CellValue::Assigned(to().into_field().evaluate().assign()?);
-
-        core::result::Result::Ok(())
-    }
-
-    fn assign_fixed<V, VR, A, AR>(
-        &mut self,
-        _: A,
-        column: Column<Fixed>,
-        row: usize,
-        to: V,
-    ) -> Result<(), Halo2Error>
-    where
-        V: FnOnce() -> circuit::Value<VR>,
-        VR: Into<Assigned<F>>,
-        A: FnOnce() -> AR,
-        AR: Into<String>,
-    {
-        if !self.usable_rows.contains(&row) {
-            return Err(Halo2Error::not_enough_rows_available(self.k));
-        }
-
-        if let Some(region) = self.current_region.as_mut() {
-            region.update_extent(column.into(), row);
-            region
-                .cells
-                .entry((column.into(), row))
-                .and_modify(|count| *count += 1)
-                .or_default();
-        }
-
-        *self
-            .fixed
-            .get_mut(column.index())
-            .and_then(|v| v.get_mut(row))
-            .ok_or(Halo2Error::BoundsFailure)? =
-            CellValue::Assigned(to().into_field().evaluate().assign()?);
-
-            core::result::Result::Ok(())
-    }
-
-    fn copy(
-        &mut self,
-        left_column: Column<Any>,
-        left_row: usize,
-        right_column: Column<Any>,
-        right_row: usize,
-    ) -> Result<(), halo2_proofs::plonk::Error> {
-        if !self.usable_rows.contains(&left_row) || !self.usable_rows.contains(&right_row) {
-            return Err(Halo2Error::not_enough_rows_available(self.k));
-        }
-
-        self.permutation
-            .copy(left_column, left_row, right_column, right_row)
-    }
-
-    fn fill_from_row(
-        &mut self,
-        col: Column<Fixed>,
-        from_row: usize,
-        to: circuit::Value<Assigned<F>>,
-    ) -> Result<(), Halo2Error> {
-        if !self.usable_rows.contains(&from_row) {
-            return Err(Halo2Error::not_enough_rows_available(self.k));
-        }
-
-        for row in self.usable_rows.clone().skip(from_row) {
-            self.assign_fixed(|| "", col, row, || to)?;
-        }
-
-        core::result::Result::Ok(())
-    }
-
-    fn push_namespace<NR, N>(&mut self, _: N)
-    where
-        NR: Into<String>,
-        N: FnOnce() -> NR,
-    {
-        // TODO: Do something with namespaces :)
-    }
-
-    fn pop_namespace(&mut self, _: Option<String>) {
-        // TODO: Do something with namespaces :)
-    }
-}
-
-/// Creates an `Analyzer` instance with a MockProver.
-///
-/// This function creates an `Analyzer` instance from MockProver struct.
-impl<F: Field> From<halo2MockProver<F>> for Analyzer<F> {
-    fn from(mock_prover: halo2MockProver<F>) -> Self {
-        let (permutation, instace_cells) =
-            Analyzer::<F>::extract_permutations(mock_prover.permutation);
-        let regions = mock_prover.regions;
-        Analyzer {
-            cs: mock_prover.cs,
-            regions,
-            log: vec![],
-            permutation,
-            fixed: mock_prover.fixed,
-            instace_cells,
-            counter: 0,
-        }
-    }
-}
 impl<'b, F: Field> Analyzer<F> {
     pub fn new<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
         k: u32,
-        instance: Vec<Vec<F>>,
-    ) -> Result<Self, Halo2Error> {
-        let prover = Self::t(circuit, k, instance)?;
-        let (permutation, instace_cells) = Analyzer::<F>::extract_permutations(prover.permutation);
-        let regions = prover.regions;
-        println!("permutation: {:?}", permutation);
-        core::result::Result::Ok(Analyzer {
-            cs: prover.cs.clone(),
-            regions,
-            log: vec![],
-            permutation,
-            fixed: prover.fixed,
+        //instance: Vec<Vec<F>>,
+    ) -> Result<Self, Error> {
+        let analyzable = Analyzable::ConfigAndSyntheis(circuit, k)?;
+        let (permutation_mapping, instace_cells) =
+            Analyzer::<F>::extract_permutations(&analyzable.permutation);
+
+        Ok(Analyzer {
+            cs: analyzable.cs,
+            regions: analyzable.regions,
+            fixed: analyzable.fixed,
+            selectors: analyzable.selectors,
+            log: Vec::new(),
+            permutation_mapping,
             instace_cells,
             counter: 0,
         })
     }
 
-    pub fn t<ConcreteCircuit: Circuit<F>>(
-        circuit: &ConcreteCircuit,
-        k: u32,
-        instance: Vec<Vec<F>>,
-    ) -> Result<MockProver<F>, Halo2Error> {
-        let n = 1 << k;
-
-        let mut cs = ConstraintSystem::default();
-        let config = ConcreteCircuit::configure(&mut cs);
-        let cs = cs;
-
-        if n < cs.minimum_rows() {
-            return Err(Halo2Error::not_enough_rows_available(k));
-        }
-
-        if instance.len() != cs.num_instance_columns {
-            return Err(Halo2Error::InvalidInstances);
-        }
-
-        let instance = instance
-            .into_iter()
-            .map(|mut instance| {
-                if instance.len() > n - (cs.blinding_factors() + 1) {
-                    return Err(Halo2Error::InstanceTooLarge);
-                }
-
-                instance.resize(n, F::zero());
-                core::result::Result::Ok(instance)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        // Fixed columns contain no blinding factors.
-        let fixed = vec![vec![CellValue::Unassigned; n]; cs.num_fixed_columns];
-        let selectors = vec![vec![false; n]; cs.num_selectors];
-        // Advice columns contain blinding factors.
-        let blinding_factors = cs.blinding_factors();
-        let usable_rows = n - (blinding_factors + 1);
-        let advice = vec![
-            {
-                let mut column = vec![CellValue::Unassigned; n];
-                // Poison unusable rows.
-                for (i, cell) in column.iter_mut().enumerate().skip(usable_rows) {
-                    *cell = CellValue::Poison(i);
-                }
-                column
-            };
-            cs.num_advice_columns
-        ];
-        let permutation = permutation::keygen::Assembly::new(n, &cs.permutation);
-        let constants = cs.constants.clone();
-
-        let mut prover = MockProver {
-            k,
-            n: n as u32,
-            cs,
-            regions: vec![],
-            current_region: None,
-            fixed,
-            advice,
-            instance,
-            selectors,
-            permutation,
-            usable_rows: 0..usable_rows,
-        };
-
-        //println!("permutation before: {:?}",prover.permutation);
-
-        ConcreteCircuit::FloorPlanner::synthesize(&mut prover, circuit, config, constants)?;
-
-        //println!("permutation after: {:?}",prover.permutation);
-
-        let (cs, selector_polys) = prover.cs.compress_selectors(prover.selectors.clone());
-        prover.cs = cs;
-        prover
-            .fixed
-            .extend(selector_polys.clone().into_iter().map(|poly| {
-                let mut v = vec![CellValue::Unassigned; n];
-                for (v, p) in v.iter_mut().zip(&poly[..]) {
-                    *v = CellValue::Assigned(*p);
-                }
-                v
-            }));
-        core::result::Result::Ok(prover)
-    }
     /// Detects unused custom gates
     ///
     /// This function iterates through the gates in the constraint system (`self.cs`) and checks if each gate is used.
@@ -548,7 +237,7 @@ impl<'b, F: Field> Analyzer<F> {
     }
 
     pub fn extract_permutations(
-        permutation: permutation::keygen::Assembly,
+        permutation: &permutation::keygen::Assembly,
     ) -> (HashMap<String, String>, HashMap<String, i64>) {
         let mut pairs = HashMap::<String, String>::new();
         let mut instances = HashMap::<String, i64>::new();
@@ -606,39 +295,6 @@ impl<'b, F: Field> Analyzer<F> {
         }
         (pairs, instances)
     }
-    // /// Extracts instance columns from an equality table.
-    // ///
-    // /// This function takes an equality table (`eq_table`) represented as a `HashMap` with cell names as keys
-    // /// and corresponding strings as values. It creates a new `HashMap` (`instance_cols_string`) and populates it
-    // /// with the keys from the `eq_table`, assigning an initial value of zero to each key. The resulting `HashMap`
-    // /// represents the extracted instance columns.
-    // ///
-    // pub fn extract_instance_cols(
-    //     &mut self,
-    //     eq_table: HashMap<String, String>,
-    // ) -> HashMap<String, i64> {
-    //     let mut instance_cols_string: HashMap<String, i64> = HashMap::new();
-    //     for cell in eq_table {
-    //         instance_cols_string.insert(cell.0.to_owned(), 0);
-    //     }
-    //     instance_cols_string
-    // }
-    // /// Extracts instance columns from regions in the layouter.
-    // ///
-    // /// This function iterates through the regions in the layouter (`self.layouter`) and extracts the instance columns
-    // /// from each region's equality table. It creates a new `HashMap` (`instance_cols_string`) and populates it with
-    // /// the extracted instance columns, assigning an initial value of zero to each column. The resulting `HashMap`
-    // /// represents the extracted instance columns from all regions in the layouter.
-    // ///
-    // pub fn extract_instance_cols_from_region(&mut self) -> HashMap<String, i64> {
-    //     let mut instance_cols_string: HashMap<String, i64> = HashMap::new();
-    //     for region in self.layouter.regions.iter() {
-    //         for eq_adv in region.eq_table.iter() {
-    //             instance_cols_string.insert(eq_adv.0.to_owned(), 0);
-    //         }
-    //     }
-    //     instance_cols_string
-    // }
 
     /// Analyzes underconstrained circuits and generates an analyzer output.
     ///
@@ -666,7 +322,7 @@ impl<'b, F: Field> Analyzer<F> {
             output_status: AnalyzerOutputStatus::Invalid,
         };
 
-        for permutation in &self.permutation {
+        for permutation in &self.permutation_mapping {
             smt::write_var(&mut printer, permutation.0.to_owned());
             smt::write_var(&mut printer, permutation.1.to_owned());
 

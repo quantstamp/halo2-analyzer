@@ -47,7 +47,7 @@ mod tests {
 
         
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.cs.gates.len().eq(&3));
         assert!(analyzer.cs.degree().eq(&3));
@@ -67,7 +67,7 @@ mod tests {
 
         
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
         assert!(analyzer.instace_cells.len().eq(&1));
         assert!(analyzer.instace_cells.contains_key("I-0-0"));
         assert!(analyzer.instace_cells.iter().next().unwrap().1.eq(&0));
@@ -84,7 +84,7 @@ mod tests {
 
         
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -111,7 +111,7 @@ mod tests {
 
         
 
-        let mut analyzer = Analyzer::new(&circuit,k, vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.clone().len().eq(&1));
 
@@ -145,7 +145,7 @@ mod tests {
         let public_input = vec![Fr::from(3)];
 
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.clone().len().eq(&1));
         let modulus = bn256::fr::MODULUS_STR;
@@ -179,7 +179,7 @@ mod tests {
         let public_input = vec![Fr::from(3)];
 
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.clone().len().eq(&1));
         let modulus = bn256::fr::MODULUS_STR;
@@ -213,7 +213,7 @@ mod tests {
         let public_input = vec![Fr::from(3)];
 
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
@@ -252,7 +252,7 @@ mod tests {
         let public_input = vec![Fr::from(3)];
 
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
@@ -292,7 +292,7 @@ mod tests {
         let public_input = vec![Fr::from(3)];
 
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
         assert!(analyzer.instace_cells.clone().len().eq(&1));
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
@@ -326,7 +326,7 @@ mod tests {
         let public_input = vec![Fr::from(3)];
 
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.clone().len().eq(&1));
         let modulus = bn256::fr::MODULUS_STR;
@@ -361,7 +361,7 @@ mod tests {
         let public_input = vec![Fr::from(3)];
 
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
@@ -401,7 +401,7 @@ mod tests {
         let public_input = vec![Fr::from(3)];
 
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
@@ -438,7 +438,7 @@ mod tests {
 
         //let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
         let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::UnusedColumns));
         assert!(analyzer.log().len().gt(&0))
@@ -451,7 +451,7 @@ mod tests {
         let k = 5;
 
         //let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
-        let mut analyzer = Analyzer::new(&circuit,k,vec![]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
         let output_status = analyzer
             .analyze_unused_custom_gates()
             .unwrap()
@@ -467,7 +467,7 @@ mod tests {
         let k = 5;
 
         //let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
-        let mut analyzer = Analyzer::new(&circuit,k,vec![]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
         let output_status = analyzer
             .analyze_unconstrained_cells()
             .unwrap()
@@ -485,7 +485,7 @@ mod tests {
         let public_input = vec![Fr::from(3)];
 
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
@@ -522,7 +522,7 @@ mod tests {
         let public_input = vec![a, b, out];
         
 
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
@@ -557,7 +557,7 @@ mod tests {
 
         let public_input = vec![a, b, out];
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
@@ -590,7 +590,7 @@ mod tests {
 
         let public_input = vec![a, b, out];
         
-        let mut analyzer = Analyzer::new(&circuit,k,vec![public_input]).unwrap();
+        let mut analyzer = Analyzer::new(&circuit,k).unwrap();
 
         assert!(analyzer.instace_cells.len().eq(&3));
         let mut specified_instance_cols = HashMap::new();
