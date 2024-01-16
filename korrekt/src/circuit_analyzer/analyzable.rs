@@ -13,37 +13,19 @@ use halo2_proofs::{
 
 #[derive(Debug)]
 pub struct Analyzable<F: Field> {
-    /// Visibility changed for analyzable
     pub k: u32,
-    /// Visibility changed for analyzable
-    pub n: u32,
-    /// Visibility changed for analyzable
     pub cs: ConstraintSystem<F>,
-    /// Visibility changed for analyzable
     /// The regions in the circuit.
     pub regions: Vec<Region>,
     /// The current region being assigned to. Will be `None` after the circuit has been
     /// synthesized.
-    /// Visibility changed for analyzable
     pub current_region: Option<Region>,
-
     // The fixed cells in the circuit, arranged as [column][row].
-    /// Visibility changed for analyzable
     pub fixed: Vec<Vec<CellValue<F>>>,
     // The advice cells in the circuit, arranged as [column][row].
-    /// Visibility changed for analyzable
-    pub advice: Vec<Vec<CellValue<F>>>,
-    // The instance cells in the circuit, arranged as [column][row].
-    /// Visibility changed for analyzable
-    pub instance: Vec<Vec<F>>,
-
-    /// Visibility changed for analyzable
     pub selectors: Vec<Vec<bool>>,
-    /// Visibility changed for analyzable
     pub permutation: permutation::keygen::Assembly,
-
     // A range of available rows for assignment and copies.
-    /// Visibility changed for analyzable
     pub usable_rows: Range<usize>,
 }
 
@@ -214,7 +196,6 @@ impl<'b, F: Field> Analyzable<F> {
         //instance: Vec<Vec<F>>,
     ) -> Result<Self, Error> {
         let n = 1 << k;
-        let mut instance = Vec::new();
         let mut cs = ConstraintSystem::default();
         let config = ConcreteCircuit::configure(&mut cs);
         let cs = cs;
@@ -229,29 +210,15 @@ impl<'b, F: Field> Analyzable<F> {
         // Advice columns contain blinding factors.
         let blinding_factors = cs.blinding_factors();
         let usable_rows = n - (blinding_factors + 1);
-        let advice = vec![
-            {
-                let mut column = vec![CellValue::Unassigned; n];
-                // Poison unusable rows.
-                for (i, cell) in column.iter_mut().enumerate().skip(usable_rows) {
-                    *cell = CellValue::Poison(i);
-                }
-                column
-            };
-            cs.num_advice_columns
-        ];
         let permutation = permutation::keygen::Assembly::new(n, &cs.permutation);
         let constants = cs.constants.clone();
 
         let mut analyzable = Analyzable {
             k,
-            n: n as u32,
             cs,
             regions: vec![],
             current_region: None,
             fixed,
-            advice,
-            instance,
             selectors,
             permutation,
             usable_rows: 0..usable_rows,
