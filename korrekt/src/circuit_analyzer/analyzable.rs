@@ -190,7 +190,7 @@ impl<F: Field + Group> Assignment<F> for Analyzable<F> {
 }
 
 impl<'b, F: Field> Analyzable<F> {
-    pub fn ConfigAndSyntheis<ConcreteCircuit: Circuit<F>>(
+    pub fn ConfigAndSynthesize<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
         k: u32,
         //instance: Vec<Vec<F>>,
