@@ -1,15 +1,38 @@
-use std::{collections::{HashSet, HashMap}, ops::Range};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Range,
+};
 
-use anyhow:: Result;
-use halo2_proofs::{
-    arithmetic::{FieldExt as Field, Group},
+//use anyhow::{Ok, Result};
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use group::ff::Field;
+#[cfg(feature = "use_pse_halo2_proofs")]
+use pse_halo2_proofs::plonk::sealed::SealedPhase;
+#[cfg(feature = "use_pse_halo2_proofs")]
+use pse_halo2_proofs::{
+    arithmetic::Field,
     circuit::{self, Value},
     dev::{CellValue, Region},
     plonk::{
-        permutation, Advice, Any, Assigned, Assignment, Circuit, Column, ConstraintSystem,
-        Error as Error, Fixed, FloorPlanner, Instance, Selector,
+        Challenge,
+        sealed,
+        Phase,FirstPhase,
+        permutation, Advice, Any, Assigned, Assignment, Circuit, Column, ConstraintSystem, Error,
+        Fixed, FloorPlanner, Instance, Selector,
     },
 };
+
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use zcash_halo2_proofs::{
+    circuit::{self, Value},
+    dev::{CellValue, Region},
+    plonk::{
+        permutation, Advice, Any, Assigned, Assignment, Circuit, Column, ConstraintSystem, Error,
+        Fixed, FloorPlanner, Instance, Selector,
+    },
+};
+#[cfg(feature = "use_pse_halo2_proofs")]
+use pse_halo2_proofs::dev::metadata::Column as ColumnMetadata;
 
 #[derive(Debug)]
 pub struct Analyzable<F: Field> {
@@ -27,9 +50,34 @@ pub struct Analyzable<F: Field> {
     pub permutation: permutation::keygen::Assembly,
     // A range of available rows for assignment and copies.
     pub usable_rows: Range<usize>,
+    #[cfg(feature = "use_pse_halo2_proofs")]
+    current_phase: sealed::Phase,
 }
 
-impl<F: Field + Group> Assignment<F> for Analyzable<F> {
+impl<F: Field> Assignment<F> for Analyzable<F> {
+
+    #[cfg(feature = "use_pse_halo2_proofs")]
+    fn enter_region<NR, N>(&mut self, name: N)
+    where
+        NR: Into<String>,
+        N: FnOnce() -> NR,
+    {
+
+        assert!(self.current_region.is_none());
+        
+        if !self.in_phase(FirstPhase) {
+            return;
+        }
+        self.current_region = Some(Region {
+            name: name().into(),
+            columns: HashSet::default(),
+            rows: None,
+            annotations: HashMap::default(),
+            enabled_selectors: HashMap::default(),
+            cells: HashMap::default(),
+        });
+    }
+    #[cfg(feature = "use_zcash_halo2_proofs")]
     fn enter_region<NR, N>(&mut self, name: N)
     where
         NR: Into<String>,
@@ -41,20 +89,16 @@ impl<F: Field + Group> Assignment<F> for Analyzable<F> {
             columns: HashSet::default(),
             rows: None,
             enabled_selectors: HashMap::default(),
-            cells: HashMap::default(),
+            cells: vec![],
         });
+        
     }
 
     fn exit_region(&mut self) {
         self.regions.push(self.current_region.take().unwrap());
     }
 
-    fn enable_selector<A, AR>(
-        &mut self,
-        _: A,
-        selector: &Selector,
-        row: usize,
-    ) -> Result<(), Error>
+    fn enable_selector<A, AR>(&mut self, _: A, selector: &Selector, row: usize) -> Result<(), Error>
     where
         A: FnOnce() -> AR,
         AR: Into<String>,
@@ -101,11 +145,17 @@ impl<F: Field + Group> Assignment<F> for Analyzable<F> {
     {
         if let Some(region) = self.current_region.as_mut() {
             region.update_extent(column.into(), row);
+            #[cfg(feature = "use_pse_halo2_proofs")]
             region
                 .cells
                 .entry((column.into(), row))
                 .and_modify(|count| *count += 1)
                 .or_default();
+            #[cfg(feature = "use_zcash_halo2_proofs")]
+            if let Some(region) = self.current_region.as_mut() {
+                region.update_extent(column.into(), row);
+                region.cells.push((column.into(), row));
+            }
         }
 
         Ok(())
@@ -130,6 +180,7 @@ impl<F: Field + Group> Assignment<F> for Analyzable<F> {
 
         if let Some(region) = self.current_region.as_mut() {
             region.update_extent(column.into(), row);
+            #[cfg(feature = "use_pse_halo2_proofs")]
             region
                 .cells
                 .entry((column.into(), row))
@@ -153,7 +204,7 @@ impl<F: Field + Group> Assignment<F> for Analyzable<F> {
         left_row: usize,
         right_column: Column<Any>,
         right_row: usize,
-    ) -> Result<(), halo2_proofs::plonk::Error> {
+    ) -> Result<(), Error> {
         if !self.usable_rows.contains(&left_row) || !self.usable_rows.contains(&right_row) {
             return Err(Error::not_enough_rows_available(self.k));
         }
@@ -187,9 +238,35 @@ impl<F: Field + Group> Assignment<F> for Analyzable<F> {
     }
 
     fn pop_namespace(&mut self, _: Option<String>) {}
+    #[cfg(feature = "use_pse_halo2_proofs")]
+    fn annotate_column<A, AR>(&mut self, annotation: A, column: Column<Any>)
+    where
+        A: FnOnce() -> AR,
+        AR: Into<String>,
+    {
+        if !self.in_phase(FirstPhase) {
+            return;
+        }
+
+        if let Some(region) = self.current_region.as_mut() {
+            region
+                .annotations
+                .insert(ColumnMetadata::from(column), annotation().into());
+        }
+    }
+    #[cfg(feature = "use_pse_halo2_proofs")]
+    fn get_challenge(&self, challenge: Challenge) -> Value<F> {
+        todo!()
+    }
+    
 }
 
+
 impl<'b, F: Field> Analyzable<F> {
+    #[cfg(feature = "use_pse_halo2_proofs")]
+    fn in_phase<P: Phase>(&self, phase: P) -> bool {
+        self.current_phase == phase.to_sealed()
+    }
     pub fn config_and_synthesize<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
         k: u32,
@@ -222,11 +299,15 @@ impl<'b, F: Field> Analyzable<F> {
             selectors,
             permutation,
             usable_rows: 0..usable_rows,
+            #[cfg(feature = "use_pse_halo2_proofs")]
+            current_phase: FirstPhase.to_sealed(),
         };
 
         ConcreteCircuit::FloorPlanner::synthesize(&mut analyzable, circuit, config, constants)?;
 
-        let (cs, selector_polys) = analyzable.cs.compress_selectors(analyzable.selectors.clone());
+        let (cs, selector_polys) = analyzable
+            .cs
+            .compress_selectors(analyzable.selectors.clone());
         analyzable.cs = cs;
         analyzable
             .fixed

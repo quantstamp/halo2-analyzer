@@ -1,6 +1,9 @@
 use anyhow::{Context, Result};
-use halo2_proofs::{
-    arithmetic::FieldExt as Field,
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use group::ff::Field;
+#[cfg(feature = "use_pse_halo2_proofs")]
+use pse_halo2_proofs::{
+    arithmetic::Field,
     
     dev::{CellValue, Region},
     plonk::{
@@ -9,6 +12,17 @@ use halo2_proofs::{
     },
     poly::Rotation,
 };
+
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use zcash_halo2_proofs::{
+    dev::{CellValue, Region},
+    plonk::{
+        permutation, Any, Circuit, ConstraintSystem, Error,
+        Expression, Selector,
+    },
+    poly::Rotation,
+};
+
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -188,7 +202,10 @@ impl<'b, F: Field> Analyzer<F> {
             let row_num = (region_end - region_begin + 1) as i32;
             let mut used;
             for cell in region.cells.clone() {
+                #[cfg(feature = "use_pse_halo2_proofs")]
                 let (reg_column, rotation) = (cell.0 .0, cell.1);
+                #[cfg(feature = "use_zcash_halo2_proofs")]
+                let (reg_column, rotation) = (cell.0, cell.1);
                 used = false;
                 match reg_column.column_type {
                     Any::Fixed => continue,
@@ -246,10 +263,20 @@ impl<'b, F: Field> Analyzer<F> {
                     while cycle_length > 1 {
                         let mut is_instance: bool = false;
                         let left_cell = permutation.columns[cycle_col];
+                        #[cfg(feature = "use_zcash_halo2_proofs")]
                         let left_column_abr = match left_cell.column_type() {
-                            halo2_proofs::plonk::Any::Advice => 'A',
-                            halo2_proofs::plonk::Any::Fixed => 'F',
-                            halo2_proofs::plonk::Any::Instance => {
+                            Any::Advice => 'A',
+                            Any::Fixed => 'F',
+                            Any::Instance => {
+                                is_instance = true;
+                                'I'
+                            }
+                        };
+                        #[cfg(feature = "use_pse_halo2_proofs")]
+                        let left_column_abr = match left_cell.column_type() {
+                            Any::Advice(_) => 'A',
+                            Any::Fixed => 'F',
+                            Any::Instance => {
                                 is_instance = true;
                                 'I'
                             }
@@ -265,10 +292,20 @@ impl<'b, F: Field> Analyzer<F> {
                         let (right_cell_col, right_cell_row) =
                             permutation.mapping[cycle_col][cycle_row];
                         let right_cell = permutation.columns[right_cell_col];
+                        #[cfg(feature = "use_zcash_halo2_proofs")]
                         let right_column_abr = match right_cell.column_type() {
-                            halo2_proofs::plonk::Any::Advice => 'A',
-                            halo2_proofs::plonk::Any::Fixed => 'F',
-                            halo2_proofs::plonk::Any::Instance => {
+                            Any::Advice => 'A',
+                            Any::Fixed => 'F',
+                            Any::Instance => {
+                                is_instance = true;
+                                'I'
+                            }
+                        };
+                        #[cfg(feature = "use_pse_halo2_proofs")]
+                        let right_column_abr = match right_cell.column_type() {
+                            Any::Advice(_) => 'A',
+                            Any::Fixed => 'F',
+                            Any::Instance => {
                                 is_instance = true;
                                 'I'
                             }
@@ -392,7 +429,9 @@ impl<'b, F: Field> Analyzer<F> {
     ) -> (String, NodeType) {
         match &poly {
             Expression::Constant(a) => {
-                let term = format!("(as ff{} F)", a.get_lower_128());
+                let constant_decimal_value  = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();
+
+                let term = format!("(as ff{:?} F)", constant_decimal_value);
                 (term, NodeType::Constant)
             }
             Expression::Selector(a) => {
@@ -408,7 +447,8 @@ impl<'b, F: Field> Analyzer<F> {
 
                 let mut t = 0;
                 if let CellValue::Assigned(fixed_val) = fixed[col][row] {
-                    t = fixed_val.get_lower_128();
+                    //t = fixed_val.get_lower_128();
+                    t = u64::from_str_radix(format!("{:?}",fixed_val).strip_prefix("0x").unwrap(), 16).unwrap();
                 }
                 let term = format!("(as ff{:?} F)", t);
 
@@ -534,6 +574,10 @@ impl<'b, F: Field> Analyzer<F> {
                 );
                 (term, NodeType::Scaled)
             }
+            #[cfg(feature = "use_pse_halo2_proofs")]
+            Expression::Challenge(_poly) => {
+                ("".to_string(),NodeType::Fixed)
+            }
         }
     }
     /// Decomposes polynomials and writes assertions using an SMT printer.
@@ -621,14 +665,17 @@ impl<'b, F: Field> Analyzer<F> {
                                             break;
                                         }
                                         CellValue::Assigned(f) => {
-                                            t = f.get_lower_128().to_string();
+                                            t = format!("{:?}", f);
+                                            //t = f.get_lower_128().to_string();
                                         }
                                         CellValue::Poison(_) => {}
                                     }
                                     if let CellValue::Assigned(value) =
                                         self.fixed[col_indices[col]][row]
                                     {
-                                        t = value.get_lower_128().to_string();
+                                        //t = value.get_lower_128().to_string();
+                                        t = u64::from_str_radix(format!("{:?}",value).strip_prefix("0x").unwrap(), 16).unwrap().to_string();//format!("{:?}", value); //value.get_lower_128().to_string();
+
                                     }
                                     let sa = smt::get_assert(
                                         printer,

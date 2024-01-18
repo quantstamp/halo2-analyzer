@@ -1,7 +1,14 @@
 use std::marker::PhantomData;
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use halo2curves::{bn256};
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use zcash_halo2_proofs::pasta::Fp as Fr;
 
-use halo2_proofs::halo2curves::bn256::Fr;
-use halo2_proofs:: halo2curves::bn256;
+
+#[cfg(feature = "use_pse_halo2_proofs")]
+use pse_halo2_proofs::halo2curves::bn256::Fr;
+#[cfg(feature = "use_pse_halo2_proofs")]
+use halo2curves::bn256;
 
 use anyhow::{Context, Ok, Result};
 use korrekt::{circuit_analyzer, io, sample_circuits};
