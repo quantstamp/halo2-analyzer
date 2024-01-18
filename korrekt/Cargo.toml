@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-zcash_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/zcash_halo2.git", package = "halo2_proofs", optional = true}
-pse_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/pse-halo2.git", package = "halo2_proofs" , optional = true}
+zcash_halo2_proofs = { git = "https://github.com/zcash/halo2.git", package = "halo2_proofs", optional = true}
+pse_halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", package = "halo2_proofs" , optional = true}
 gadgets = { git = "https://github.com/privacy-scaling-explorations/zkevm-circuits.git", rev = "2783eba338274a52036bf3db7fbc29575e24aa9f", package = "gadgets" }
 halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', tag = "0.2.1" }
 
