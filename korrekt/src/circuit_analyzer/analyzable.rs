@@ -3,7 +3,6 @@ use std::{
     ops::Range,
 };
 
-//use anyhow::{Ok, Result};
 #[cfg(feature = "use_zcash_halo2_proofs")]
 use group::ff::Field;
 #[cfg(feature = "use_pse_halo2_proofs")]
@@ -270,7 +269,6 @@ impl<'b, F: Field> Analyzable<F> {
     pub fn config_and_synthesize<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
         k: u32,
-        //instance: Vec<Vec<F>>,
     ) -> Result<Self, Error> {
         let n = 1 << k;
         let mut cs = ConstraintSystem::default();

@@ -102,7 +102,6 @@ pub fn eval_abstract<F: Field>(
 
             let mut t = 0;
             if let CellValue::Assigned(fixed_val) = fixed[col][row] {
-                //t = fixed_val.get_lower_128();
                 t  = u64::from_str_radix(format!("{:?}",fixed_val).strip_prefix("0x").unwrap(), 16).unwrap();
             }
             if t == 0 {

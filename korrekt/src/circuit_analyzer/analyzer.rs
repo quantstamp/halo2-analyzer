@@ -83,7 +83,6 @@ impl<'b, F: Field> Analyzer<F> {
     pub fn new<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
         k: u32,
-        //instance: Vec<Vec<F>>,
     ) -> Result<Self, Error> {
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
         let (permutation, instace_cells) =
@@ -447,7 +446,6 @@ impl<'b, F: Field> Analyzer<F> {
 
                 let mut t = 0;
                 if let CellValue::Assigned(fixed_val) = fixed[col][row] {
-                    //t = fixed_val.get_lower_128();
                     t = u64::from_str_radix(format!("{:?}",fixed_val).strip_prefix("0x").unwrap(), 16).unwrap();
                 }
                 let term = format!("(as ff{:?} F)", t);
@@ -483,7 +481,6 @@ impl<'b, F: Field> Analyzer<F> {
                 } else {
                     format!("ff.neg ({})", node_str)
                 };
-                //let term = format!("ff.neg {}", node_str);
                 (term, NodeType::Negated)
             }
             Expression::Sum(a, b) => {
@@ -666,15 +663,13 @@ impl<'b, F: Field> Analyzer<F> {
                                         }
                                         CellValue::Assigned(f) => {
                                             t = format!("{:?}", f);
-                                            //t = f.get_lower_128().to_string();
                                         }
                                         CellValue::Poison(_) => {}
                                     }
                                     if let CellValue::Assigned(value) =
                                         self.fixed[col_indices[col]][row]
                                     {
-                                        //t = value.get_lower_128().to_string();
-                                        t = u64::from_str_radix(format!("{:?}",value).strip_prefix("0x").unwrap(), 16).unwrap().to_string();//format!("{:?}", value); //value.get_lower_128().to_string();
+                                        t = u64::from_str_radix(format!("{:?}",value).strip_prefix("0x").unwrap(), 16).unwrap().to_string();
 
                                     }
                                     let sa = smt::get_assert(
