@@ -1,16 +1,11 @@
-#[cfg(feature = "use_pse_halo2_proofs")]
-use group::ff::{Field, PrimeField};
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::circuit::*;
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::plonk::*;
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::poly::Rotation;
-
+use group::ff::PrimeField;
+use zcash_halo2_proofs::circuit::*;
+use zcash_halo2_proofs::plonk::*;
+use zcash_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
-#[cfg(feature = "use_pse_halo2_proofs")]
+
 pub struct FibonacciConfig {
     pub advice: [Column<Advice>; 3],
     pub s_add: Selector,
@@ -24,13 +19,13 @@ pub struct FibonacciConfig {
 }
 
 #[derive(Debug, Clone)]
-#[cfg(feature = "use_pse_halo2_proofs")]
+
 struct FibonacciChip<F: PrimeField> {
     config: FibonacciConfig,
     _marker: PhantomData<F>,
 }
 
-#[cfg(feature = "use_pse_halo2_proofs")]
+
 impl<F: PrimeField> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
         Self {
@@ -76,21 +71,21 @@ impl<F: PrimeField> FibonacciChip<F> {
             vec![s * (a + b - c)]
         });
 
-        meta.lookup("RC_lookup",|meta| {
+        meta.lookup(|meta| {
             let s = meta.query_selector(s_range);
             let lhs = meta.query_advice(col_a, Rotation::cur());
             //(s * out, xor_table[2]),
             vec![(s * lhs, range_check_table[0])]
         });
 
-        meta.lookup("RC1_lookup", |meta| {
+        meta.lookup(|meta| {
             let s1 = meta.query_selector(s_range_1);
             let rhs = meta.query_advice(col_b, Rotation::cur());
             //(s * out, xor_table[2]),
             vec![(s1 * rhs, range_check_table_1[0])]
         });
 
-        meta.lookup("XOR_lookup", |meta| {
+        meta.lookup(|meta| {
             let s = meta.query_selector(s_xor);
             let lhs = meta.query_advice(col_a, Rotation::cur());
             let rhs = meta.query_advice(col_b, Rotation::cur());
@@ -269,10 +264,10 @@ impl<F: PrimeField> FibonacciChip<F> {
 }
 
 #[derive(Default)]
-#[cfg(feature = "use_pse_halo2_proofs")]
+
 pub struct MyCircuit<F>(pub PhantomData<F>);
 
-#[cfg(feature = "use_pse_halo2_proofs")]
+
 impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     type Config = FibonacciConfig;
     type FloorPlanner = SimpleFloorPlanner;

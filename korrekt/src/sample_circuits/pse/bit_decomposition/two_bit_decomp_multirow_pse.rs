@@ -1,12 +1,10 @@
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use group::ff::{PrimeField as Field};
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::circuit::*;
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::plonk::*;
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
+
+use group::ff::PrimeField;
+use pse_halo2_proofs::circuit::*;
+use pse_halo2_proofs::plonk::*;
+use pse_halo2_proofs::poly::Rotation;
+
 
 // `MultiRowTwoBitDecompCircuit`: This circuit is designed to perform binary decomposition
 // on a two-digit binary number. It receives two field elements, `b0` and `b1`, which
@@ -24,23 +22,23 @@ use std::marker::PhantomData;
 ///    Gate: b0_binary_check:  s*b1*(1-b1)
 ///    Gate:        equality:  s*(b0+2*b1-x)
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
-pub struct MultiRowTwoBitDecompCircuit<F: Field> {
+
+pub struct MultiRowTwoBitDecompCircuit<F: PrimeField> {
     b0: F,
     b1: F,
 }
 
 #[derive(Clone)]
-#[cfg(feature = "use_zcash_halo2_proofs")]
-pub struct MultiRowTwoBitDecompCircuitConfig<F: Field> {
+
+pub struct MultiRowTwoBitDecompCircuitConfig<F: PrimeField> {
     _ph: PhantomData<F>,
     advice: Column<Advice>,
     instance: Column<Instance>,
     s: Selector,
 }
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
-impl<F: Field> Default for MultiRowTwoBitDecompCircuit<F> {
+
+impl<F: PrimeField> Default for MultiRowTwoBitDecompCircuit<F> {
     fn default() -> Self {
         MultiRowTwoBitDecompCircuit {
             b0: F::ONE,
@@ -49,8 +47,8 @@ impl<F: Field> Default for MultiRowTwoBitDecompCircuit<F> {
     }
 }
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
-impl<F: Field> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
+
+impl<F: PrimeField> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
     type Config = MultiRowTwoBitDecompCircuitConfig<F>;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -71,13 +69,13 @@ impl<F: Field> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
             let a = meta.query_advice(x, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b0 * (1-b0)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(x, Rotation::next());
             let dummy = meta.query_selector(s);
             // b1 * (1-b1)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("equality", |meta| {
             let a = meta.query_advice(x, Rotation::cur());

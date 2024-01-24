@@ -1,3 +1,4 @@
-pub mod bit_decomposition;
-pub mod copy_constraint;
-pub mod lookup_circuits;
+#[cfg(feature = "use_pse_halo2_proofs")]
+pub mod pse;
+#[cfg(feature = "use_zcash_halo2_proofs")]
+pub mod zcash;

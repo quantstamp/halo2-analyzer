@@ -1,28 +1,25 @@
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use group::ff::Field;
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::circuit::*;
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::plonk::*;
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::poly::Rotation;
+use pse_halo2_proofs::arithmetic::Field;
+use pse_halo2_proofs::circuit::*;
+use pse_halo2_proofs::plonk::*;
+use pse_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
+
 pub struct AddMultCircuit<F: Field> {
     a: F,
     b: F,
 }
 
 #[derive(Clone)]
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 pub struct AddMultCircuitConfig<F: Field> {
     _ph: PhantomData<F>,
     s_mul: Selector,
     columns: [Column<Advice>; 25],
 }
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 impl<F: Field> Default for AddMultCircuit<F> {
     fn default() -> Self {
         AddMultCircuit {
@@ -32,7 +29,7 @@ impl<F: Field> Default for AddMultCircuit<F> {
     }
 }
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 impl<F: Field> Circuit<F> for AddMultCircuit<F> {
     type Config = AddMultCircuitConfig<F>;
     type FloorPlanner = SimpleFloorPlanner;

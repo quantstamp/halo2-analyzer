@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 #[cfg(feature = "use_zcash_halo2_proofs")]
-use halo2curves::{bn256};
+use halo2curves::bn256;
 #[cfg(feature = "use_zcash_halo2_proofs")]
 use zcash_halo2_proofs::pasta::Fp as Fr;
 
@@ -9,9 +9,13 @@ use zcash_halo2_proofs::pasta::Fp as Fr;
 use pse_halo2_proofs::halo2curves::bn256::Fr;
 #[cfg(feature = "use_pse_halo2_proofs")]
 use halo2curves::bn256;
+#[cfg(feature = "use_pse_halo2_proofs")]
+use korrekt::sample_circuits::pse as sample_circuits;
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use korrekt::sample_circuits::zcash as sample_circuits;
 
 use anyhow::{Context, Ok, Result};
-use korrekt::{circuit_analyzer, io, sample_circuits};
+use korrekt::{circuit_analyzer, io};
 use num::{BigInt, Num};
 
 fn main() -> Result<(), anyhow::Error> {
