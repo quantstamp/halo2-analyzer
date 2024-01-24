@@ -112,6 +112,9 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
         AnalyzerOutputStatus::Invalid => {
             println!("The analyzer output is invalid.");
         }
+        AnalyzerOutputStatus::NoUnusedCustomGates => {},
+        AnalyzerOutputStatus::NoUnconstrainedCells => {},
+        AnalyzerOutputStatus::NoUnusedColumns => {},
     }
 }
 /// Retrieves user input to determine the type of analysis for the circuit.

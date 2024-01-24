@@ -1,10 +1,11 @@
-use halo2_proofs::arithmetic::FieldExt;
-use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
-use halo2_proofs::plonk::Error;
-use halo2_proofs::plonk::{
-    Advice, Circuit, Column, ConstraintSystem, Expression, Instance, Selector,
-};
-use halo2_proofs::poly::Rotation;
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use group::ff::{PrimeField as Field};
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use zcash_halo2_proofs::circuit::*;
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use zcash_halo2_proofs::plonk::*;
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use zcash_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
 // `MultiRowTwoBitDecompCircuit`: This circuit is designed to perform binary decomposition
@@ -23,29 +24,33 @@ use std::marker::PhantomData;
 ///    Gate: b0_binary_check:  s*b1*(1-b1)
 ///    Gate:        equality:  s*(b0+2*b1-x)
 
-pub struct MultiRowTwoBitDecompCircuit<F: FieldExt> {
+#[cfg(feature = "use_zcash_halo2_proofs")]
+pub struct MultiRowTwoBitDecompCircuit<F: Field> {
     b0: F,
     b1: F,
 }
 
 #[derive(Clone)]
-pub struct MultiRowTwoBitDecompCircuitConfig<F: FieldExt> {
+#[cfg(feature = "use_zcash_halo2_proofs")]
+pub struct MultiRowTwoBitDecompCircuitConfig<F: Field> {
     _ph: PhantomData<F>,
     advice: Column<Advice>,
     instance: Column<Instance>,
     s: Selector,
 }
 
-impl<F: FieldExt> Default for MultiRowTwoBitDecompCircuit<F> {
+#[cfg(feature = "use_zcash_halo2_proofs")]
+impl<F: Field> Default for MultiRowTwoBitDecompCircuit<F> {
     fn default() -> Self {
         MultiRowTwoBitDecompCircuit {
-            b0: F::one(),
-            b1: F::one(),
+            b0: F::ONE,
+            b1: F::ONE,
         }
     }
 }
 
-impl<F: FieldExt> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
+#[cfg(feature = "use_zcash_halo2_proofs")]
+impl<F: Field> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
     type Config = MultiRowTwoBitDecompCircuitConfig<F>;
     type FloorPlanner = SimpleFloorPlanner;
 

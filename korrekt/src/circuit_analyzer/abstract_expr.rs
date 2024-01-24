@@ -1,5 +1,15 @@
-use halo2_proofs::{
-    arithmetic::FieldExt as Field,
+#[cfg(feature = "use_pse_halo2_proofs")]
+use pse_halo2_proofs::{
+    arithmetic::Field,
+    dev::CellValue,
+    plonk::{Advice, Any, Column, Expression, Selector,Phase},
+    poly::Rotation,
+};
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use group::ff::Field;
+#[cfg(feature = "use_zcash_halo2_proofs")]
+use zcash_halo2_proofs::{
+    dev::CellValue,
     plonk::{Advice, Any, Column, Expression, Selector},
     poly::Rotation,
 };
@@ -20,13 +30,23 @@ pub enum AbsResult {
 /// This function traverses an expression tree and extracts the columns and rotations used within the expression.
 /// It recursively examines the expression and adds any encountered `Expression::Advice` columns and their corresponding rotations
 /// to the resulting set.
+#[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
 pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, Rotation)> {
     fn recursion<F: Field>(dst: &mut HashSet<(Column<Any>, Rotation)>, expr: &Expression<F>) {
         match expr {
+            #[cfg(feature = "use_zcash_halo2_proofs")]
             Expression::Advice(advice_query) => {
                 let column = Column {
                     index: advice_query.column_index,
                     column_type: Advice {},
+                };
+                dst.insert((column.into(), advice_query.rotation));
+            }
+            #[cfg(feature = "use_pse_halo2_proofs")]
+            Expression::Advice(advice_query) => {
+                let column = Column {
+                    index: advice_query.column_index,
+                    column_type: Advice{ phase: advice_query.phase },
                 };
                 dst.insert((column.into(), advice_query.rotation));
             }
@@ -53,7 +73,15 @@ pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, 
 /// It recursively traverses the expression tree and applies the corresponding evaluation rules to determine the result.
 /// The abstract result can be one of the following: `AbsResult::Zero`, `AbsResult::NonZero`, or `AbsResult::Variable`.
 ///
-pub fn eval_abstract<F: Field>(expr: &Expression<F>, selectors: &HashSet<Selector>) -> AbsResult {
+#[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
+pub fn eval_abstract<F: Field>(
+    expr: &Expression<F>,
+    selectors: &HashSet<Selector>,
+    region_begin: usize,
+    region_end: usize,
+    row_num: i32,
+    fixed: &Vec<Vec<CellValue<F>>>,
+) -> AbsResult {
     match expr {
         Expression::Constant(v) => {
             if v.is_zero().into() {
@@ -66,13 +94,28 @@ pub fn eval_abstract<F: Field>(expr: &Expression<F>, selectors: &HashSet<Selecto
             true => AbsResult::NonZero,
             false => AbsResult::Zero,
         },
-        Expression::Fixed { .. } => AbsResult::Variable,
+        Expression::Fixed(fixed_query) 
+        => 
+        {
+            let col = fixed_query.column_index;
+            let row = (fixed_query.rotation.0 + row_num) as usize + region_begin;
+
+            let mut t = 0;
+            if let CellValue::Assigned(fixed_val) = fixed[col][row] {
+                t  = u64::from_str_radix(format!("{:?}",fixed_val).strip_prefix("0x").unwrap(), 16).unwrap();
+            }
+            if t == 0 {
+                AbsResult::Zero
+            } else {
+                AbsResult::Variable
+            }
+        }
         Expression::Advice { .. } => AbsResult::Variable,
         Expression::Instance { .. } => AbsResult::Variable,
-        Expression::Negated(expr) => eval_abstract(expr, selectors),
+        Expression::Negated(expr) => eval_abstract(expr, selectors,region_begin,region_end,row_num,fixed),
         Expression::Sum(left, right) => {
-            let res1 = eval_abstract(left, selectors);
-            let res2 = eval_abstract(right, selectors);
+            let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed);
+            let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed);
             match (res1, res2) {
                 (AbsResult::Variable, _) => AbsResult::Variable,
                 (_, AbsResult::Variable) => AbsResult::Variable,
@@ -83,8 +126,8 @@ pub fn eval_abstract<F: Field>(expr: &Expression<F>, selectors: &HashSet<Selecto
             }
         }
         Expression::Product(left, right) => {
-            let res1 = eval_abstract(left, selectors);
-            let res2 = eval_abstract(right, selectors);
+            let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed);
+            let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed);
             match (res1, res2) {
                 (AbsResult::Zero, _) => AbsResult::Zero,
                 (_, AbsResult::Zero) => AbsResult::Zero,
@@ -96,8 +139,10 @@ pub fn eval_abstract<F: Field>(expr: &Expression<F>, selectors: &HashSet<Selecto
             if scale.is_zero().into() {
                 AbsResult::Zero
             } else {
-                eval_abstract(expr, selectors)
+                eval_abstract(expr, selectors,region_begin,region_end,row_num,fixed)
             }
         }
+        #[cfg(feature = "use_pse_halo2_proofs")]
+        Expression::Challenge(_) => todo!(),
     }
 }
