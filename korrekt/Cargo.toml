@@ -24,6 +24,6 @@ name = "korrekt"
 path = "src/lib.rs"
 
 [features]
-default = ["use_pse_halo2_proofs"]
+default = ["use_zcash_halo2_proofs"]
 use_zcash_halo2_proofs = ["zcash_halo2_proofs"]
 use_pse_halo2_proofs = ["pse_halo2_proofs"]
