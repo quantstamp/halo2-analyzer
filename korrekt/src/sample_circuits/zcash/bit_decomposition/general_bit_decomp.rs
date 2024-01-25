@@ -1,18 +1,6 @@
-// #[cfg(feature = "use_pse_halo2_proofs")]
-// use pse_halo2_proofs::arithmetic::FieldExt as Field;
-// #[cfg(feature = "use_pse_halo2_proofs")]
-// use pse_halo2_proofs::circuit::*;
-// #[cfg(feature = "use_pse_halo2_proofs")]
-// use pse_halo2_proofs::plonk::*;
-// #[cfg(feature = "use_pse_halo2_proofs")]
-// use pse_halo2_proofs::poly::Rotation;
-// #[cfg(feature = "use_zcash_halo2_proofs")]
-// use group::ff::Field;
-// #[cfg(feature = "use_zcash_halo2_proofs")]
+// use group::ff::PrimeField as Field;
 // use zcash_halo2_proofs::circuit::*;
-// #[cfg(feature = "use_zcash_halo2_proofs")]
 // use zcash_halo2_proofs::plonk::*;
-// #[cfg(feature = "use_zcash_halo2_proofs")]
 // use zcash_halo2_proofs::poly::Rotation;
 
 // /// `BitDecompositon`: This circuit is designed to check the binary decomposition
@@ -60,7 +48,7 @@
 // impl<F: Field, const COUNT: usize> Default for BitDecompositon<F, COUNT> {
 //     fn default() -> Self {
 //         BitDecompositon {
-//             b: [F::one(); COUNT],
+//             b: [F::ONE; COUNT],
 //         }
 //     }
 // }
@@ -276,3 +264,4 @@
 //         Ok(())
 //     }
 // }
+// TODO:Enable for benchmarks

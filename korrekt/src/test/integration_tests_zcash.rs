@@ -6,10 +6,8 @@ mod tests {
         analyzer_io_type,
         analyzer_io_type::{AnalyzerOutputStatus, VerificationInput, VerificationMethod},
     };
-    use crate::sample_circuits;
-    #[cfg(feature = "use_zcash_halo2_proofs")]
+    use crate::sample_circuits::zcash as sample_circuits;
     use halo2curves::bn256;
-    #[cfg(feature = "use_zcash_halo2_proofs")]
     use zcash_halo2_proofs::pasta::Fp as Fr;
 
     use num::{BigInt, Num};

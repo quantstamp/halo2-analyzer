@@ -6,12 +6,9 @@ mod tests {
         analyzer_io_type,
         analyzer_io_type::{AnalyzerOutputStatus, VerificationInput, VerificationMethod},
     };
-    use crate::sample_circuits;
-
-    #[cfg(feature = "use_pse_halo2_proofs")]
+    use crate::sample_circuits::pse as sample_circuits;
     use halo2curves::bn256;
     use num::{BigInt, Num};
-    #[cfg(feature = "use_pse_halo2_proofs")]
     use pse_halo2_proofs::halo2curves::bn256::Fr;
     use std::collections::HashMap;
     use std::marker::PhantomData;

@@ -1,10 +1,6 @@
-#[cfg(feature = "use_zcash_halo2_proofs")]
 use group::ff::PrimeField as Field;
-#[cfg(feature = "use_zcash_halo2_proofs")]
 use zcash_halo2_proofs::circuit::*;
-#[cfg(feature = "use_zcash_halo2_proofs")]
 use zcash_halo2_proofs::plonk::*;
-#[cfg(feature = "use_zcash_halo2_proofs")]
 use zcash_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
@@ -26,14 +22,14 @@ use std::marker::PhantomData;
 /// Gate: b1_binary_check: s*b1*(1-b1)
 /// Gate:        equality: s*(2*b1+b0-x)
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 pub struct TwoBitDecompCircuit<F: Field> {
     b0: F,
     b1: F,
 }
 
 #[derive(Clone)]
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 pub struct TwoBitDecompCircuitConfig {
     b0: Column<Advice>,
     b1: Column<Advice>,
@@ -42,7 +38,7 @@ pub struct TwoBitDecompCircuitConfig {
     s: Selector,
 }
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 impl<F: Field> Default for TwoBitDecompCircuit<F> {
     fn default() -> Self {
         TwoBitDecompCircuit {
@@ -52,7 +48,7 @@ impl<F: Field> Default for TwoBitDecompCircuit<F> {
     }
 }
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 impl<F: Field> Circuit<F> for TwoBitDecompCircuit<F> {
     type Config = TwoBitDecompCircuitConfig;
     type FloorPlanner = SimpleFloorPlanner;
@@ -143,18 +139,18 @@ impl<F: Field> Circuit<F> for TwoBitDecompCircuit<F> {
 /// |---------|---------|---------|--------|-----|----------|-----------------------|-----------------------|----------------|
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |       s*b0*(1-b0)     |       s*b0*(1-b0)     |  s*(2*b1+b0-x) |
 /// 
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 pub struct TwoBitDecompCircuitUnderConstrained<F: Field> {
     b0: F,
     b1: F,
 }
 
 #[derive(Clone)]
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: Field> {
     _ph: PhantomData<F>,
 }
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 impl<F: Field> Default for TwoBitDecompCircuitUnderConstrained<F> {
     fn default() -> Self {
         TwoBitDecompCircuitUnderConstrained {
@@ -165,7 +161,7 @@ impl<F: Field> Default for TwoBitDecompCircuitUnderConstrained<F> {
 }
 
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
+
 impl<F: Field> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
     type Config = TwoBitDecompCircuitConfig;
     type FloorPlanner = SimpleFloorPlanner;

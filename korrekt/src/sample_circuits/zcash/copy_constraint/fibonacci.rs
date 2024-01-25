@@ -1,20 +1,7 @@
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::arithmetic::Field;
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::plonk::{Error,Advice, Circuit, Column, ConstraintSystem, Instance, Selector};
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::poly::Rotation;
-#[cfg(feature = "use_zcash_halo2_proofs")]
 use group::ff::Field;
-#[cfg(feature = "use_zcash_halo2_proofs")]
 use zcash_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
-#[cfg(feature = "use_zcash_halo2_proofs")]
 use zcash_halo2_proofs::plonk::{Error,Advice, Circuit, Column, ConstraintSystem, Instance, Selector};
-#[cfg(feature = "use_zcash_halo2_proofs")]
 use zcash_halo2_proofs::poly::Rotation;
-
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
