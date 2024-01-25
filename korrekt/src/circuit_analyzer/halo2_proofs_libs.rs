@@ -28,13 +28,6 @@ pub use zcash_halo2_proofs::{
     poly::Rotation,
 };
 
-#[cfg(feature = "use_axiom_halo2_proofs")]
-pub use axiom_halo2_proofs::{
-    dev::CellValue,
-    plonk::{Advice, Any, Column, Expression, Selector},
-    poly::Rotation,
-};
-
 
 #[cfg(feature = "use_pse_halo2_proofs")]
 pub use pse_halo2_proofs::dev::metadata::Column as ColumnMetadata;
