@@ -1,27 +1,6 @@
 use anyhow::{Context, Result};
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use group::ff::Field;
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::{
-    arithmetic::Field,
-    
-    dev::{CellValue, Region},
-    plonk::{
-        permutation, Any, Circuit, ConstraintSystem, Error,
-        Expression, Selector,
-    },
-    poly::Rotation,
-};
+use super::halo2_proofs_libs::*;
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::{
-    dev::{CellValue, Region},
-    plonk::{
-        permutation, Any, Circuit, ConstraintSystem, Error,
-        Expression, Selector,
-    },
-    poly::Rotation,
-};
 
 use std::{
     collections::{HashMap, HashSet},

@@ -1,18 +1,4 @@
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::{
-    arithmetic::Field,
-    dev::CellValue,
-    plonk::{Advice, Any, Column, Expression, Selector,Phase},
-    poly::Rotation,
-};
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use group::ff::Field;
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::{
-    dev::CellValue,
-    plonk::{Advice, Any, Column, Expression, Selector},
-    poly::Rotation,
-};
+use super::halo2_proofs_libs::*;
 
 use std::collections::HashSet;
 
@@ -30,7 +16,6 @@ pub enum AbsResult {
 /// This function traverses an expression tree and extracts the columns and rotations used within the expression.
 /// It recursively examines the expression and adds any encountered `Expression::Advice` columns and their corresponding rotations
 /// to the resulting set.
-#[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
 pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, Rotation)> {
     fn recursion<F: Field>(dst: &mut HashSet<(Column<Any>, Rotation)>, expr: &Expression<F>) {
         match expr {
@@ -42,7 +27,7 @@ pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, 
                 };
                 dst.insert((column.into(), advice_query.rotation));
             }
-            #[cfg(feature = "use_pse_halo2_proofs")]
+            #[cfg(any(feature = "use_axiom_halo2_proofs", feature = "use_pse_halo2_proofs",))]
             Expression::Advice(advice_query) => {
                 let column = Column {
                     index: advice_query.column_index,
