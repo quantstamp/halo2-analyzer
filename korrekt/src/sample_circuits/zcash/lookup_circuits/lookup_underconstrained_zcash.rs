@@ -60,8 +60,7 @@ impl<F: Field> FibonacciChip<F> {
             let c = meta.query_advice(col_c, Rotation::cur());
             vec![s * (a + b - c)]
         });
-        #[cfg(feature = "use_pse_halo2_proofs")]
-        meta.lookup("XOR_lookup", |meta| {
+        meta.lookup(|meta| {
             let s = meta.query_selector(s_xor);
             let lhs = meta.query_advice(col_a, Rotation::cur());
             let rhs = meta.query_advice(col_b, Rotation::cur());
