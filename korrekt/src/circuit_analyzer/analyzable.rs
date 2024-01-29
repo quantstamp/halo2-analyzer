@@ -3,35 +3,8 @@ use std::{
     ops::Range,
 };
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use group::ff::Field;
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::plonk::sealed::SealedPhase;
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::{
-    arithmetic::Field,
-    circuit::{self, Value},
-    dev::{CellValue, Region},
-    plonk::{
-        Challenge,
-        sealed,
-        Phase,FirstPhase,
-        permutation, Advice, Any, Assigned, Assignment, Circuit, Column, ConstraintSystem, Error,
-        Fixed, FloorPlanner, Instance, Selector,
-    },
-};
+use super::halo2_proofs_libs::*;
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::{
-    circuit::{self, Value},
-    dev::{CellValue, Region},
-    plonk::{
-        permutation, Advice, Any, Assigned, Assignment, Circuit, Column, ConstraintSystem, Error,
-        Fixed, FloorPlanner, Instance, Selector,
-    },
-};
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::dev::metadata::Column as ColumnMetadata;
 
 #[derive(Debug)]
 pub struct Analyzable<F: Field> {
