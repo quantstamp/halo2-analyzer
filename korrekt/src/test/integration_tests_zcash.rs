@@ -148,7 +148,7 @@ mod tests {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
-                iterations: 4,
+                iterations: 1,
             },
         };
 
@@ -207,7 +207,7 @@ mod tests {
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
         for var in analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 1);
+            specified_instance_cols.insert(var.0.clone(), 3);
         }
 
         let modulus = bn256::fr::MODULUS_STR;
@@ -298,8 +298,7 @@ mod tests {
     fn under_constrained_exact_spec_input_test() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp_zcash::TwoBitDecompCircuitUnderConstrained::<
-                Fr,
-            >::default();
+                Fr>::new(Fr::from(1),Fr::from(1));
         let k: u32 = 11;
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();

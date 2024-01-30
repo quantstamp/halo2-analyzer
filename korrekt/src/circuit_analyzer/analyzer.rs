@@ -1,27 +1,7 @@
 use anyhow::{Context, Result};
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use group::ff::Field;
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::{
-    arithmetic::Field,
-    
-    dev::{CellValue, Region},
-    plonk::{
-        permutation, Any, Circuit, ConstraintSystem, Error,
-        Expression, Selector,
-    },
-    poly::Rotation,
-};
+use rayon::string;
+use super::halo2_proofs_libs::*;
 
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::{
-    dev::{CellValue, Region},
-    plonk::{
-        permutation, Any, Circuit, ConstraintSystem, Error,
-        Expression, Selector,
-    },
-    poly::Rotation,
-};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -56,6 +36,7 @@ pub struct Analyzer<F: Field> {
     pub selectors: Vec<Vec<bool>>,
     pub log: Vec<String>,
     pub permutation: HashMap<String, String>,
+    pub constants: Vec<(String,String)>,
     pub instace_cells: HashMap<String, i64>,
     pub counter: u32,
 }
@@ -88,6 +69,14 @@ impl<'b, F: Field> Analyzer<F> {
         let (permutation, instace_cells) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
 
+        let mut constants = Vec::new();
+        for constant in analyzable.constants.iter() {
+            let constant_decimal_value = u64::from_str_radix(format!("{:?}",constant.1).strip_prefix("0x").unwrap(), 16).unwrap();
+            let term = format!("(as ff{:?} F)", constant_decimal_value);
+
+            constants.push((format!("A-{:?}-{:?}",constant.0.0.index, constant.0.1),term));
+        }
+        
         Ok(Analyzer {
             cs: analyzable.cs,
             regions: analyzable.regions,
@@ -97,6 +86,7 @@ impl<'b, F: Field> Analyzer<F> {
             permutation,
             instace_cells,
             counter: 0,
+            constants,
         })
     }
 
@@ -201,7 +191,7 @@ impl<'b, F: Field> Analyzer<F> {
             let row_num = (region_end - region_begin + 1) as i32;
             let mut used;
             for cell in region.cells.clone() {
-                #[cfg(feature = "use_pse_halo2_proofs")]
+                #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
                 let (reg_column, rotation) = (cell.0 .0, cell.1);
                 #[cfg(feature = "use_zcash_halo2_proofs")]
                 let (reg_column, rotation) = (cell.0, cell.1);
@@ -271,7 +261,7 @@ impl<'b, F: Field> Analyzer<F> {
                                 'I'
                             }
                         };
-                        #[cfg(feature = "use_pse_halo2_proofs")]
+                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
                         let left_column_abr = match left_cell.column_type() {
                             Any::Advice(_) => 'A',
                             Any::Fixed => 'F',
@@ -300,7 +290,7 @@ impl<'b, F: Field> Analyzer<F> {
                                 'I'
                             }
                         };
-                        #[cfg(feature = "use_pse_halo2_proofs")]
+                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
                         let right_column_abr = match right_cell.column_type() {
                             Any::Advice(_) => 'A',
                             Any::Fixed => 'F',
@@ -366,6 +356,27 @@ impl<'b, F: Field> Analyzer<F> {
                 NodeType::Advice,
                 neg,
                 NodeType::Advice,
+            );
+            smt::write_assert(
+                &mut printer,
+                term,
+                "0".to_owned(),
+                NodeType::Poly,
+                Operation::Equal,
+            );
+        }
+
+        for constant in &self.constants {
+            smt::write_var(&mut printer, constant.0.to_owned());
+
+            let neg = format!("(ff.neg {})", constant.1);
+            let term = smt::write_term(
+                &mut printer,
+                "add".to_owned(),
+                constant.0.to_owned(),
+                NodeType::Advice,
+                neg,
+                NodeType::Constant,
             );
             smt::write_assert(
                 &mut printer,
@@ -571,7 +582,7 @@ impl<'b, F: Field> Analyzer<F> {
                 );
                 (term, NodeType::Scaled)
             }
-            #[cfg(feature = "use_pse_halo2_proofs")]
+            #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
             Expression::Challenge(_poly) => {
                 ("".to_string(),NodeType::Fixed)
             }
@@ -586,6 +597,7 @@ impl<'b, F: Field> Analyzer<F> {
         &'b mut self,
         printer: &mut smt::Printer<File>,
     ) -> Result<(), anyhow::Error> {
+        //print!("regions: {:?}",self.regions);
         if !self.regions.is_empty() {
             for region in &self.regions {
                 if !region.enabled_selectors.is_empty() {
