@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use rayon::string;
 use super::halo2_proofs_libs::*;
 
 

@@ -119,14 +119,6 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
-        // if self.in_phase(FirstPhase) {
-        //     assert!(
-        //         self.usable_rows.contains(&row),
-        //         "row={}, usable_rows={:?}, k={}",
-        //         row,
-        //         self.usable_rows,
-        //         self.k,
-        //     );
 
         if let Some(region) = self.current_region.as_mut() {
             region.update_extent(column.into(), row);
@@ -192,15 +184,6 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
                     .get_mut(column.index())
                     .and_then(|v| v.get_mut(row))
                     .expect("bounds failure");
-                /* We don't use this because we do assign 0s in first pass of second phase sometimes
-                if let AdviceCellValue::Assigned(value) = value {
-                    // Inconsistent assignment between different phases.
-                    assert_eq!(value.as_ref(), &to, "value={:?}, to={:?}", &value, &to);
-                    let val = Arc::clone(&value);
-                    let val_ref = Arc::downgrade(&val);
-                    circuit::Value::known(unsafe { &*val_ref.as_ptr() })
-                } else {
-                */
                 
                 match to {
                     Assigned::Trivial(f) => {
@@ -486,7 +469,6 @@ impl<'b, F: Field> Analyzable<F> {
                 }
                 v
             }));
-        //println!("analyzable: {:?}",analyzable.constants);
         Ok(analyzable)
     }
 
