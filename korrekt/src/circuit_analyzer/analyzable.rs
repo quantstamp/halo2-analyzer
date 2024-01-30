@@ -201,6 +201,16 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
                     circuit::Value::known(unsafe { &*val_ref.as_ptr() })
                 } else {
                 */
+                
+                match to {
+                    Assigned::Trivial(f) => {
+                        self.constants.push(((column,row),f));
+                    },
+                    Assigned::Zero => {
+                        self.constants.push(((column,row),F::ZERO));
+                    },
+                    Assigned::Rational(_, _) => (),  
+                }
                 let val = Arc::new(to);
                 let val_ref = Arc::downgrade(&val);
                 *value = AdviceCellValue::Assigned(val);

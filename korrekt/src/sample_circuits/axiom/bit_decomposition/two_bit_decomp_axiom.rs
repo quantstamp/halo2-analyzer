@@ -140,26 +140,23 @@ impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuit<F> {
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |       s*b0*(1-b0)     |       s*b0*(1-b0)     |  s*(2*b1+b0-x) |
 /// 
 
+#[derive(Default)]
 pub struct TwoBitDecompCircuitUnderConstrained<F: PrimeField> {
-    b0: F,
-    b1: F,
+    pub b0: F,
+    pub b1: F,
+}
+
+impl<F: PrimeField> TwoBitDecompCircuitUnderConstrained<F> {
+    pub fn new(b0: F, b1: F) -> Self {
+        Self { b0, b1 }
+    }
 }
 
 #[derive(Clone)]
-
 pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: PrimeField> {
     _ph: PhantomData<F>,
 }
 
-
-impl<F: PrimeField> Default for TwoBitDecompCircuitUnderConstrained<F> {
-    fn default() -> Self {
-        TwoBitDecompCircuitUnderConstrained {
-            b0: F::ONE,
-            b1: F::ONE,
-        }
-    }
-}
 
 
 impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
@@ -182,13 +179,13 @@ impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
 
         // define gates
         meta.create_gate("b0_binary_check", |meta| {
-            let a = meta.query_advice(b0, Rotation::cur());
+            let a = meta.query_advice(b1, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b0 * (1-b0)
             vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("b1_binary_check", |meta| {
-            let a = meta.query_advice(b0, Rotation::cur());
+            let a = meta.query_advice(b1, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b1 * (1-b1)
             vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
@@ -218,9 +215,9 @@ impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
                 |mut region| {
                     config.s.enable(&mut region, 0)?;
 
-                    region.assign_advice(config.b0, 0, Value::known(self.b0));
+                    //region.assign_advice(config.b0, 0, Value::known(self.b0));
 
-                    region.assign_advice(config.b1, 0, Value::known(self.b1));
+                    //region.assign_advice(config.b1, 0, Value::known(self.b1));
 
                     let out = region.assign_advice(
                         

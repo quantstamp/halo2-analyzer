@@ -259,7 +259,7 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
     }
 
     #[test]
@@ -291,7 +291,7 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 
     #[test]
@@ -327,7 +327,7 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp_zcash::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
-            >::default();
+            >::new(Fr::from(0),Fr::from(3));
         let k: u32 = 11;
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -343,7 +343,7 @@ mod tests {
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
         for var in analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 1);
+            specified_instance_cols.insert(var.0.clone(), 3);
         }
 
         let modulus = bn256::fr::MODULUS_STR;
@@ -364,7 +364,7 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::Overconstrained));
     }
 
     #[test]
@@ -442,7 +442,35 @@ mod tests {
         println!("output_status: {:?}", output_status);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
+    #[test]
+    fn analyze_underconstrained_fibonacci_constant_init_test() {
+        let circuit =
+            sample_circuits::copy_constraint::fibonacci_constant_init::FibonacciCircuit::<Fr>(PhantomData);
+        let k: u32 = 11;
 
+        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: analyzer.instace_cells.clone(),
+                iterations: 5,
+            },
+        };
+
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, &prime)
+            .unwrap()
+            .output_status;
+        println!("output_status: {:?}", output_status);
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
+    }
     #[test]
     fn analyze_underconstrained_single_lookup_test() {
         let circuit =

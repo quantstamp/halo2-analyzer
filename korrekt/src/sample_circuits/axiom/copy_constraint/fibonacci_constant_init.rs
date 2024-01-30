@@ -1,8 +1,6 @@
 use axiom_halo2_proofs::arithmetic::Field;
 use axiom_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
-use axiom_halo2_proofs::plonk::{
-    Advice, Assigned, Circuit, Column, ConstraintSystem, Error, Instance, Selector
-};
+use axiom_halo2_proofs::plonk::{Advice, Assigned, Circuit, Column, ConstraintSystem, Error, Instance, Selector};
 use axiom_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
@@ -97,10 +95,6 @@ impl<F: Field> FibonacciChip<F> {
             },
         )
     }
-    
-    
-    
-    
 
     pub fn assign_row(
         &self,
@@ -160,6 +154,7 @@ impl<F: Field> Circuit<F> for FibonacciCircuit<F> {
     fn configure(meta: &mut ConstraintSystem<F>) -> Self::Config {
         FibonacciChip::configure(meta)
     }
+
 
     fn synthesize(
         &self,
