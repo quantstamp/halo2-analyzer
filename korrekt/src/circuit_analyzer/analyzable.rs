@@ -29,7 +29,6 @@ pub struct Analyzable<F: Field> {
     pub usable_rows: Range<usize>,
     #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
     current_phase: sealed::Phase,
-    pub constants: Vec<((Column<Advice>,usize),F)>,
 }
 
 impl<F: Field> Assignment<F> for Analyzable<F> {
@@ -143,14 +142,6 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
                     .and_then(|v| v.get_mut(row))
                     .expect("bounds failure");
                 *value = CellValue::Assigned(to);
-
-                match value {
-                    CellValue::Unassigned => (),
-                    CellValue::Assigned(trv) => {
-                        self.constants.push(((column,row),*trv));
-                    }
-                    CellValue::Poison(_) => (),
-                }
             }
             Err(err) => {
                 return Ok(());
@@ -451,7 +442,6 @@ impl<'b, F: Field> Analyzable<F> {
             usable_rows: 0..usable_rows,
             #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
             current_phase: FirstPhase.to_sealed(),
-            constants: vec![],
         };
 
         ConcreteCircuit::FloorPlanner::synthesize(&mut analyzable, circuit, config, constants)?;

@@ -35,7 +35,6 @@ pub struct Analyzer<F: Field> {
     pub selectors: Vec<Vec<bool>>,
     pub log: Vec<String>,
     pub permutation: HashMap<String, String>,
-    pub constants: Vec<(String,String)>,
     pub instace_cells: HashMap<String, i64>,
     pub counter: u32,
 }
@@ -67,14 +66,6 @@ impl<'b, F: Field> Analyzer<F> {
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
         let (permutation, instace_cells) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
-
-        let mut constants = Vec::new();
-        for constant in analyzable.constants.iter() {
-            let constant_decimal_value = u64::from_str_radix(format!("{:?}",constant.1).strip_prefix("0x").unwrap(), 16).unwrap();
-            let term = format!("(as ff{:?} F)", constant_decimal_value);
-
-            constants.push((format!("A-{:?}-{:?}",constant.0.0.index, constant.0.1),term));
-        }
         
         Ok(Analyzer {
             cs: analyzable.cs,
@@ -85,7 +76,6 @@ impl<'b, F: Field> Analyzer<F> {
             permutation,
             instace_cells,
             counter: 0,
-            constants,
         })
     }
 
@@ -355,27 +345,6 @@ impl<'b, F: Field> Analyzer<F> {
                 NodeType::Advice,
                 neg,
                 NodeType::Advice,
-            );
-            smt::write_assert(
-                &mut printer,
-                term,
-                "0".to_owned(),
-                NodeType::Poly,
-                Operation::Equal,
-            );
-        }
-
-        for constant in &self.constants {
-            smt::write_var(&mut printer, constant.0.to_owned());
-
-            let neg = format!("(ff.neg {})", constant.1);
-            let term = smt::write_term(
-                &mut printer,
-                "add".to_owned(),
-                constant.0.to_owned(),
-                NodeType::Advice,
-                neg,
-                NodeType::Constant,
             );
             smt::write_assert(
                 &mut printer,

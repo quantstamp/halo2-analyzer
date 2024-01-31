@@ -215,9 +215,9 @@ impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
                 |mut region| {
                     config.s.enable(&mut region, 0)?;
 
-                    //region.assign_advice(config.b0, 0, Value::known(self.b0));
+                    region.assign_advice(config.b0, 0, Value::known(self.b0));
 
-                    //region.assign_advice(config.b1, 0, Value::known(self.b1));
+                    region.assign_advice(config.b1, 0, Value::known(self.b1));
 
                     let out = region.assign_advice(
                         
