@@ -4,23 +4,24 @@ use pse_halo2_proofs::plonk::*;
 use pse_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-/// `TwoBitDecompCircuit` is a circuit designed to perform binary decomposition
+/// `TwoBitDecompCircuit` is a circuit designed to perform binary decomposition 
 /// on a two-digit binary number.
-///
+/// 
 /// The circuit takes two binary digits, `b0` and `b1`, and forms a two-bit binary number, denoted as x = b0 + 2*b1.
-///
-/// It uses custom gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the
+/// 
+/// It uses custom gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the 
 /// combined binary number, `x`.
-///
+/// 
 /// # Constraints
-///
+/// 
 /// |   Row   |   b0    |   b1    |   x    |  i  |    s     |
 /// |---------|---------|---------|--------|-----|----------|
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |
-///
+/// 
 /// Gate: b0_binary_check: s*b0*(1-b0)
 /// Gate: b1_binary_check: s*b1*(1-b1)
 /// Gate:        equality: s*(2*b1+b0-x)
+
 
 pub struct TwoBitDecompCircuit<F: PrimeField> {
     b0: F,
@@ -37,6 +38,7 @@ pub struct TwoBitDecompCircuitConfig {
     s: Selector,
 }
 
+
 impl<F: PrimeField> Default for TwoBitDecompCircuit<F> {
     fn default() -> Self {
         TwoBitDecompCircuit {
@@ -45,6 +47,7 @@ impl<F: PrimeField> Default for TwoBitDecompCircuit<F> {
         }
     }
 }
+
 
 impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuit<F> {
     type Config = TwoBitDecompCircuitConfig;
@@ -122,30 +125,39 @@ impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuit<F> {
         Ok(())
     }
 }
-/// `TwoBitDecompCircuitUnderConstrained` is a version of the `TwoBitDecompCircuit` that underconstrains
+/// `TwoBitDecompCircuitUnderConstrained` is a version of the `TwoBitDecompCircuit` that underconstrains 
 /// the circuit for the sake of showcasing an example of an underconstrained circuit.
-///
+/// 
 /// The circuit takes two binary digits, `b0` and `b1`, and forms a two-bit binary number, denoted as x = b0 + 2*b1.
-///
-/// It uses gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the
+/// 
+/// It uses gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the 
 /// combined binary number, `x`. But the gate related to `b1` is missing. Which makes this cuircuit underconstrained.
-///
+/// 
 /// # Constraints
-///
+/// 
 /// |   Row   |   b0    |   b1    |   x    |  i  |    s     | Gate: b0_binary_check | Gate: b1_binary_check | Gate: equality |
 /// |---------|---------|---------|--------|-----|----------|-----------------------|-----------------------|----------------|
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |       s*b0*(1-b0)     |       s*b0*(1-b0)     |  s*(2*b1+b0-x) |
-///
+/// 
 
-#[derive(Default)]
 pub struct TwoBitDecompCircuitUnderConstrained<F: PrimeField> {
-    pub b0: F,
-    pub b1: F,
+    b0: F,
+    b1: F,
 }
 
-impl<F: PrimeField> TwoBitDecompCircuitUnderConstrained<F> {
-    pub fn new(b0: F, b1: F) -> Self {
-        Self { b0, b1 }
+#[derive(Clone)]
+
+pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: PrimeField> {
+    _ph: PhantomData<F>,
+}
+
+
+impl<F: PrimeField> Default for TwoBitDecompCircuitUnderConstrained<F> {
+    fn default() -> Self {
+        TwoBitDecompCircuitUnderConstrained {
+            b0: F::ONE,
+            b1: F::ONE,
+        }
     }
 }
 
@@ -170,13 +182,13 @@ impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
 
         // define gates
         meta.create_gate("b0_binary_check", |meta| {
-            let a = meta.query_advice(b1, Rotation::cur());
+            let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b0 * (1-b0)
             vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("b1_binary_check", |meta| {
-            let a = meta.query_advice(b1, Rotation::cur());
+            let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b1 * (1-b1)
             vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
@@ -206,18 +218,9 @@ impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
                 |mut region| {
                     config.s.enable(&mut region, 0)?;
 
-                    // region.assign_advice(
-                    //     || "b0",
-                    //     config.b0,
-                    //     0,
-                    //     || Value::known(self.b0),
-                    // )?;
-                    // region.assign_advice(
-                    //     || "b1",
-                    //     config.b1,
-                    //     0,
-                    //     || Value::known(self.b1),
-                    // )?;
+                    region.assign_advice(|| "b0", config.b0, 0, || Value::known(self.b0))?;
+
+                    region.assign_advice(|| "b1", config.b1, 0, || Value::known(self.b1))?;
 
                     let out = region.assign_advice(
                         || "x",

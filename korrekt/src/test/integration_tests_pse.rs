@@ -147,7 +147,7 @@ mod tests {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
-                iterations: 1,
+                iterations: 4,
             },
         };
 
@@ -206,7 +206,7 @@ mod tests {
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
         for var in analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 3);
+            specified_instance_cols.insert(var.0.clone(), 1);
         }
 
         let modulus = bn256::fr::MODULUS_STR;
@@ -298,7 +298,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp_pse::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
-            >::new(Fr::from(1),Fr::from(1));
+            >::default();
         let k: u32 = 11;
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -364,7 +364,7 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::Overconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
     #[test]
@@ -468,7 +468,7 @@ mod tests {
             .unwrap()
             .output_status;
         println!("output_status: {:?}", output_status);
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
     #[test]
     fn analyze_underconstrained_single_lookup_test() {
