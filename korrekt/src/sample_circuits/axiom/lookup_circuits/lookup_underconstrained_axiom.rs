@@ -162,11 +162,24 @@ impl<F: PrimeField> FibonacciChip<F> {
                         let t = (|| {
                             b_cell.value().and_then(|a| {
                                 c_cell.value().map(|b| {
-                                    let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();
-                                    let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();
-                                    //let a_val = a.get_lower_32() as u64;
-                                    //let b_val = b.get_lower_32() as u64;
-                                    F::from(a_val ^ b_val)
+                                    let binding = F::ZERO;
+                                    let binding1 = F::ZERO;
+                                    let a_val = match a {
+                                        Assigned::Trivial(f) => f,
+                                        Assigned::Zero => &binding,
+                                        Assigned::Rational(_, _) => &binding1,
+                                    };
+                                    let binding2 = F::ZERO;
+                                    let binding3 = F::ZERO;
+                                    let b_val = match b {
+                                        Assigned::Trivial(f) => f,
+                                        Assigned::Zero => &binding2,
+                                        Assigned::Rational(_, _) => &binding3,
+                                    };
+                                    
+                                    let a_val1 = u64::from_str_radix(format!("{:?}", a_val).strip_prefix("0x").unwrap(), 16).unwrap();
+                                    let b_val1 = u64::from_str_radix(format!("{:?}", b_val).strip_prefix("0x").unwrap(), 16).unwrap();
+                                    F::from(a_val1 ^ b_val1)
                                 })
                             })
                         })();

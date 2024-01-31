@@ -229,7 +229,6 @@ impl<F: PrimeField> FibonacciChip<F> {
                         let t = (|| {
                             b_cell.value().and_then(|a| {
                                 c_cell.value().map(|b| {
-                                    println!("HEREEEEEE: row:{} a: {:?}, b: {:?}",row, a, b);
                                     let binding = F::ZERO;
                                     let binding1 = F::ZERO;
                                     let a_val = match a {
@@ -245,7 +244,6 @@ impl<F: PrimeField> FibonacciChip<F> {
                                         Assigned::Rational(_, _) => &binding3,
                                     };
                                     
-                                    println!("HEREEEEEE: row:{} a_val: {:?}, b_val: {:?}",row, a_val, b_val);
                                     let a_val1 = u64::from_str_radix(format!("{:?}", a_val).strip_prefix("0x").unwrap(), 16).unwrap();
                                     let b_val1 = u64::from_str_radix(format!("{:?}", b_val).strip_prefix("0x").unwrap(), 16).unwrap();
                                     F::from(a_val1 ^ b_val1)

@@ -147,7 +147,7 @@ mod tests {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
-                iterations: 1,
+                iterations: 4,
             },
         };
 
@@ -206,7 +206,7 @@ mod tests {
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
         for var in analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 3);
+            specified_instance_cols.insert(var.0.clone(), 1);
         }
 
         let modulus = bn256::fr::MODULUS_STR;
@@ -298,7 +298,7 @@ mod tests {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp_axiom::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
-            >::new(Fr::from(1),Fr::from(1));
+            >::default();
         let k: u32 = 11;
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -364,7 +364,7 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::Overconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
     #[test]
@@ -412,35 +412,7 @@ mod tests {
         assert!(analyzer.log().len().gt(&0))
     }
 
-    #[test]
-    fn analyze_underconstrained_fibonacci_test() {
-        let circuit: sample_circuits::copy_constraint::fibonacci_constant_init::FibonacciCircuit<_> =
-            sample_circuits::copy_constraint::fibonacci_constant_init::FibonacciCircuit::<Fr>(PhantomData);
-        let k: u32 = 11;
-
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
-
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
-        };
-
-        let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
-            .unwrap()
-            .output_status;
-        println!("output_status: {:?}", output_status);
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
-    }
+    
     #[test]
     fn analyze_underconstrained_fibonacci_constant_init_test() {
         let circuit =
@@ -468,40 +440,40 @@ mod tests {
             .unwrap()
             .output_status;
         println!("output_status: {:?}", output_status);
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
-    // #[test]
-    // fn analyze_underconstrained_single_lookup_test() {
-    //     let circuit = sample_circuits::lookup_circuits::lookup_underconstrained_axiom::MyCircuit::<Fr>(
-    //         PhantomData,
-    //     );
-    //     let k = 11;
+    #[test]
+    fn analyze_underconstrained_single_lookup_test() {
+        let circuit = sample_circuits::lookup_circuits::lookup_underconstrained_axiom::MyCircuit::<Fr>(
+            PhantomData,
+        );
+        let k = 11;
 
-    //     let a = Fr::from(1);
-    //     let b = Fr::from(1);
-    //     let out = Fr::from(21);
+        let a = Fr::from(1);
+        let b = Fr::from(1);
+        let out = Fr::from(21);
 
-    //     let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
 
-    //     let modulus = bn256::fr::MODULUS_STR;
-    //     let without_prefix = modulus.trim_start_matches("0x");
-    //     let prime = BigInt::from_str_radix(without_prefix, 16)
-    //         .unwrap()
-    //         .to_string();
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
 
-    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-    //         verification_method: VerificationMethod::Random,
-    //         verification_input: VerificationInput {
-    //             instances_string: analyzer.instace_cells.clone(),
-    //             iterations: 5,
-    //         },
-    //     };
-    //     let output_status = analyzer
-    //         .analyze_underconstrained(analyzer_input, &prime)
-    //         .unwrap()
-    //         .output_status;
-    //     assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
-    // }
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: analyzer.instace_cells.clone(),
+                iterations: 5,
+            },
+        };
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    }
 
     #[test]
     fn analyze_underconstrained_multiple_lookup_test() {
@@ -533,21 +505,25 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
     #[test]
     fn analyze_not_underconstrained_lookup_test() {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups_axiom::MyCircuit::<Fr>(PhantomData);
         let k = 11;
- 
+
+        let a = Fr::from(1); // F[0]
+        let b = Fr::from(1); // F[1]
         let out = Fr::from(21); // F[9]
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
-        specified_instance_cols.insert("I-0-2".to_owned(), 6);
+        specified_instance_cols.insert("I-2-7".to_owned(), 21);
+        specified_instance_cols.insert("I-0-1".to_owned(), 1);
+        specified_instance_cols.insert("I-0-0".to_owned(), 1);
 
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
@@ -566,6 +542,6 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 }

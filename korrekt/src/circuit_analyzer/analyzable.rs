@@ -175,16 +175,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
                     .get_mut(column.index())
                     .and_then(|v| v.get_mut(row))
                     .expect("bounds failure");
-                
-                match to {
-                    Assigned::Trivial(f) => {
-                        self.constants.push(((column,row),f));
-                    },
-                    Assigned::Zero => {
-                        self.constants.push(((column,row),F::ZERO));
-                    },
-                    Assigned::Rational(_, _) => (),  
-                }
+
                 let val = Arc::new(to);
                 let val_ref = Arc::downgrade(&val);
                 *value = AdviceCellValue::Assigned(val);
