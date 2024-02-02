@@ -4,8 +4,6 @@ use std::{
 };
 
 use super::halo2_proofs_libs::*;
-use std::sync::Arc;
-
 
 #[derive(Debug)]
 pub struct Analyzable<F: Field> {
@@ -18,10 +16,6 @@ pub struct Analyzable<F: Field> {
     pub current_region: Option<Region>,
     // The fixed cells in the circuit, arranged as [column][row].
     pub fixed: Vec<Vec<CellValue<F>>>,
-    #[cfg(feature = "use_axiom_halo2_proofs")]
-    advice: Vec<Vec<AdviceCellValue<F>>>,
-    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
-    advice: Vec<Vec<CellValue<F>>>,
     // The advice cells in the circuit, arranged as [column][row].
     pub selectors: Vec<Vec<bool>>,
     pub permutation: permutation::keygen::Assembly,
@@ -133,20 +127,6 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
                 region.cells.push((column.into(), row));
             }
         }
-        match to().into_field().evaluate().assign() {
-            Ok(to) => {
-                
-                let value = self
-                    .advice
-                    .get_mut(column.index())
-                    .and_then(|v| v.get_mut(row))
-                    .expect("bounds failure");
-                *value = CellValue::Assigned(to);
-            }
-            Err(err) => {
-                return Ok(());
-            }
-        }
 
         Ok(())
     }
@@ -168,28 +148,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
                 .and_modify(|count| *count += 1)
                 .or_default();
         }
-        match to.assign() {
-            Ok(to) => {
-                let value = self
-                    .advice
-                    .get_mut(column.index())
-                    .and_then(|v| v.get_mut(row))
-                    .expect("bounds failure");
-
-                let val = Arc::new(to);
-                let val_ref = Arc::downgrade(&val);
-                *value = AdviceCellValue::Assigned(val);
-                circuit::Value::known(unsafe { &*val_ref.as_ptr() })
-                //}
-            }
-            Err(err) => {
-                // Propagate `assign` error if the column is in current phase.
-                if self.in_phase(column.column_type().phase) {
-                    panic!("{:?}", err);
-                }
-                circuit::Value::unknown()
-            }
-        }
+        circuit::Value::unknown()
     }
     #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
     fn assign_fixed<V, VR, A, AR>(
@@ -394,40 +353,12 @@ impl<'b, F: Field> Analyzable<F> {
         let permutation = permutation::keygen::Assembly::new(n, &cs.permutation);
         let constants = cs.constants.clone();
 
-        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_zcash_halo2_proofs",))]
-        let advice = vec![
-            {
-                let mut column = vec![CellValue::<F>::Unassigned; n];
-                // Poison unusable rows.
-                for (i, cell) in column.iter_mut().enumerate().skip(usable_rows) {
-                    *cell = CellValue::Poison(i);
-                }
-                column
-            };
-            cs.num_advice_columns
-        ];
-        #[cfg(feature = "use_axiom_halo2_proofs",)]
-        let advice = vec![
-            {
-                // let mut column = vec![AdviceCellValue::Unassigned; n];
-                // Assign advice to 0 by default so we can have gates that query unassigned rotations to minimize number of distinct rotation sets, for SHPLONK optimization
-                let mut column =
-                    vec![AdviceCellValue::Assigned(Arc::new(Assigned::Trivial(F::ZERO))); n];
-                // Poison unusable rows.
-                for (i, cell) in column.iter_mut().enumerate().skip(usable_rows) {
-                    *cell = AdviceCellValue::Poison(i);
-                }
-                column
-            };
-            cs.num_advice_columns
-        ];
         let mut analyzable = Analyzable {
             k,
             cs,
             regions: vec![],
             current_region: None,
             fixed,
-            advice,//: Vec::new(),
             selectors,
             permutation,
             usable_rows: 0..usable_rows,
