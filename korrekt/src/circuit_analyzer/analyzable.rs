@@ -5,7 +5,6 @@ use std::{
 
 use super::halo2_proofs_libs::*;
 
-
 #[derive(Debug)]
 pub struct Analyzable<F: Field> {
     pub k: u32,
@@ -22,13 +21,12 @@ pub struct Analyzable<F: Field> {
     pub permutation: permutation::keygen::Assembly,
     // A range of available rows for assignment and copies.
     pub usable_rows: Range<usize>,
-    #[cfg(feature = "use_pse_halo2_proofs")]
+    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
     current_phase: sealed::Phase,
 }
 
 impl<F: Field> Assignment<F> for Analyzable<F> {
-
-    #[cfg(feature = "use_pse_halo2_proofs")]
+    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
     fn enter_region<NR, N>(&mut self, name: N)
     where
         NR: Into<String>,
@@ -36,10 +34,8 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
     {
 
         assert!(self.current_region.is_none());
+
         
-        if !self.in_phase(FirstPhase) {
-            return;
-        }
         self.current_region = Some(Region {
             name: name().into(),
             columns: HashSet::default(),
@@ -48,8 +44,10 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
             enabled_selectors: HashMap::default(),
             cells: HashMap::default(),
         });
+
+
     }
-    #[cfg(feature = "use_zcash_halo2_proofs")]
+    #[cfg(any(feature = "use_zcash_halo2_proofs"))]
     fn enter_region<NR, N>(&mut self, name: N)
     where
         NR: Into<String>,
@@ -88,7 +86,6 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
             .entry(*selector)
             .or_default()
             .push(row);
-
         self.selectors[selector.0][row] = true;
 
         Ok(())
@@ -96,12 +93,12 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
 
     fn query_instance(
         &self,
-        column: Column<Instance>,
-        row: usize,
+        _column: Column<Instance>,
+        _row: usize,
     ) -> Result<circuit::Value<F>, Error> {
         Ok(Value::unknown())
     }
-
+    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
     fn assign_advice<V, VR, A, AR>(
         &mut self,
         _: A,
@@ -115,6 +112,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
         A: FnOnce() -> AR,
         AR: Into<String>,
     {
+
         if let Some(region) = self.current_region.as_mut() {
             region.update_extent(column.into(), row);
             #[cfg(feature = "use_pse_halo2_proofs")]
@@ -132,7 +130,27 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
 
         Ok(())
     }
+    #[cfg(feature = "use_axiom_halo2_proofs")]
+    fn assign_advice<'v>(
+        //<V, VR, A, AR>(
+        &mut self,
+        //_: A,
+        column: Column<Advice>,
+        row: usize,
+        to: circuit::Value<Assigned<F>>,
+    ) -> circuit::Value<&'v Assigned<F>> {
 
+        if let Some(region) = self.current_region.as_mut() {
+            region.update_extent(column.into(), row);
+            region
+                .cells
+                .entry((column.into(), row))
+                .and_modify(|count| *count += 1)
+                .or_default();
+        }
+        circuit::Value::unknown()
+    }
+    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
     fn assign_fixed<V, VR, A, AR>(
         &mut self,
         _: A,
@@ -169,7 +187,33 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
 
         Ok(())
     }
+    #[cfg(feature = "use_axiom_halo2_proofs")]
+    fn assign_fixed(&mut self, column: Column<Fixed>, row: usize, to: Assigned<F>) {
 
+        assert!(
+            self.usable_rows.contains(&row),
+            "row={}, usable_rows={:?}, k={}",
+            row,
+            self.usable_rows,
+            self.k,
+        );
+
+        if let Some(region) = self.current_region.as_mut() {
+            region.update_extent(column.into(), row);
+            region
+                .cells
+                .entry((column.into(), row))
+                .and_modify(|count| *count += 1)
+                .or_default();
+        }
+
+        *self
+            .fixed
+            .get_mut(column.index())
+            .and_then(|v| v.get_mut(row))
+            .expect("bounds failure") = CellValue::Assigned(to.evaluate());
+    }
+    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
     fn copy(
         &mut self,
         left_column: Column<Any>,
@@ -180,11 +224,34 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
         if !self.usable_rows.contains(&left_row) || !self.usable_rows.contains(&right_row) {
             return Err(Error::not_enough_rows_available(self.k));
         }
-
         self.permutation
             .copy(left_column, left_row, right_column, right_row)
     }
+    #[cfg(feature = "use_axiom_halo2_proofs")]
+    fn copy(
+        &mut self,
+        left_column: Column<Any>,
+        left_row: usize,
+        right_column: Column<Any>,
+        right_row: usize,
+    ) {
+        if !self.in_phase(FirstPhase) {
+            return;
+        }
 
+        assert!(
+            self.usable_rows.contains(&left_row) && self.usable_rows.contains(&right_row),
+            "left_row={}, right_row={}, usable_rows={:?}, k={}",
+            left_row,
+            right_row,
+            self.usable_rows,
+            self.k,
+        );
+        self.permutation
+            .copy(left_column, left_row, right_column, right_row)
+            .unwrap_or_else(|err| panic!("{err:?}"))
+    }
+    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
     fn fill_from_row(
         &mut self,
         col: Column<Fixed>,
@@ -201,6 +268,31 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
 
         Ok(())
     }
+    #[cfg(feature = "use_axiom_halo2_proofs")]
+    fn fill_from_row(
+        &mut self,
+        col: Column<Fixed>,
+        from_row: usize,
+        to: circuit::Value<Assigned<F>>,
+    ) -> Result<(), Error> {
+        if !self.in_phase(FirstPhase) {
+            return Ok(());
+        }
+
+        assert!(
+            self.usable_rows.contains(&from_row),
+            "row={}, usable_rows={:?}, k={}",
+            from_row,
+            self.usable_rows,
+            self.k,
+        );
+
+        for row in self.usable_rows.clone().skip(from_row) {
+            self.assign_fixed(col, row, to.assign()?);
+        }
+
+        Ok(())
+    }
 
     fn push_namespace<NR, N>(&mut self, _: N)
     where
@@ -210,7 +302,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
     }
 
     fn pop_namespace(&mut self, _: Option<String>) {}
-    #[cfg(feature = "use_pse_halo2_proofs")]
+    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
     fn annotate_column<A, AR>(&mut self, annotation: A, column: Column<Any>)
     where
         A: FnOnce() -> AR,
@@ -226,16 +318,16 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
                 .insert(ColumnMetadata::from(column), annotation().into());
         }
     }
-    #[cfg(feature = "use_pse_halo2_proofs")]
+    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
     fn get_challenge(&self, challenge: Challenge) -> Value<F> {
-        todo!()
+        Value::unknown()
     }
     
 }
 
 
 impl<'b, F: Field> Analyzable<F> {
-    #[cfg(feature = "use_pse_halo2_proofs")]
+    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
     fn in_phase<P: Phase>(&self, phase: P) -> bool {
         self.current_phase == phase.to_sealed()
     }
@@ -270,7 +362,7 @@ impl<'b, F: Field> Analyzable<F> {
             selectors,
             permutation,
             usable_rows: 0..usable_rows,
-            #[cfg(feature = "use_pse_halo2_proofs")]
+            #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
             current_phase: FirstPhase.to_sealed(),
         };
 
@@ -289,7 +381,8 @@ impl<'b, F: Field> Analyzable<F> {
                 }
                 v
             }));
-
         Ok(analyzable)
     }
+
+    
 }

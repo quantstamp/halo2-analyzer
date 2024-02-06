@@ -12,3 +12,6 @@ zcash_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/zcash-halo2.gi
 
 [patch."https://github.com/privacy-scaling-explorations/halo2.git"]
 pse_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/pse-halo2.git", package = "halo2_proofs"}
+
+[patch."https://github.com/axiom-crypto/halo2.git"]
+axiom_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/axiom-halo2.git", package = "halo2-axiom"}

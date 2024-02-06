@@ -1,7 +1,7 @@
-use group::ff::PrimeField as Field;
-use zcash_halo2_proofs::circuit::*;
-use zcash_halo2_proofs::plonk::*;
-use zcash_halo2_proofs::poly::Rotation;
+use group::ff::{Field, PrimeField};
+use axiom_halo2_proofs::circuit::*;
+use axiom_halo2_proofs::plonk::*;
+use axiom_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
 /// `TwoBitDecompCircuit` is a circuit designed to perform binary decomposition 
@@ -23,7 +23,7 @@ use std::marker::PhantomData;
 /// Gate:        equality: s*(2*b1+b0-x)
 
 
-pub struct TwoBitDecompCircuit<F: Field> {
+pub struct TwoBitDecompCircuit<F: PrimeField> {
     b0: F,
     b1: F,
 }
@@ -39,7 +39,7 @@ pub struct TwoBitDecompCircuitConfig {
 }
 
 
-impl<F: Field> Default for TwoBitDecompCircuit<F> {
+impl<F: PrimeField> Default for TwoBitDecompCircuit<F> {
     fn default() -> Self {
         TwoBitDecompCircuit {
             b0: F::ONE,
@@ -49,7 +49,7 @@ impl<F: Field> Default for TwoBitDecompCircuit<F> {
 }
 
 
-impl<F: Field> Circuit<F> for TwoBitDecompCircuit<F> {
+impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuit<F> {
     type Config = TwoBitDecompCircuitConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -72,13 +72,13 @@ impl<F: Field> Circuit<F> for TwoBitDecompCircuit<F> {
             let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b0 * (1-b0)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(b1, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b1 * (1-b1)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("equality", |meta| {
             let a = meta.query_advice(b0, Rotation::cur());
@@ -105,23 +105,23 @@ impl<F: Field> Circuit<F> for TwoBitDecompCircuit<F> {
                 |mut region| {
                     config.s.enable(&mut region, 0)?;
 
-                    region.assign_advice(|| "b0", config.b0, 0, || Value::known(self.b0))?;
+                    region.assign_advice( config.b0, 0, Value::known(self.b0));
 
-                    region.assign_advice(|| "b1", config.b1, 0, || Value::known(self.b1))?;
+                    region.assign_advice(config.b1, 0, Value::known(self.b1));
 
                     let out = region.assign_advice(
-                        || "x",
+                       
                         config.x,
                         0,
-                        || Value::known(self.b0 + F::from(2) * self.b1),
-                    )?;
+                        Value::known(self.b0 + F::from(2) * self.b1),
+                    );
 
                     Ok(out)
                 },
             )
             .unwrap();
         // expose the public input
-        layouter.constrain_instance(out.cell(), config.i, 0)?;
+        layouter.constrain_instance(out.cell(), config.i, 0);
         Ok(())
     }
 }
@@ -140,18 +140,19 @@ impl<F: Field> Circuit<F> for TwoBitDecompCircuit<F> {
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |       s*b0*(1-b0)     |       s*b0*(1-b0)     |  s*(2*b1+b0-x) |
 /// 
 
-pub struct TwoBitDecompCircuitUnderConstrained<F: Field> {
+pub struct TwoBitDecompCircuitUnderConstrained<F: PrimeField> {
     b0: F,
     b1: F,
 }
 
 #[derive(Clone)]
 
-pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: Field> {
+pub struct TwoBitDecompCircuitUnderConstrainedConfig<F: PrimeField> {
     _ph: PhantomData<F>,
 }
 
-impl<F: Field> Default for TwoBitDecompCircuitUnderConstrained<F> {
+
+impl<F: PrimeField> Default for TwoBitDecompCircuitUnderConstrained<F> {
     fn default() -> Self {
         TwoBitDecompCircuitUnderConstrained {
             b0: F::ONE,
@@ -161,8 +162,7 @@ impl<F: Field> Default for TwoBitDecompCircuitUnderConstrained<F> {
 }
 
 
-
-impl<F: Field> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
+impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
     type Config = TwoBitDecompCircuitConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -185,13 +185,13 @@ impl<F: Field> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
             let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b0 * (1-b0)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("b1_binary_check", |meta| {
             let a = meta.query_advice(b0, Rotation::cur());
             let dummy = meta.query_selector(s);
             // b1 * (1-b1)
-            vec![dummy * a.clone() * (Expression::Constant(F::from(1)) - a)]
+            vec![dummy * a.clone() * (Expression::Constant(F::ONE) - a)]
         });
         meta.create_gate("equality", |meta| {
             let a = meta.query_advice(b0, Rotation::cur());
@@ -218,23 +218,22 @@ impl<F: Field> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
                 |mut region| {
                     config.s.enable(&mut region, 0)?;
 
-                    region.assign_advice(|| "b0", config.b0, 0, || Value::known(self.b0))?;
+                    region.assign_advice( config.b0, 0, Value::known(self.b0));
 
-                    region.assign_advice(|| "b1", config.b1, 0, || Value::known(self.b1))?;
+                    region.assign_advice( config.b1, 0, Value::known(self.b1));
 
                     let out = region.assign_advice(
-                        || "x",
                         config.x,
                         0,
-                        || Value::known(self.b0 + F::from(2) * self.b1),
-                    )?;
+                        Value::known(self.b0 + F::from(2) * self.b1),
+                    );
 
                     Ok(out)
                 },
             )
             .unwrap();
         // expose the public input
-        layouter.constrain_instance(out.cell(), config.i, 0)?;
+        layouter.constrain_instance(out.cell(), config.i, 0);
         Ok(())
     }
 }

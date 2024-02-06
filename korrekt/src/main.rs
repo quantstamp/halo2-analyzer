@@ -1,26 +1,20 @@
 use std::marker::PhantomData;
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use halo2curves::bn256;
-#[cfg(feature = "use_zcash_halo2_proofs")]
-use zcash_halo2_proofs::pasta::Fp as Fr;
-
-
-#[cfg(feature = "use_pse_halo2_proofs")]
-use pse_halo2_proofs::halo2curves::bn256::Fr;
-#[cfg(feature = "use_pse_halo2_proofs")]
-use halo2curves::bn256;
 #[cfg(feature = "use_pse_halo2_proofs")]
 use korrekt::sample_circuits::pse as sample_circuits;
 #[cfg(feature = "use_zcash_halo2_proofs")]
 use korrekt::sample_circuits::zcash as sample_circuits;
+#[cfg(feature = "use_axiom_halo2_proofs")]
+use korrekt::sample_circuits::axiom as sample_circuits;
+
+use crate::circuit_analyzer::halo2_proofs_libs::*;
 
 use anyhow::{Context, Ok, Result};
 use korrekt::{circuit_analyzer, io};
 use num::{BigInt, Num};
 
 fn main() -> Result<(), anyhow::Error> {
-    let circuit: sample_circuits::copy_constraint::fibonacci::FibonacciCircuit<_> =
-        sample_circuits::copy_constraint::fibonacci::FibonacciCircuit::<Fr>(PhantomData);
+    let circuit =
+        sample_circuits::copy_constraint::fibonacci_constant_init::FibonacciCircuit::<Fr>(PhantomData);
     let k: u32 = 5;
     
     let mut analyzer = circuit_analyzer::analyzer::Analyzer::new(&circuit,k).unwrap();//,vec![public_input]).unwrap();

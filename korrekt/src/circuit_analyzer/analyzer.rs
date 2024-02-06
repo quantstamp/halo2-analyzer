@@ -66,7 +66,7 @@ impl<'b, F: Field> Analyzer<F> {
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
         let (permutation, instace_cells) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
-
+        
         Ok(Analyzer {
             cs: analyzable.cs,
             regions: analyzable.regions,
@@ -180,7 +180,7 @@ impl<'b, F: Field> Analyzer<F> {
             let row_num = (region_end - region_begin + 1) as i32;
             let mut used;
             for cell in region.cells.clone() {
-                #[cfg(feature = "use_pse_halo2_proofs")]
+                #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
                 let (reg_column, rotation) = (cell.0 .0, cell.1);
                 #[cfg(feature = "use_zcash_halo2_proofs")]
                 let (reg_column, rotation) = (cell.0, cell.1);
@@ -250,7 +250,7 @@ impl<'b, F: Field> Analyzer<F> {
                                 'I'
                             }
                         };
-                        #[cfg(feature = "use_pse_halo2_proofs")]
+                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
                         let left_column_abr = match left_cell.column_type() {
                             Any::Advice(_) => 'A',
                             Any::Fixed => 'F',
@@ -279,7 +279,7 @@ impl<'b, F: Field> Analyzer<F> {
                                 'I'
                             }
                         };
-                        #[cfg(feature = "use_pse_halo2_proofs")]
+                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
                         let right_column_abr = match right_cell.column_type() {
                             Any::Advice(_) => 'A',
                             Any::Fixed => 'F',
@@ -550,7 +550,7 @@ impl<'b, F: Field> Analyzer<F> {
                 );
                 (term, NodeType::Scaled)
             }
-            #[cfg(feature = "use_pse_halo2_proofs")]
+            #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
             Expression::Challenge(_poly) => {
                 ("".to_string(),NodeType::Fixed)
             }
@@ -565,6 +565,7 @@ impl<'b, F: Field> Analyzer<F> {
         &'b mut self,
         printer: &mut smt::Printer<File>,
     ) -> Result<(), anyhow::Error> {
+        //print!("regions: {:?}",self.regions);
         if !self.regions.is_empty() {
             for region in &self.regions {
                 if !region.enabled_selectors.is_empty() {
