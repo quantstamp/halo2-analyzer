@@ -36,6 +36,7 @@ pub struct Analyzer<F: Field> {
     pub log: Vec<String>,
     pub permutation: HashMap<String, String>,
     pub instace_cells: HashMap<String, i64>,
+    pub cell_to_cycle_head: HashMap<String, String>,
     pub counter: u32,
 }
 #[derive(Debug)]
@@ -64,7 +65,7 @@ impl<'b, F: Field> Analyzer<F> {
         k: u32,
     ) -> Result<Self, Error> {
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
-        let (permutation, instace_cells) =
+        let (permutation, instace_cells,cell_to_cycle_head) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
 
         Ok(Analyzer {
@@ -75,6 +76,7 @@ impl<'b, F: Field> Analyzer<F> {
             log: Vec::new(),
             permutation,
             instace_cells,
+            cell_to_cycle_head,
             counter: 0,
         })
     }
@@ -229,12 +231,17 @@ impl<'b, F: Field> Analyzer<F> {
 
     pub fn extract_permutations(
         permutation: &permutation::keygen::Assembly,
-    ) -> (HashMap<String, String>, HashMap<String, i64>) {
+    ) -> (HashMap<String, String>, HashMap<String, i64>,HashMap<String, String>,) {
         let mut pairs = HashMap::<String, String>::new();
         let mut instances = HashMap::<String, i64>::new();
+        let mut cycles = Vec::<Vec<String>>::new();
+        let mut num_of_cycles = 0;
+        let mut cell_to_cycle_head = HashMap::<String, String>::new();
         for col in 0..permutation.sizes.len() {
             for row in 0..permutation.sizes[col].len() {
                 if permutation.sizes[col][row] > 1 {
+                    let mut cycle = Vec::<String>::new();
+                    num_of_cycles = num_of_cycles + 1;
                     let mut cycle_length = permutation.sizes[col][row];
                     let mut cycle_col = col;
                     let mut cycle_row = row;
@@ -296,15 +303,26 @@ impl<'b, F: Field> Analyzer<F> {
                         if is_instance {
                             instances.insert(right.clone(), 0);
                         }
-                        pairs.insert(left, right);
+                        pairs.insert(left.clone(), right.clone());
+
+                        if cycle.is_empty() {
+                            cycle.push(left.clone());
+                        }
+                        cycle.push(right.clone());
+                        if is_instance {
+                            cell_to_cycle_head.insert(left.clone(), right);
+                        } else {
+                            cell_to_cycle_head.insert(right, left);
+                        }
                         cycle_col = right_cell_col;
                         cycle_row = right_cell_row;
                         cycle_length -= 1;
                     }
+                    cycles.push(cycle);
                 }
             }
         }
-        (pairs, instances)
+        (pairs, instances,cell_to_cycle_head)
     }
 
     /// Analyzes underconstrained circuits and generates an analyzer output.
@@ -334,14 +352,31 @@ impl<'b, F: Field> Analyzer<F> {
         };
 
         for permutation in &self.permutation {
-            smt::write_var(&mut printer, permutation.0.to_owned());
-            smt::write_var(&mut printer, permutation.1.to_owned());
+            let mut permutation0 = permutation.0.to_owned();
+            let mut permutation1 = permutation.1.to_owned();
+            if self
+                .cell_to_cycle_head
+                .contains_key(&permutation.0.to_owned())
+            {
+                permutation0 = self.cell_to_cycle_head[permutation.0].to_owned();
+            }
 
-            let neg = format!("(ff.neg {})", permutation.1);
+            smt::write_var(&mut printer, permutation0.to_owned());
+            
+            if self
+                .cell_to_cycle_head
+                .contains_key(&permutation.1.to_owned())
+            {
+                permutation1 = self.cell_to_cycle_head[permutation.1].to_owned();
+            } 
+
+            smt::write_var(&mut printer, permutation1.to_owned());
+
+            let neg = format!("(ff.neg {})", permutation1);
             let term = smt::write_term(
                 &mut printer,
                 "add".to_owned(),
-                permutation.0.to_owned(),
+                permutation0.to_owned(),
                 NodeType::Advice,
                 neg,
                 NodeType::Advice,
@@ -404,6 +439,7 @@ impl<'b, F: Field> Analyzer<F> {
         row_num: i32,
         es: &HashMap<Selector, Vec<usize>>,
         fixed: &Vec<Vec<CellValue<F>>>,
+        cell_to_cycle_head: &HashMap<String, String>,
     ) -> (String, NodeType) {
         match &poly {
             Expression::Constant(a) => {
@@ -437,8 +473,12 @@ impl<'b, F: Field> Analyzer<F> {
                     advice_query.column_index,
                     advice_query.rotation.0 + row_num + region_begin as i32
                 );
-                smt::write_var(printer, term.clone());
-                (term, NodeType::Advice)
+                let mut t = term.clone();
+                if cell_to_cycle_head.contains_key(&term) {
+                    t = cell_to_cycle_head[&term.clone()].to_string();
+                }
+                smt::write_var(printer, t.to_string());
+                (t.to_string(), NodeType::Advice)
             }
             Expression::Instance(_instance_query) => ("".to_owned(), NodeType::Instance),
             Expression::Negated(poly) => {
@@ -450,6 +490,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let term = if (matches!(node_type, NodeType::Advice)
                     || matches!(node_type, NodeType::Instance)
@@ -471,6 +512,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let (node_str_right, nodet_type_right) = Self::decompose_expression(
                     b,
@@ -480,6 +522,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let term = smt::write_term(
                     printer,
@@ -500,6 +543,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let (node_str_right, nodet_type_right) = Self::decompose_expression(
                     b,
@@ -509,6 +553,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let term = smt::write_term(
                     printer,
@@ -530,6 +575,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let (node_str_right, nodet_type_right) = Self::decompose_expression(
                     _poly,
@@ -539,6 +585,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let term = smt::write_term(
                     printer,
@@ -580,6 +627,7 @@ impl<'b, F: Field> Analyzer<F> {
                                     i32::try_from(row_num).ok().unwrap(),
                                     &region.enabled_selectors,
                                     &self.fixed,
+                                    &self.cell_to_cycle_head,
                                 );
 
                                 smt::write_assert(
@@ -610,6 +658,7 @@ impl<'b, F: Field> Analyzer<F> {
                                     i32::try_from(row_num).ok().unwrap(),
                                     &region.enabled_selectors,
                                     &self.fixed,
+                                    &self.cell_to_cycle_head,
                                 );
                                 cons_str_vec.push(node_str);
                             }
