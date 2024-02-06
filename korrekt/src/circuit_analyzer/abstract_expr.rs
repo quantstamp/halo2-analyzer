@@ -27,7 +27,7 @@ pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, 
                 };
                 dst.insert((column.into(), advice_query.rotation));
             }
-            #[cfg(feature = "use_pse_halo2_proofs")]
+            #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
             Expression::Advice(advice_query) => {
                 let column = Column {
                     index: advice_query.column_index,
@@ -58,7 +58,6 @@ pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, 
 /// It recursively traverses the expression tree and applies the corresponding evaluation rules to determine the result.
 /// The abstract result can be one of the following: `AbsResult::Zero`, `AbsResult::NonZero`, or `AbsResult::Variable`.
 ///
-#[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",))]
 pub fn eval_abstract<F: Field>(
     expr: &Expression<F>,
     selectors: &HashSet<Selector>,
@@ -127,7 +126,7 @@ pub fn eval_abstract<F: Field>(
                 eval_abstract(expr, selectors,region_begin,region_end,row_num,fixed)
             }
         }
-        #[cfg(feature = "use_pse_halo2_proofs")]
+        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
         Expression::Challenge(_) => todo!(),
     }
 }
