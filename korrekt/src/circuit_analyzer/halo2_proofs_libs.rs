@@ -4,7 +4,7 @@ pub use zcash_halo2_proofs::{
     dev::MockProver,
     circuit::{self, Value,Cell},
     dev::{CellValue, Region},
-    plonk::{Advice, Any, Column, Expression, Selector,permutation, Assigned, Assignment, Circuit, ConstraintSystem, Error,
+    plonk::{Advice, Any, Column, Expression, Selector, permutation, Assigned, Assignment, Circuit, ConstraintSystem, Error,
         Fixed, FloorPlanner, Instance},
     poly::Rotation,
     pasta::Fp as Fr

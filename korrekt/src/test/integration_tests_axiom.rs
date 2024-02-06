@@ -20,13 +20,13 @@ mod tests {
         >::default();
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        let analyzer = Analyzer::new(&circuit, k).unwrap();
 
         assert!(analyzer.cs.gates.len().eq(&3));
         assert!(analyzer.cs.degree().eq(&3));
-        //assert!(analyzer.cs.num_advice_columns().eq(&3));
-        //assert!(analyzer.cs.num_instance_columns().eq(&1));
-        //assert!(analyzer.cs.num_selectors.eq(&1) || analyzer.cs.num_fixed_columns().eq(&1));
+        assert!(analyzer.cs.num_advice_columns().eq(&3));
+        assert!(analyzer.cs.num_instance_columns().eq(&1));
+        assert!(analyzer.cs.num_selectors.eq(&1) || analyzer.cs.num_fixed_columns().eq(&1));
     }
 
     #[test]

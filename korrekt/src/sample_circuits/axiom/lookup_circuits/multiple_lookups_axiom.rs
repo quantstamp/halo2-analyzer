@@ -188,7 +188,6 @@ impl<F: PrimeField> FibonacciChip<F> {
                 self.config.s_range.enable(&mut region, 0)?;
                 self.config.s_range_1.enable(&mut region, 0)?;
                 // assign first row
-                // assign first row
 
                 let a_cell = region.assign_advice(
                     self.config.advice[0],
