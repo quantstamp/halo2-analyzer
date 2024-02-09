@@ -690,7 +690,7 @@ impl<'b, F: Field> Analyzer<F> {
                 result = AnalyzerOutputStatus::Underconstrained;
                 return Ok(result);
             } else {
-                println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+                info!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
             }
             smt::write_pop(printer, 1);
 

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use log::info;
 use std::{collections::HashMap, io};
 
 use crate::io::analyzer_io_type::{
@@ -99,7 +100,7 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
                     println!("The circuit is not under-constrained for this specific input.");
                 }
                 VerificationMethod::Random => {
-                    println!(
+                    info!(
                         "The circuit is not under-constrained for {} random input(s).",
                         analyzer_input.verification_input.iterations
                     );
