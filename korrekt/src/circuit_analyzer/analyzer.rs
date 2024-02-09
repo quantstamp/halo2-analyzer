@@ -353,31 +353,31 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         };
 
         for permutation in &self.permutation {
-            let mut permutation0 = permutation.0.to_owned();
-            let mut permutation1 = permutation.1.to_owned();
+            let mut permutation_r = permutation.0.to_owned();
+            let mut permutation_l = permutation.1.to_owned();
             if self
                 .cell_to_cycle_head
                 .contains_key(&permutation.0.to_owned())
             {
-                permutation0 = self.cell_to_cycle_head[permutation.0].to_owned();
+                permutation_r = self.cell_to_cycle_head[permutation.0].to_owned();
             }
 
-            smt::write_var(&mut printer, permutation0.to_owned());
+            smt::write_var(&mut printer, permutation_r.to_owned());
             
             if self
                 .cell_to_cycle_head
                 .contains_key(&permutation.1.to_owned())
             {
-                permutation1 = self.cell_to_cycle_head[permutation.1].to_owned();
+                permutation_l = self.cell_to_cycle_head[permutation.1].to_owned();
             } 
 
-            smt::write_var(&mut printer, permutation1.to_owned());
+            smt::write_var(&mut printer, permutation_l.to_owned());
 
-            let neg = format!("(ff.neg {})", permutation1);
+            let neg = format!("(ff.neg {})", permutation_l);
             let term = smt::write_term(
                 &mut printer,
                 "add".to_owned(),
-                permutation0.to_owned(),
+                permutation_r.to_owned(),
                 NodeType::Advice,
                 neg,
                 NodeType::Advice,
