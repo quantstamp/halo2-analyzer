@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
-use super::halo2_proofs_libs::*;
+use log::info;
+use super::{analyzable::AnalyzableField, halo2_proofs_libs::*};
 
 
 use std::{
@@ -24,7 +25,7 @@ use crate::smt_solver::{
 use super::analyzable::Analyzable;
 
 #[derive(Debug)]
-pub struct Analyzer<F: Field> {
+pub struct Analyzer<F: AnalyzableField> {
     pub cs: ConstraintSystem<F>,
     /// The regions in the circuit.
     pub regions: Vec<Region>,
@@ -59,7 +60,7 @@ pub enum Operation {
     Or,
 }
 
-impl<'b, F: Field> Analyzer<F> {
+impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn new<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
         k: u32,
@@ -182,7 +183,7 @@ impl<'b, F: Field> Analyzer<F> {
             let row_num = (region_end - region_begin + 1) as i32;
             let mut used;
             for cell in region.cells.clone() {
-                #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
+                #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_pse_v1_halo2_proofs"))]
                 let (reg_column, rotation) = (cell.0 .0, cell.1);
                 #[cfg(feature = "use_zcash_halo2_proofs")]
                 let (reg_column, rotation) = (cell.0, cell.1);
@@ -248,7 +249,7 @@ impl<'b, F: Field> Analyzer<F> {
                     while cycle_length > 1 {
                         let mut is_instance: bool = false;
                         let left_cell = permutation.columns[cycle_col];
-                        #[cfg(feature = "use_zcash_halo2_proofs")]
+                        #[cfg(any(feature = "use_zcash_halo2_proofs",feature = "use_pse_v1_halo2_proofs",))]
                         let left_column_abr = match left_cell.column_type() {
                             Any::Advice => 'A',
                             Any::Fixed => 'F',
@@ -277,7 +278,7 @@ impl<'b, F: Field> Analyzer<F> {
                         let (right_cell_col, right_cell_row) =
                             permutation.mapping[cycle_col][cycle_row];
                         let right_cell = permutation.columns[right_cell_col];
-                        #[cfg(feature = "use_zcash_halo2_proofs")]
+                        #[cfg(any(feature = "use_zcash_halo2_proofs",feature = "use_pse_v1_halo2_proofs",))]
                         let right_column_abr = match right_cell.column_type() {
                             Any::Advice => 'A',
                             Any::Fixed => 'F',
@@ -612,7 +613,6 @@ impl<'b, F: Field> Analyzer<F> {
         &'b mut self,
         printer: &mut smt::Printer<File>,
     ) -> Result<(), anyhow::Error> {
-        //print!("regions: {:?}",self.regions);
         if !self.regions.is_empty() {
             for region in &self.regions {
                 if !region.enabled_selectors.is_empty() {
@@ -785,9 +785,9 @@ impl<'b, F: Field> Analyzer<F> {
                 return Ok(result); // We can just break here.
             }
 
-            println!("Model {} to be checked:", i);
+            info!("Model {} to be checked:", i);
             for r in &model.result {
-                println!("{} : {}", r.1.name, r.1.value.element)
+                info!("{} : {}", r.1.name, r.1.value.element)
             }
 
             // Imitate the creation of a new solver by utilizing the stack functionality of solver
@@ -856,14 +856,14 @@ impl<'b, F: Field> Analyzer<F> {
                 Self::solve_and_get_model(smt_file_path.clone(), &variables)
                     .context("Failed to solve and get model!")?;
             if matches!(model_with_constraint.sat, Satisfiability::Satisfiable) {
-                println!("Equivalent model for the same public input:");
+                info!("Equivalent model for the same public input:");
                 for r in &model_with_constraint.result {
-                    println!("{} : {}", r.1.name, r.1.value.element)
+                    info!("{} : {}", r.1.name, r.1.value.element)
                 }
                 result = AnalyzerOutputStatus::Underconstrained;
                 return Ok(result);
             } else {
-                println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+                info!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
             }
             smt::write_pop(printer, 1);
 

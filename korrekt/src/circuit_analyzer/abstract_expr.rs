@@ -1,4 +1,4 @@
-use super::halo2_proofs_libs::*;
+use super::{analyzable::AnalyzableField, halo2_proofs_libs::*};
 
 use std::collections::HashSet;
 
@@ -58,7 +58,7 @@ pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, 
 /// It recursively traverses the expression tree and applies the corresponding evaluation rules to determine the result.
 /// The abstract result can be one of the following: `AbsResult::Zero`, `AbsResult::NonZero`, or `AbsResult::Variable`.
 ///
-pub fn eval_abstract<F: Field>(
+pub fn eval_abstract<F: AnalyzableField>(
     expr: &Expression<F>,
     selectors: &HashSet<Selector>,
     region_begin: usize,

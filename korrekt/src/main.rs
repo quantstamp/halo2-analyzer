@@ -5,6 +5,8 @@ use korrekt::sample_circuits::pse as sample_circuits;
 use korrekt::sample_circuits::zcash as sample_circuits;
 #[cfg(feature = "use_axiom_halo2_proofs")]
 use korrekt::sample_circuits::axiom as sample_circuits;
+#[cfg(feature = "use_pse_v1_halo2_proofs")]
+use korrekt::sample_circuits::pse_v1 as sample_circuits;
 
 use crate::circuit_analyzer::halo2_proofs_libs::*;
 
@@ -13,8 +15,9 @@ use korrekt::{circuit_analyzer, io};
 use num::{BigInt, Num};
 
 fn main() -> Result<(), anyhow::Error> {
+    const ROWS: usize = 6;
     let circuit =
-        sample_circuits::copy_constraint::fibonacci_constant_init::FibonacciCircuit::<Fr>(PhantomData);
+        sample_circuits::copy_constraint::fibonacci_for_bench::FibonacciCircuit::<Fr,ROWS>(PhantomData);
     let k: u32 = 5;
     
     let mut analyzer = circuit_analyzer::analyzer::Analyzer::new(&circuit,k).unwrap();//,vec![public_input]).unwrap();
