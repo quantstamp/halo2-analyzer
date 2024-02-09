@@ -16,12 +16,12 @@ pub struct FibonacciConfig {
 }
 
 #[derive(Debug, Clone)]
-struct FibonacciChip<F: PrimeField + Field> {
+struct FibonacciChip<F: FieldExt> {
     config: FibonacciConfig,
     _marker: PhantomData<F>,
 }
 
-impl<F: PrimeField + Field> FibonacciChip<F> {
+impl<F: FieldExt> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
         Self {
             config,
@@ -261,7 +261,7 @@ impl<F: PrimeField + Field> FibonacciChip<F> {
 #[derive(Default)]
 pub struct MyCircuit<F>(pub PhantomData<F>);
 
-impl<F: PrimeField + Field> Circuit<F> for MyCircuit<F> {
+impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
     type Config = FibonacciConfig;
     type FloorPlanner = SimpleFloorPlanner;
 

@@ -11,10 +11,10 @@ halo2curves = { git = "https://github.com/quantstamp/halo2curves.git",branch = "
 zcash_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/zcash-halo2.git", package = "halo2_proofs"}
 
 # For benchmarks we need comment the first patch and uncomment the second patch
-# [patch."https://github.com/privacy-scaling-explorations/halo2"]
-# pse_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/pse-halo2.git", package = "halo2_proofs"}
-[patch."https://github.com/privacy-scaling-explorations/halo2.git"]
-pse_v1_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/v1-halo2.git", package = "halo2_proofs"}
+[patch."https://github.com/privacy-scaling-explorations/halo2"]
+pse_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/pse-halo2.git", package = "halo2_proofs"}
+# [patch."https://github.com/privacy-scaling-explorations/halo2.git"]
+# pse_v1_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/v1-halo2.git", package = "halo2_proofs"}
 
 [patch."https://github.com/axiom-crypto/halo2.git"]
 axiom_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/axiom-halo2.git", package = "halo2-axiom"}
