@@ -201,6 +201,9 @@ impl<'b, F: Field> Analyzer<F> {
         for cell in eq_table {
             instance_cols_string.insert(cell.0.to_owned(), 0);
         }
+
+        let instance_cols_string_from_region = self.extract_instance_cols_from_region();
+        instance_cols_string.extend(instance_cols_string_from_region);
         instance_cols_string
     }
     /// Extracts instance columns from regions in the layouter.
@@ -790,8 +793,6 @@ impl<'b, F: Field> Analyzer<F> {
             AnalyzerType::UnderconstrainedCircuit => {
                 let mut instance_cols_string =
                     self.extract_instance_cols(self.layouter.eq_table.clone());
-                let instance_cols_string_from_region = self.extract_instance_cols_from_region();
-                instance_cols_string.extend(instance_cols_string_from_region);
                 let analyzer_input: AnalyzerInput =
                     retrieve_user_input_for_underconstrained(&instance_cols_string)
                         .context("Failed to retrieve user input!")?;
