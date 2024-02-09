@@ -5,6 +5,7 @@ use halo2_proofs::{
     dev::CellValue,
     plonk::{Circuit, ConstraintSystem, Expression},
 };
+use log::info;
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -610,9 +611,9 @@ impl<'b, F: Field> Analyzer<F> {
                 return Ok(result); // We can just break here.
             }
 
-            println!("Model {} to be checked:", i);
+            info!("Model {} to be checked:", i);
             for r in &model.result {
-                println!("{} : {}", r.1.name, r.1.value.element)
+                info!("{} : {}", r.1.name, r.1.value.element)
             }
 
             // Imitate the creation of a new solver by utilizing the stack functionality of solver
@@ -679,14 +680,14 @@ impl<'b, F: Field> Analyzer<F> {
                 Self::solve_and_get_model(smt_file_path.clone(), &variables)
                     .context("Failed to solve and get model!")?;
             if matches!(model_with_constraint.sat, Satisfiability::Satisfiable) {
-                println!("Equivalent model for the same public input:");
+                info!("Equivalent model for the same public input:");
                 for r in &model_with_constraint.result {
-                    println!("{} : {}", r.1.name, r.1.value.element)
+                    info!("{} : {}", r.1.name, r.1.value.element)
                 }
                 result = AnalyzerOutputStatus::Underconstrained;
                 return Ok(result);
             } else {
-                println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+                info!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
             }
             smt::write_pop(printer, 1);
 
