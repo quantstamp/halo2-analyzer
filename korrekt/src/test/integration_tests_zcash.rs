@@ -571,6 +571,6 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 }
