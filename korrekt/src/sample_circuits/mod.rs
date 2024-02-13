@@ -4,3 +4,5 @@ pub mod pse;
 pub mod zcash;
 #[cfg(feature = "use_axiom_halo2_proofs")]
 pub mod axiom;
+#[cfg(feature = "use_scroll_halo2_proofs")]
+pub mod scroll;

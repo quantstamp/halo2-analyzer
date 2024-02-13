@@ -1,6 +1,5 @@
-use anyhow::{Context, Result};
 use super::halo2_proofs_libs::*;
-
+use anyhow::{Context, Result};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -66,7 +65,7 @@ impl<'b, F: Field> Analyzer<F> {
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
         let (permutation, instace_cells) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
-        
+
         Ok(Analyzer {
             cs: analyzable.cs,
             regions: analyzable.regions,
@@ -180,7 +179,11 @@ impl<'b, F: Field> Analyzer<F> {
             let row_num = (region_end - region_begin + 1) as i32;
             let mut used;
             for cell in region.cells.clone() {
-                #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+                #[cfg(any(
+                    feature = "use_pse_halo2_proofs",
+                    feature = "use_axiom_halo2_proofs",
+                    feature = "use_scroll_halo2_proofs"
+                ))]
                 let (reg_column, rotation) = (cell.0 .0, cell.1);
                 #[cfg(feature = "use_zcash_halo2_proofs")]
                 let (reg_column, rotation) = (cell.0, cell.1);
@@ -250,7 +253,11 @@ impl<'b, F: Field> Analyzer<F> {
                                 'I'
                             }
                         };
-                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+                        #[cfg(any(
+                            feature = "use_pse_halo2_proofs",
+                            feature = "use_axiom_halo2_proofs",
+                            feature = "use_scroll_halo2_proofs"
+                        ))]
                         let left_column_abr = match left_cell.column_type() {
                             Any::Advice(_) => 'A',
                             Any::Fixed => 'F',
@@ -279,7 +286,11 @@ impl<'b, F: Field> Analyzer<F> {
                                 'I'
                             }
                         };
-                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+                        #[cfg(any(
+                            feature = "use_pse_halo2_proofs",
+                            feature = "use_axiom_halo2_proofs",
+                            feature = "use_scroll_halo2_proofs"
+                        ))]
                         let right_column_abr = match right_cell.column_type() {
                             Any::Advice(_) => 'A',
                             Any::Fixed => 'F',
@@ -407,7 +418,9 @@ impl<'b, F: Field> Analyzer<F> {
     ) -> (String, NodeType) {
         match &poly {
             Expression::Constant(a) => {
-                let constant_decimal_value  = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();
+                let constant_decimal_value =
+                    u64::from_str_radix(format!("{:?}", a).strip_prefix("0x").unwrap(), 16)
+                        .unwrap();
 
                 let term = format!("(as ff{:?} F)", constant_decimal_value);
                 (term, NodeType::Constant)
@@ -425,7 +438,11 @@ impl<'b, F: Field> Analyzer<F> {
 
                 let mut t = 0;
                 if let CellValue::Assigned(fixed_val) = fixed[col][row] {
-                    t = u64::from_str_radix(format!("{:?}",fixed_val).strip_prefix("0x").unwrap(), 16).unwrap();
+                    t = u64::from_str_radix(
+                        format!("{:?}", fixed_val).strip_prefix("0x").unwrap(),
+                        16,
+                    )
+                    .unwrap();
                 }
                 let term = format!("(as ff{:?} F)", t);
 
@@ -551,9 +568,7 @@ impl<'b, F: Field> Analyzer<F> {
                 (term, NodeType::Scaled)
             }
             #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
-            Expression::Challenge(_poly) => {
-                ("".to_string(),NodeType::Fixed)
-            }
+            Expression::Challenge(_poly) => ("".to_string(), NodeType::Fixed),
         }
     }
     /// Decomposes polynomials and writes assertions using an SMT printer.
@@ -595,97 +610,241 @@ impl<'b, F: Field> Analyzer<F> {
                     }
                 }
             }
+        }
 
-            for region in &self.regions {
-                if !region.enabled_selectors.is_empty() {
-                    let (region_begin, region_end) = region.rows.unwrap();
-                    for row_num in 0..region_end - region_begin + 1 {
-                        for lookup in self.cs.lookups.iter() {
-                            let mut cons_str_vec = Vec::new();
-                            #[cfg(any(feature = "use_scroll_halo2_proofs"))]
-                            let lookup_polys = lookup.table_expressions();
-                            #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs"))]
-                            let lookup_polys = &lookup.table_expressions;
-                            for poly in &lookup.table_expressions {
-                                let (node_str, _) = Self::decompose_expression(
-                                    poly,
-                                    printer,
-                                    region_begin,
-                                    region_end,
-                                    i32::try_from(row_num).ok().unwrap(),
-                                    &region.enabled_selectors,
-                                    &self.fixed,
-                                );
-                                cons_str_vec.push(node_str);
-                            }
-                            let mut exit = false;
-                            let mut col_indices = Vec::new();
-                            #[cfg(any(feature = "use_scroll_halo2_proofs"))]
-                            let lookup_colls = lookup.table_expressions();
-                            #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
-                            let lookup_colls = lookup.table_expressions.clone();
-                            for col in lookup.table_expressions.clone() {
-                                if exit {
-                                    break;
-                                }
-                                if let Expression::Fixed(fixed_query) = col {
-                                    col_indices.push(fixed_query.column_index);
-                                }
-                            }
-                            let mut big_cons_str = "".to_owned();
-                            let mut big_cons = vec![];
-                            for row in 0..self.fixed[0].len() {
-                                //*** Iterate over look up table rows */
-                                if exit {
-                                    break;
-                                }
-                                let mut equalities = vec![];
-                                let mut eq_str = String::new();
-                                for col in 0..col_indices.len() {
-                                    //*** Iterate over fixed cols */
-                                    let mut t = String::new();
-                                    match self.fixed[col_indices[col]][row] {
-                                        CellValue::Unassigned => {
-                                            exit = true;
-                                            break;
-                                        }
-                                        CellValue::Assigned(f) => {
-                                            t = format!("{:?}", f);
-                                        }
-                                        CellValue::Poison(_) => {}
-                                    }
-                                    if let CellValue::Assigned(value) =
-                                        self.fixed[col_indices[col]][row]
-                                    {
-                                        t = u64::from_str_radix(format!("{:?}",value).strip_prefix("0x").unwrap(), 16).unwrap().to_string();
+        self.decompose_lookups(printer)
+    }
 
-                                    }
-                                    let sa = smt::get_assert(
-                                        printer,
-                                        cons_str_vec[col].clone(),
-                                        t,
-                                        NodeType::Mult,
-                                        Operation::Equal,
-                                    )
-                                    .context("Failled to generate assert!")?;
-                                    equalities.push(sa);
-                                }
-                                if exit {
-                                    break;
-                                }
-                                for var in equalities.iter() {
-                                    eq_str.push_str(var);
-                                }
-                                let and_eqs = smt::get_and(printer, eq_str);
-
-                                big_cons.push(and_eqs);
-                            }
-                            for var in big_cons.iter() {
-                                big_cons_str.push_str(var);
-                            }
-
-                            smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+    #[cfg(any(
+        feature = "use_zcash_halo2_proofs",
+        feature = "use_pse_halo2_proofs",
+        feature = "use_axiom_halo2_proofs"
+    ))]
+    fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
+        for region in &self.regions {
+            if !region.enabled_selectors.is_empty() {
+                let (region_begin, region_end) = region.rows.unwrap();
+                for row_num in 0..region_end - region_begin + 1 {
+                    for lookup in self.cs.lookups.iter() {
+                        let mut cons_str_vec = Vec::new();
+                        for poly in &lookup.input_expressions {
+                            let (node_str, _) = Self::decompose_expression(
+                                poly,
+                                printer,
+                                region_begin,
+                                region_end,
+                                i32::try_from(row_num).ok().unwrap(),
+                                &region.enabled_selectors,
+                                &self.fixed,
+                            );
+                            cons_str_vec.push(node_str);
                         }
+                        let mut exit = false;
+                        let mut col_indices = Vec::new();
+                        for col in lookup.table_expressions.clone() {
+                            if exit {
+                                break;
+                            }
+                            if let Expression::Fixed(fixed_query) = col {
+                                col_indices.push(fixed_query.column_index);
+                            }
+                        }
+                        let mut big_cons_str = "".to_owned();
+                        let mut big_cons = vec![];
+                        for row in 0..self.fixed[0].len() {
+                            //*** Iterate over look up table rows */
+                            if exit {
+                                break;
+                            }
+                            let mut equalities = vec![];
+                            let mut eq_str = String::new();
+                            for col in 0..col_indices.len() {
+                                //*** Iterate over fixed cols */
+                                let mut t = String::new();
+                                match self.fixed[col_indices[col]][row] {
+                                    CellValue::Unassigned => {
+                                        exit = true;
+                                        break;
+                                    }
+                                    CellValue::Assigned(f) => {
+                                        t = format!("{:?}", f);
+                                    }
+                                    CellValue::Poison(_) => {}
+                                }
+                                if let CellValue::Assigned(value) =
+                                    self.fixed[col_indices[col]][row]
+                                {
+                                    t = u64::from_str_radix(
+                                        format!("{:?}", value).strip_prefix("0x").unwrap(),
+                                        16,
+                                    )
+                                    .unwrap()
+                                    .to_string();
+                                }
+                                let sa = smt::get_assert(
+                                    printer,
+                                    cons_str_vec[col].clone(),
+                                    t,
+                                    NodeType::Mult,
+                                    Operation::Equal,
+                                )
+                                .context("Failled to generate assert!")?;
+                                equalities.push(sa);
+                            }
+                            if exit {
+                                break;
+                            }
+                            for var in equalities.iter() {
+                                eq_str.push_str(var);
+                            }
+                            let and_eqs = smt::get_and(printer, eq_str);
+
+                            big_cons.push(and_eqs);
+                        }
+                        for var in big_cons.iter() {
+                            big_cons_str.push_str(var);
+                        }
+
+                        smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    #[cfg(any(feature = "use_scroll_halo2_proofs"))]
+    fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
+        for region in &self.regions {
+            if !region.enabled_selectors.is_empty() {
+                let (region_begin, region_end) = region.rows.unwrap();
+                for row_num in 0..region_end - region_begin + 1 {
+                    for lookup in &self.cs.lookups_map {
+                        // if (line > 0) {
+                        //     break;
+                        // }
+                        let mut cons_str_vec = Vec::new();
+                        for poly in &lookup.1.inputs {
+                            // if (line > 0) {
+                            //     break;
+                            // }
+                            println!("poly {:?}", poly);
+                            let (node_str, _) = Self::decompose_expression(
+                                &poly[0],
+                                printer,
+                                region_begin,
+                                region_end,
+                                i32::try_from(row_num).ok().unwrap(),
+                                &region.enabled_selectors,
+                                &self.fixed,
+                            );
+                            // println!("node_str {:?}",node_str);
+                            cons_str_vec.push(node_str);
+                        }
+                        let mut exit = false;
+                        //let mut col_indices = Vec::new();
+                        let mut list: Vec<ColumnOrExpression<F>> = Vec::new();
+                        enum ColumnOrExpression<F> {
+                            Index(usize),
+                            Expression(Expression<F>),
+                        }
+                        for col in lookup.1.table.clone() {
+                            println!("col {:?}", col);
+                            if exit {
+                                break;
+                            }
+                            if let Expression::Fixed(fixed_query) = col {
+                                //col_indices.push(fixed_query.column_index);
+                                list.push(ColumnOrExpression::Index(fixed_query.column_index));
+                            } else {
+                                list.push(ColumnOrExpression::Expression(col));
+                                // let (node_str, _) = Self::decompose_expression(
+                                //     &col,
+                                //     printer,
+                                //     region_no,
+                                //     i32::try_from(row_num).ok().unwrap(),
+                                //     &self.layouter.regions[region_no].enabled_selectors,
+                                // );
+                                // println!("node_str {:?}",node_str);
+                                // col_indices.push(node_str);
+                            }
+                        }
+                        let mut big_cons_str = "".to_owned();
+                        let mut big_cons = vec![];
+                        // println!("fixed: {:?}",fixed);
+                        for row in 0..self.fixed[0].len() {
+                            //*** Iterate over look up table rows */
+                            if exit {
+                                break;
+                            }
+                            let mut equalities = vec![];
+                            let mut eq_str = String::new();
+                            // for col in 0..col_indices.len() {
+                            for col in 0..list.len() {
+                                match &list[col] {
+                                    ColumnOrExpression::Index(index) => {
+                                        // Perform the operation for the Index variant
+                                        //println!("Index: {}", index);
+                                        //*** Iterate over fixed cols */
+                                        let mut t = String::new();
+                                        match self.fixed[*index][row] {
+                                            CellValue::Unassigned => {
+                                                exit = true;
+                                                break;
+                                            }
+                                            CellValue::Assigned(f) => {
+                                                t = u64::from_str_radix(
+                                                    format!("{:?}", f).strip_prefix("0x").unwrap(),
+                                                    16,
+                                                )
+                                                .unwrap()
+                                                .to_string(); // format!("{:?}", value);
+                                                              // //value.get_lower_128().
+                                                              // to_string();
+                                            }
+                                            CellValue::Poison(_) => {}
+                                        }
+                                        if let CellValue::Assigned(value) = self.fixed[*index][row] {
+                                            t = u64::from_str_radix(
+                                                format!("{:?}", value).strip_prefix("0x").unwrap(),
+                                                16,
+                                            )
+                                            .unwrap()
+                                            .to_string(); // format!("{:?}", value);
+                                                          // //value.get_lower_128().to_string();
+                                        }
+                                        let sa = smt::get_assert(
+                                            printer,
+                                            cons_str_vec[col].clone(),
+                                            t,
+                                            NodeType::Mult,
+                                            Operation::Equal,
+                                        )
+                                        .context("Failled to generate assert!")?;
+                                        equalities.push(sa);
+                                        // Add your logic for handling Index here
+                                    }
+                                    ColumnOrExpression::Expression(expression) => {
+                                        // Perform the operation for the Expression variant
+                                        //println!("Expression");
+                                        // Add your logic for handling Expression here
+                                    }
+                                }
+                            }
+                            if exit {
+                                break;
+                            }
+                            for var in equalities.iter() {
+                                eq_str.push_str(var);
+                            }
+                            let and_eqs = smt::get_and(printer, eq_str);
+
+                            big_cons.push(and_eqs);
+                        }
+                        for var in big_cons.iter() {
+                            big_cons_str.push_str(var);
+                        }
+
+                        smt::write_assert_bool(printer, big_cons_str, Operation::Or);
                     }
                 }
             }

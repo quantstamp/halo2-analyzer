@@ -7,6 +7,8 @@ edition = "2021"
 zcash_halo2_proofs = { git = "https://github.com/zcash/halo2.git", package = "halo2_proofs", optional = true}
 pse_halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", package = "halo2_proofs" , optional = true}
 axiom_halo2_proofs = { git = "https://github.com/axiom-crypto/halo2.git", package = "halo2-axiom", optional = true}
+# scroll_halo2_proofs = { git = "https://github.com/scroll-tech/halo2.git", package = "halo2_proofs", optional = true}
+scroll_halo2_proofs = { path = "/Users/fatemehheidarisoureshjani/Desktop/QuantStamp/Halo2Analyzer/2024/acroll-halo2/halo2/halo2_proofs", package = "halo2_proofs", optional = true}
 # gadgets = { git = "https://github.com/privacy-scaling-explorations/zkevm-circuits.git", rev = "2783eba338274a52036bf3db7fbc29575e24aa9f", package = "gadgets" } TODO: Decide on how to manage tests on real external circuits
 halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', tag = "0.2.1" }
 
@@ -25,7 +27,9 @@ name = "korrekt"
 path = "src/lib.rs"
 
 [features]
-default = ["use_zcash_halo2_proofs"]
+default = ["use_scroll_halo2_proofs"]
+# default = []
 use_zcash_halo2_proofs = ["zcash_halo2_proofs"]
 use_pse_halo2_proofs = ["pse_halo2_proofs"]
 use_axiom_halo2_proofs = ["axiom_halo2_proofs"]
+use_scroll_halo2_proofs = ["scroll_halo2_proofs"]
