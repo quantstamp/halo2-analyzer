@@ -1,3 +1,4 @@
+use halo2curves::Group;
 use std::{
     collections::{HashMap, HashSet},
     ops::Range,
@@ -5,8 +6,21 @@ use std::{
 
 use super::halo2_proofs_libs::*;
 
+// Conditionally require `Group` based on the presence of a feature flag
+#[cfg(feature = "use_pse_v1_halo2_proofs")]
+pub trait AnalyzableField: Field + Group {}
+#[cfg(not(feature = "use_pse_v1_halo2_proofs"))]
+pub trait AnalyzableField: Field {}
+
+// Since Rust traits cannot have conditional supertraits directly based on cfg attributes,
+// you would still need to ensure that any type implementing `AnalyzableField` meets the necessary bounds:
+#[cfg(feature = "use_pse_v1_halo2_proofs")]
+impl<F: Field + Group> AnalyzableField for F {}
+#[cfg(not(feature = "use_pse_v1_halo2_proofs"))]
+impl<F: Field> AnalyzableField for F {}
+
 #[derive(Debug)]
-pub struct Analyzable<F: Field> {
+pub struct Analyzable<F: AnalyzableField> {
     pub k: u32,
     pub cs: ConstraintSystem<F>,
     /// The regions in the circuit.
@@ -21,12 +35,12 @@ pub struct Analyzable<F: Field> {
     pub permutation: permutation::keygen::Assembly,
     // A range of available rows for assignment and copies.
     pub usable_rows: Range<usize>,
-    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature="use_scroll_halo2_proofs"))]
+    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs", feature="use_scroll_halo2_proofs"))]
     current_phase: sealed::Phase,
 }
 
-impl<F: Field> Assignment<F> for Analyzable<F> {
-    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+impl<F: AnalyzableField> Assignment<F> for Analyzable<F> {
+    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs", feature = "use_pse_v1_halo2_proofs"))]
     fn enter_region<NR, N>(&mut self, name: N)
     where
         NR: Into<String>,
@@ -40,6 +54,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
             name: name().into(),
             columns: HashSet::default(),
             rows: None,
+            #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_pse_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
             annotations: HashMap::default(),
             enabled_selectors: HashMap::default(),
             cells: HashMap::default(),
@@ -100,7 +115,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
     ) -> Result<circuit::Value<F>, Error> {
         Ok(Value::unknown())
     }
-    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",feature = "use_scroll_halo2_proofs", feature = "use_pse_v1_halo2_proofs"))]
     fn assign_advice<V, VR, A, AR>(
         &mut self,
         _: A,
@@ -117,7 +132,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
 
         if let Some(region) = self.current_region.as_mut() {
             region.update_extent(column.into(), row);
-            #[cfg(feature = "use_pse_halo2_proofs")]
+            #[cfg(any(feature = "use_pse_halo2_proofs",feature = "use_pse_v1_halo2_proofs"))]
             region
                 .cells
                 .entry((column.into(), row))
@@ -152,7 +167,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
         }
         circuit::Value::unknown()
     }
-    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",feature = "use_scroll_halo2_proofs", feature = "use_pse_v1_halo2_proofs"))]
     fn assign_fixed<V, VR, A, AR>(
         &mut self,
         _: A,
@@ -172,7 +187,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
 
         if let Some(region) = self.current_region.as_mut() {
             region.update_extent(column.into(), row);
-            #[cfg(feature = "use_pse_halo2_proofs")]
+            #[cfg(any(feature = "use_pse_halo2_proofs",feature = "use_pse_v1_halo2_proofs"))]
             region
                 .cells
                 .entry((column.into(), row))
@@ -215,7 +230,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
             .and_then(|v| v.get_mut(row))
             .expect("bounds failure") = CellValue::Assigned(to.evaluate());
     }
-    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",feature = "use_scroll_halo2_proofs", feature = "use_pse_v1_halo2_proofs"))]
     fn copy(
         &mut self,
         left_column: Column<Any>,
@@ -253,7 +268,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
             .copy(left_column, left_row, right_column, right_row)
             .unwrap_or_else(|err| panic!("{err:?}"))
     }
-    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+    #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs",feature = "use_scroll_halo2_proofs", feature = "use_pse_v1_halo2_proofs"))]
     fn fill_from_row(
         &mut self,
         col: Column<Fixed>,
@@ -304,7 +319,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
     }
 
     fn pop_namespace(&mut self, _: Option<String>) {}
-    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+    #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs", feature = "use_scroll_halo2_proofs"))]
     fn annotate_column<A, AR>(&mut self, annotation: A, column: Column<Any>)
     where
         A: FnOnce() -> AR,
@@ -336,7 +351,7 @@ impl<F: Field> Assignment<F> for Analyzable<F> {
 }
 
 
-impl<'b, F: Field> Analyzable<F> {
+impl<'b, F: AnalyzableField> Analyzable<F> {
     #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
     fn in_phase<P: Phase>(&self, phase: P) -> bool {
         self.current_phase == phase.to_sealed()

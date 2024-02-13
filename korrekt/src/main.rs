@@ -5,6 +5,8 @@ use korrekt::sample_circuits::pse as sample_circuits;
 use korrekt::sample_circuits::zcash as sample_circuits;
 #[cfg(feature = "use_axiom_halo2_proofs")]
 use korrekt::sample_circuits::axiom as sample_circuits;
+#[cfg(feature = "use_pse_v1_halo2_proofs")]
+use korrekt::sample_circuits::pse_v1 as sample_circuits;
 
 use crate::circuit_analyzer::halo2_proofs_libs::*;
 

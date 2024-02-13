@@ -1,4 +1,5 @@
-use super::halo2_proofs_libs::*;
+use log::info;
+use super::{analyzable::AnalyzableField, halo2_proofs_libs::*};
 use anyhow::{Context, Result};
 
 use std::{
@@ -23,7 +24,7 @@ use crate::smt_solver::{
 use super::analyzable::Analyzable;
 
 #[derive(Debug)]
-pub struct Analyzer<F: Field> {
+pub struct Analyzer<F: AnalyzableField> {
     pub cs: ConstraintSystem<F>,
     /// The regions in the circuit.
     pub regions: Vec<Region>,
@@ -35,6 +36,7 @@ pub struct Analyzer<F: Field> {
     pub log: Vec<String>,
     pub permutation: HashMap<String, String>,
     pub instace_cells: HashMap<String, i64>,
+    pub cell_to_cycle_head: HashMap<String, String>,
     pub counter: u32,
 }
 #[derive(Debug)]
@@ -57,13 +59,13 @@ pub enum Operation {
     Or,
 }
 
-impl<'b, F: Field> Analyzer<F> {
+impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn new<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
         k: u32,
     ) -> Result<Self, Error> {
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
-        let (permutation, instace_cells) =
+        let (permutation, instace_cells,cell_to_cycle_head) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
         Ok(Analyzer {
             cs: analyzable.cs,
@@ -73,6 +75,7 @@ impl<'b, F: Field> Analyzer<F> {
             log: Vec::new(),
             permutation,
             instace_cells,
+            cell_to_cycle_head,
             counter: 0,
         })
     }
@@ -181,8 +184,8 @@ impl<'b, F: Field> Analyzer<F> {
                 #[cfg(any(
                     feature = "use_pse_halo2_proofs",
                     feature = "use_axiom_halo2_proofs",
-                    feature = "use_scroll_halo2_proofs"
-                ))]
+                    feature = "use_scroll_halo2_proofs",
+                    feature = "use_pse_v1_halo2_proofs"))]
                 let (reg_column, rotation) = (cell.0 .0, cell.1);
                 #[cfg(feature = "use_zcash_halo2_proofs")]
                 let (reg_column, rotation) = (cell.0, cell.1);
@@ -231,19 +234,24 @@ impl<'b, F: Field> Analyzer<F> {
 
     pub fn extract_permutations(
         permutation: &permutation::keygen::Assembly,
-    ) -> (HashMap<String, String>, HashMap<String, i64>) {
+    ) -> (HashMap<String, String>, HashMap<String, i64>,HashMap<String, String>,) {
         let mut pairs = HashMap::<String, String>::new();
         let mut instances = HashMap::<String, i64>::new();
+        let mut cycles = Vec::<Vec<String>>::new();
+        let mut num_of_cycles = 0;
+        let mut cell_to_cycle_head = HashMap::<String, String>::new();
         for col in 0..permutation.sizes.len() {
             for row in 0..permutation.sizes[col].len() {
                 if permutation.sizes[col][row] > 1 {
+                    let mut cycle = Vec::<String>::new();
+                    num_of_cycles = num_of_cycles + 1;
                     let mut cycle_length = permutation.sizes[col][row];
                     let mut cycle_col = col;
                     let mut cycle_row = row;
                     while cycle_length > 1 {
                         let mut is_instance: bool = false;
                         let left_cell = permutation.columns[cycle_col];
-                        #[cfg(feature = "use_zcash_halo2_proofs")]
+                        #[cfg(any(feature = "use_zcash_halo2_proofs",feature = "use_pse_v1_halo2_proofs",))]
                         let left_column_abr = match left_cell.column_type() {
                             Any::Advice => 'A',
                             Any::Fixed => 'F',
@@ -276,7 +284,7 @@ impl<'b, F: Field> Analyzer<F> {
                         let (right_cell_col, right_cell_row) =
                             permutation.mapping[cycle_col][cycle_row];
                         let right_cell = permutation.columns[right_cell_col];
-                        #[cfg(feature = "use_zcash_halo2_proofs")]
+                        #[cfg(any(feature = "use_zcash_halo2_proofs",feature = "use_pse_v1_halo2_proofs",))]
                         let right_column_abr = match right_cell.column_type() {
                             Any::Advice => 'A',
                             Any::Fixed => 'F',
@@ -306,15 +314,26 @@ impl<'b, F: Field> Analyzer<F> {
                         if is_instance {
                             instances.insert(right.clone(), 0);
                         }
-                        pairs.insert(left, right);
+                        pairs.insert(left.clone(), right.clone());
+
+                        if cycle.is_empty() {
+                            cycle.push(left.clone());
+                        }
+                        cycle.push(right.clone());
+                        if is_instance {
+                            cell_to_cycle_head.insert(left.clone(), right);
+                        } else {
+                            cell_to_cycle_head.insert(right, left);
+                        }
                         cycle_col = right_cell_col;
                         cycle_row = right_cell_row;
                         cycle_length -= 1;
                     }
+                    cycles.push(cycle);
                 }
             }
         }
-        (pairs, instances)
+        (pairs, instances,cell_to_cycle_head)
     }
 
     /// Analyzes underconstrained circuits and generates an analyzer output.
@@ -344,14 +363,31 @@ impl<'b, F: Field> Analyzer<F> {
         };
 
         for permutation in &self.permutation {
-            smt::write_var(&mut printer, permutation.0.to_owned());
-            smt::write_var(&mut printer, permutation.1.to_owned());
+            let mut permutation_r = permutation.0.to_owned();
+            let mut permutation_l = permutation.1.to_owned();
+            if self
+                .cell_to_cycle_head
+                .contains_key(&permutation.0.to_owned())
+            {
+                permutation_r = self.cell_to_cycle_head[permutation.0].to_owned();
+            }
 
-            let neg = format!("(ff.neg {})", permutation.1);
+            smt::write_var(&mut printer, permutation_r.to_owned());
+            
+            if self
+                .cell_to_cycle_head
+                .contains_key(&permutation.1.to_owned())
+            {
+                permutation_l = self.cell_to_cycle_head[permutation.1].to_owned();
+            } 
+
+            smt::write_var(&mut printer, permutation_l.to_owned());
+
+            let neg = format!("(ff.neg {})", permutation_l);
             let term = smt::write_term(
                 &mut printer,
                 "add".to_owned(),
-                permutation.0.to_owned(),
+                permutation_r.to_owned(),
                 NodeType::Advice,
                 neg,
                 NodeType::Advice,
@@ -414,6 +450,7 @@ impl<'b, F: Field> Analyzer<F> {
         row_num: i32,
         es: &HashMap<Selector, Vec<usize>>,
         fixed: &Vec<Vec<CellValue<F>>>,
+        cell_to_cycle_head: &HashMap<String, String>,
     ) -> (String, NodeType) {
         match &poly {
             Expression::Constant(a) => {
@@ -453,8 +490,12 @@ impl<'b, F: Field> Analyzer<F> {
                     advice_query.column_index,
                     advice_query.rotation.0 + row_num + region_begin as i32
                 );
-                smt::write_var(printer, term.clone());
-                (term, NodeType::Advice)
+                let mut t = term.clone();
+                if cell_to_cycle_head.contains_key(&term) {
+                    t = cell_to_cycle_head[&term.clone()].to_string();
+                }
+                smt::write_var(printer, t.to_string());
+                (t.to_string(), NodeType::Advice)
             }
             Expression::Instance(_instance_query) => ("".to_owned(), NodeType::Instance),
             Expression::Negated(poly) => {
@@ -466,6 +507,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let term = if (matches!(node_type, NodeType::Advice)
                     || matches!(node_type, NodeType::Instance)
@@ -487,6 +529,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let (node_str_right, nodet_type_right) = Self::decompose_expression(
                     b,
@@ -496,6 +539,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let term = smt::write_term(
                     printer,
@@ -516,6 +560,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let (node_str_right, nodet_type_right) = Self::decompose_expression(
                     b,
@@ -525,6 +570,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let term = smt::write_term(
                     printer,
@@ -546,6 +592,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let (node_str_right, nodet_type_right) = Self::decompose_expression(
                     _poly,
@@ -555,6 +602,7 @@ impl<'b, F: Field> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
+                    cell_to_cycle_head
                 );
                 let term = smt::write_term(
                     printer,
@@ -579,7 +627,6 @@ impl<'b, F: Field> Analyzer<F> {
         &'b mut self,
         printer: &mut smt::Printer<File>,
     ) -> Result<(), anyhow::Error> {
-        //print!("regions: {:?}",self.regions);
         if !self.regions.is_empty() {
             for region in &self.regions {
                 if !region.enabled_selectors.is_empty() {
@@ -595,6 +642,7 @@ impl<'b, F: Field> Analyzer<F> {
                                     i32::try_from(row_num).ok().unwrap(),
                                     &region.enabled_selectors,
                                     &self.fixed,
+                                    &self.cell_to_cycle_head,
                                 );
 
                                 smt::write_assert(
@@ -635,6 +683,7 @@ impl<'b, F: Field> Analyzer<F> {
                                 i32::try_from(row_num).ok().unwrap(),
                                 &region.enabled_selectors,
                                 &self.fixed,
+                                    &self.cell_to_cycle_head,
                             );
                             cons_str_vec.push(node_str);
                         }
@@ -735,6 +784,7 @@ impl<'b, F: Field> Analyzer<F> {
                                 i32::try_from(row_num).ok().unwrap(),
                                 &region.enabled_selectors,
                                 &self.fixed,
+                                &self.cell_to_cycle_head,
                             );
                             // println!("node_str {:?}",node_str);
                             cons_str_vec.push(node_str);
@@ -902,9 +952,9 @@ impl<'b, F: Field> Analyzer<F> {
                 return Ok(result); // We can just break here.
             }
 
-            println!("Model {} to be checked:", i);
+            info!("Model {} to be checked:", i);
             for r in &model.result {
-                println!("{} : {}", r.1.name, r.1.value.element)
+                info!("{} : {}", r.1.name, r.1.value.element)
             }
 
             // Imitate the creation of a new solver by utilizing the stack functionality of solver
@@ -973,14 +1023,14 @@ impl<'b, F: Field> Analyzer<F> {
                 Self::solve_and_get_model(smt_file_path.clone(), &variables)
                     .context("Failed to solve and get model!")?;
             if matches!(model_with_constraint.sat, Satisfiability::Satisfiable) {
-                println!("Equivalent model for the same public input:");
+                info!("Equivalent model for the same public input:");
                 for r in &model_with_constraint.result {
-                    println!("{} : {}", r.1.name, r.1.value.element)
+                    info!("{} : {}", r.1.name, r.1.value.element)
                 }
                 result = AnalyzerOutputStatus::Underconstrained;
                 return Ok(result);
             } else {
-                println!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+                info!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
             }
             smt::write_pop(printer, 1);
 
