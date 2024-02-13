@@ -180,7 +180,7 @@ impl<'b, F: Field> Analyzer<F> {
             let row_num = (region_end - region_begin + 1) as i32;
             let mut used;
             for cell in region.cells.clone() {
-                #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
+                #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
                 let (reg_column, rotation) = (cell.0 .0, cell.1);
                 #[cfg(feature = "use_zcash_halo2_proofs")]
                 let (reg_column, rotation) = (cell.0, cell.1);
@@ -250,7 +250,7 @@ impl<'b, F: Field> Analyzer<F> {
                                 'I'
                             }
                         };
-                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
+                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
                         let left_column_abr = match left_cell.column_type() {
                             Any::Advice(_) => 'A',
                             Any::Fixed => 'F',
@@ -279,7 +279,7 @@ impl<'b, F: Field> Analyzer<F> {
                                 'I'
                             }
                         };
-                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
+                        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
                         let right_column_abr = match right_cell.column_type() {
                             Any::Advice(_) => 'A',
                             Any::Fixed => 'F',
@@ -550,7 +550,7 @@ impl<'b, F: Field> Analyzer<F> {
                 );
                 (term, NodeType::Scaled)
             }
-            #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
+            #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
             Expression::Challenge(_poly) => {
                 ("".to_string(),NodeType::Fixed)
             }
@@ -602,7 +602,11 @@ impl<'b, F: Field> Analyzer<F> {
                     for row_num in 0..region_end - region_begin + 1 {
                         for lookup in self.cs.lookups.iter() {
                             let mut cons_str_vec = Vec::new();
-                            for poly in &lookup.input_expressions {
+                            #[cfg(any(feature = "use_scroll_halo2_proofs"))]
+                            let lookup_polys = lookup.table_expressions();
+                            #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs"))]
+                            let lookup_polys = &lookup.table_expressions;
+                            for poly in &lookup.table_expressions {
                                 let (node_str, _) = Self::decompose_expression(
                                     poly,
                                     printer,
@@ -616,6 +620,10 @@ impl<'b, F: Field> Analyzer<F> {
                             }
                             let mut exit = false;
                             let mut col_indices = Vec::new();
+                            #[cfg(any(feature = "use_scroll_halo2_proofs"))]
+                            let lookup_colls = lookup.table_expressions();
+                            #[cfg(any(feature = "use_zcash_halo2_proofs", feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+                            let lookup_colls = lookup.table_expressions.clone();
                             for col in lookup.table_expressions.clone() {
                                 if exit {
                                     break;
