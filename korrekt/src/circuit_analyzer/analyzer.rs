@@ -65,7 +65,6 @@ impl<'b, F: Field> Analyzer<F> {
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
         let (permutation, instace_cells) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
-        
         Ok(Analyzer {
             cs: analyzable.cs,
             regions: analyzable.regions,
