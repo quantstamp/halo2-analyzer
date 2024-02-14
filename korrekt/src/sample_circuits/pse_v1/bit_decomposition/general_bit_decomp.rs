@@ -1,12 +1,9 @@
-use group::ff::PrimeField as Field;
-use zcash_halo2_proofs::circuit::*;
-use zcash_halo2_proofs::plonk::*;
-use zcash_halo2_proofs::poly::Rotation;
+use crate::circuit_analyzer::halo2_proofs_libs::*;
 
 /// `BitDecompositon`: This circuit is designed to check the binary decomposition
-/// of a number. It takes an array `b` of field elements as input and verifies
+/// of a number. It takes an array `b` of FieldExt elements as input and verifies
 /// that each element in `b` is either 0 or 1 (i.e., binary). It then combines
-/// the binary elements of `b` into a single field element `x` in a way that `x`
+/// the binary elements of `b` into a single FieldExt element `x` in a way that `x`
 /// represents the binary number formed by `b`. This combination is achieved by
 /// a linear combination where each binary digit is multiplied by the corresponding
 /// power of 2. The circuit uses a custom gate to enforce that every element in `b`
@@ -33,7 +30,7 @@ use zcash_halo2_proofs::poly::Rotation;
 /// Gate:        equality: s*((2**n)*b[2]+...+(2**i)*b[i]+...+2*b[1]+b[0]-x)
 
 
-pub struct BitDecompositon<F: Field, const COUNT: usize> {
+pub struct BitDecompositon<F: FieldExt, const COUNT: usize> {
     b: [F; COUNT],
 }
 
@@ -45,15 +42,15 @@ pub struct BitDecompositonConfig<const COUNT: usize> {
     s: Selector,
 }
 
-impl<F: Field, const COUNT: usize> Default for BitDecompositon<F, COUNT> {
+impl<F: FieldExt, const COUNT: usize> Default for BitDecompositon<F, COUNT> {
     fn default() -> Self {
         BitDecompositon {
-            b: [F::ONE; COUNT],
+            b: [F::one(); COUNT],
         }
     }
 }
 
-impl<F: Field, const COUNT: usize> Circuit<F> for BitDecompositon<F, COUNT> {
+impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositon<F, COUNT> {
     type Config = BitDecompositonConfig<COUNT>;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -153,7 +150,7 @@ impl<F: Field, const COUNT: usize> Circuit<F> for BitDecompositon<F, COUNT> {
 // the circuit's constraints. For example, the prover could provide two different
 // decompositions that result in the same `x`, violating the unique representation
 // property of the binary numbers.
-pub struct BitDecompositonUnderConstrained<F: Field, const COUNT: usize> {
+pub struct BitDecompositonUnderConstrained<F: FieldExt, const COUNT: usize> {
     b: [F; COUNT],
 }
 
@@ -165,15 +162,15 @@ pub struct BitDecompositonUnderConstrainedConfig<const COUNT: usize> {
     s: Selector,
 }
 
-impl<F: Field, const COUNT: usize> Default for BitDecompositonUnderConstrained<F, COUNT> {
+impl<F: FieldExt, const COUNT: usize> Default for BitDecompositonUnderConstrained<F, COUNT> {
     fn default() -> Self {
         BitDecompositonUnderConstrained {
-            b: [F::ONE; COUNT],
+            b: [F::one(); COUNT],
         }
     }
 }
 
-impl<F: Field, const COUNT: usize> Circuit<F> for BitDecompositonUnderConstrained<F, COUNT> {
+impl<F: FieldExt, const COUNT: usize> Circuit<F> for BitDecompositonUnderConstrained<F, COUNT> {
     type Config = BitDecompositonUnderConstrainedConfig<COUNT>;
     type FloorPlanner = SimpleFloorPlanner;
 
