@@ -510,10 +510,6 @@ mod tests {
 
         let k = 11;
 
-        let a = Fr::from(1);
-        let b = Fr::from(1);
-        let out = Fr::from(21);
-
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
 
         let modulus = bn256::fr::MODULUS_STR;
@@ -533,7 +529,7 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
     }
     #[test]
     fn analyze_not_underconstrained_lookup_test() {
@@ -549,7 +545,7 @@ mod tests {
 
         assert!(analyzer.instace_cells.len().eq(&3));
         let mut specified_instance_cols = HashMap::new();
-        specified_instance_cols.insert("I-2-7".to_owned(), 21);
+        specified_instance_cols.insert("I-0-2".to_owned(), 21);
         specified_instance_cols.insert("I-0-1".to_owned(), 1);
         specified_instance_cols.insert("I-0-0".to_owned(), 1);
 
@@ -570,6 +566,6 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+        assert!(output_status.eq(&AnalyzerOutputStatus::Overconstrained));
     }
 }

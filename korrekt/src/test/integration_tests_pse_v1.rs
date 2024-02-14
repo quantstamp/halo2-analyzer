@@ -521,7 +521,7 @@ mod tests {
 
         assert!(analyzer.instace_cells.len().eq(&3));
         let mut specified_instance_cols = HashMap::new();
-        specified_instance_cols.insert("I-2-7".to_owned(), 21);
+        specified_instance_cols.insert("I-0-2".to_owned(), 6);
         specified_instance_cols.insert("I-0-1".to_owned(), 1);
         specified_instance_cols.insert("I-0-0".to_owned(), 1);
 

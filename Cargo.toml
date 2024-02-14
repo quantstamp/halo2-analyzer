@@ -11,7 +11,7 @@ halo2curves = { git = "https://github.com/quantstamp/halo2curves.git",branch = "
 zcash_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/zcash-halo2.git", package = "halo2_proofs"}
 
 # For pse_v1 and benchmarks we need comment the first patch and uncomment the second patch
-[patch."https://github.com/privacy-scaling-explorations/halo2"]
+[patch."https://github.com/privacy-scaling-explorations/halo2.git"]
 pse_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/pse-halo2.git", package = "halo2_proofs"}
 # [patch."https://github.com/privacy-scaling-explorations/halo2.git"]
 # pse_v1_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/v1-halo2.git", package = "halo2_proofs"}
