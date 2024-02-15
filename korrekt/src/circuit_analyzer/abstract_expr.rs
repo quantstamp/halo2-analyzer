@@ -126,7 +126,7 @@ pub fn eval_abstract<F: AnalyzableField>(
                 eval_abstract(expr, selectors,region_begin,region_end,row_num,fixed)
             }
         }
-        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",))]
+        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
         Expression::Challenge(_) => todo!(),
     }
 }

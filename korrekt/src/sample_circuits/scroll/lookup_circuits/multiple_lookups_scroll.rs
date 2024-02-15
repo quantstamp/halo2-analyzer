@@ -1,22 +1,32 @@
-use crate::circuit_analyzer::halo2_proofs_libs::*;
+use group::ff::{Field, PrimeField};
+use scroll_halo2_proofs::circuit::*;
+use scroll_halo2_proofs::plonk::*;
+use scroll_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
+
 pub struct FibonacciConfig {
     pub advice: [Column<Advice>; 3],
     pub s_add: Selector,
     pub s_xor: Selector,
+    pub s_range: Selector,
+    pub s_range_1: Selector,
+    pub range_check_table: [TableColumn; 1],
+    pub range_check_table_1: [TableColumn; 1],
     pub xor_table: [TableColumn; 3],
     pub instance: Column<Instance>,
 }
 
 #[derive(Debug, Clone)]
-struct FibonacciChip<F: FieldExt> {
+
+struct FibonacciChip<F: PrimeField> {
     config: FibonacciConfig,
     _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> FibonacciChip<F> {
+
+impl<F: PrimeField> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
         Self {
             config,
@@ -29,7 +39,9 @@ impl<F: FieldExt> FibonacciChip<F> {
         let col_b = meta.advice_column();
         let col_c = meta.advice_column();
         let s_add = meta.selector();
-        let s_xor = meta.complex_selector();
+        let s_xor: Selector = meta.complex_selector();
+        let s_range = meta.complex_selector();
+        let s_range_1 = meta.complex_selector();
         let instance = meta.instance_column();
 
         let xor_table = [
@@ -37,6 +49,10 @@ impl<F: FieldExt> FibonacciChip<F> {
             meta.lookup_table_column(),
             meta.lookup_table_column(),
         ];
+
+        let range_check_table = [meta.lookup_table_column()];
+
+        let range_check_table_1 = [meta.lookup_table_column()];
 
         meta.enable_equality(col_a);
         meta.enable_equality(col_b);
@@ -55,6 +71,20 @@ impl<F: FieldExt> FibonacciChip<F> {
             vec![s * (a + b - c)]
         });
 
+        meta.lookup("RC_lookup",|meta| {
+            let s = meta.query_selector(s_range);
+            let lhs = meta.query_advice(col_a, Rotation::cur());
+            //(s * out, xor_table[2]),
+            vec![(s * lhs, range_check_table[0])]
+        });
+
+        meta.lookup("RC1_lookup", |meta| {
+            let s1 = meta.query_selector(s_range_1);
+            let rhs = meta.query_advice(col_b, Rotation::cur());
+            //(s * out, xor_table[2]),
+            vec![(s1 * rhs, range_check_table_1[0])]
+        });
+
         meta.lookup("XOR_lookup", |meta| {
             let s = meta.query_selector(s_xor);
             let lhs = meta.query_advice(col_a, Rotation::cur());
@@ -71,11 +101,48 @@ impl<F: FieldExt> FibonacciChip<F> {
             advice: [col_a, col_b, col_c],
             s_add,
             s_xor,
+            s_range,
+            s_range_1,
+            range_check_table,
+            range_check_table_1,
             xor_table,
             instance,
         }
     }
 
+    fn load_table_range(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+        layouter.assign_table(
+            || "range_check_table",
+            |mut table| {
+                for (idx, lhs) in (0..4).enumerate() {
+                    table.assign_cell(
+                        || "lhs",
+                        self.config.range_check_table[0],
+                        idx,
+                        || Value::known(F::from(lhs)),
+                    )?;
+                }
+                Ok(())
+            },
+        )
+    }
+
+    fn load_table_range_1(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+        layouter.assign_table(
+            || "range_check_table",
+            |mut table| {
+                for (idx, lhs) in (0..6).enumerate() {
+                    table.assign_cell(
+                        || "lhs",
+                        self.config.range_check_table_1[0],
+                        idx,
+                        || Value::known(F::from(lhs)),
+                    )?;
+                }
+                Ok(())
+            },
+        )
+    }
     fn load_table(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
         layouter.assign_table(
             || "xor_table",
@@ -108,7 +175,6 @@ impl<F: FieldExt> FibonacciChip<F> {
             },
         )
     }
-
     #[allow(clippy::type_complexity)]
     pub fn assign(
         &self,
@@ -119,7 +185,8 @@ impl<F: FieldExt> FibonacciChip<F> {
             || "entire circuit",
             |mut region| {
                 self.config.s_add.enable(&mut region, 0)?;
-
+                self.config.s_range.enable(&mut region, 0)?;
+                self.config.s_range_1.enable(&mut region, 0)?;
                 // assign first row
                 let a_cell = region.assign_advice_from_instance(
                     || "1",
@@ -149,6 +216,8 @@ impl<F: FieldExt> FibonacciChip<F> {
 
                     let new_c_cell = if row % 2 == 0 {
                         self.config.s_add.enable(&mut region, row)?;
+                        self.config.s_range.enable(&mut region, row)?;
+                        self.config.s_range_1.enable(&mut region, row)?;
                         region.assign_advice(
                             || "advice",
                             self.config.advice[2],
@@ -157,6 +226,8 @@ impl<F: FieldExt> FibonacciChip<F> {
                         )?
                     } else {
                         self.config.s_xor.enable(&mut region, row)?;
+                        self.config.s_range.enable(&mut region, row)?;
+                        self.config.s_range_1.enable(&mut region, row)?;
                         region.assign_advice(
                             || "advice",
                             self.config.advice[2],
@@ -164,8 +235,8 @@ impl<F: FieldExt> FibonacciChip<F> {
                             || {
                                 b_cell.value().and_then(|a| {
                                     c_cell.value().map(|b| {
-                                        let a_val = a.get_lower_32() as u64;
-                                        let b_val = b.get_lower_32() as u64;
+                                        let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();//a.get_lower_32() as u64;
+                                        let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();//b.get_lower_32() as u64;
                                         F::from(a_val ^ b_val)
                                     })
                                 })
@@ -193,9 +264,11 @@ impl<F: FieldExt> FibonacciChip<F> {
 }
 
 #[derive(Default)]
+
 pub struct MyCircuit<F>(pub PhantomData<F>);
 
-impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
+
+impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     type Config = FibonacciConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -214,6 +287,8 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
     ) -> Result<(), Error> {
         let chip = FibonacciChip::construct(config);
         chip.load_table(layouter.namespace(|| "lookup table"))?;
+        chip.load_table_range(layouter.namespace(|| "range table"))?;
+        chip.load_table_range_1(layouter.namespace(|| "range table 1"))?;
         let out_cell = chip.assign(layouter.namespace(|| "entire table"), 4)?;
         chip.expose_public(layouter.namespace(|| "out"), out_cell, 2)?;
 

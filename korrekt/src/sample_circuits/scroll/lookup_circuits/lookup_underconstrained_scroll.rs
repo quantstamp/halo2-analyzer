@@ -1,7 +1,10 @@
-use crate::circuit_analyzer::halo2_proofs_libs::*;
+use group::ff::PrimeField;
+use scroll_halo2_proofs::circuit::*;
+use scroll_halo2_proofs::plonk::*;
+use scroll_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
-
 #[derive(Debug, Clone)]
+
 pub struct FibonacciConfig {
     pub advice: [Column<Advice>; 3],
     pub s_add: Selector,
@@ -11,12 +14,14 @@ pub struct FibonacciConfig {
 }
 
 #[derive(Debug, Clone)]
-struct FibonacciChip<F: FieldExt> {
+
+struct FibonacciChip<F: PrimeField> {
     config: FibonacciConfig,
     _marker: PhantomData<F>,
 }
 
-impl<F: FieldExt> FibonacciChip<F> {
+
+impl<F: PrimeField> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
         Self {
             config,
@@ -29,7 +34,7 @@ impl<F: FieldExt> FibonacciChip<F> {
         let col_b = meta.advice_column();
         let col_c = meta.advice_column();
         let s_add = meta.selector();
-        let s_xor = meta.complex_selector();
+        let s_xor: Selector = meta.complex_selector();
         let instance = meta.instance_column();
 
         let xor_table = [
@@ -143,7 +148,7 @@ impl<F: FieldExt> FibonacciChip<F> {
                 )?;
 
                 // assign the rest of rows
-                for row in 1..nrows {
+                for row in 2..nrows {
                     b_cell.copy_advice(|| "a", &mut region, self.config.advice[0], row)?;
                     c_cell.copy_advice(|| "b", &mut region, self.config.advice[1], row)?;
 
@@ -164,8 +169,8 @@ impl<F: FieldExt> FibonacciChip<F> {
                             || {
                                 b_cell.value().and_then(|a| {
                                     c_cell.value().map(|b| {
-                                        let a_val = a.get_lower_32() as u64;
-                                        let b_val = b.get_lower_32() as u64;
+                                        let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();//a.get_lower_32() as u64;
+                                        let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();//b.get_lower_32() as u64;
                                         F::from(a_val ^ b_val)
                                     })
                                 })
@@ -193,9 +198,11 @@ impl<F: FieldExt> FibonacciChip<F> {
 }
 
 #[derive(Default)]
+
 pub struct MyCircuit<F>(pub PhantomData<F>);
 
-impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
+
+impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     type Config = FibonacciConfig;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -220,3 +227,4 @@ impl<F: FieldExt> Circuit<F> for MyCircuit<F> {
         Ok(())
     }
 }
+

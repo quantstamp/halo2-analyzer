@@ -4,7 +4,7 @@ pub use zcash_halo2_proofs::{
     dev::MockProver,
     circuit::{self, Value,Cell,Layouter,AssignedCell,SimpleFloorPlanner},
     dev::{CellValue, Region},
-    plonk::{Advice, Any, Column, Expression, Selector, permutation, Assigned, Assignment, Circuit, ConstraintSystem, Error,
+    plonk::{Advice, Any, Column, Expression, Selector,permutation, Assigned, Assignment, Circuit, ConstraintSystem, Error,
         Fixed, FloorPlanner, Instance},
     poly::Rotation,
     pasta::Fp as Fr
@@ -85,5 +85,31 @@ pub use axiom_halo2_proofs::{
 
 #[cfg(feature = "use_axiom_halo2_proofs")]
 pub use halo2curves::bn256;
+
+/// SCROLL
+#[cfg(feature = "use_scroll_halo2_proofs")]
+pub use scroll_halo2_proofs::{
+    dev::{MockProver},
+    arithmetic::Field,
+    circuit::{self, Value,Cell},
+    dev::{CellValue, Region},
+    plonk::{
+        Expression,
+        Challenge,
+        sealed,
+        Phase,FirstPhase,
+        permutation, Advice, Any, Assigned, Assignment, Circuit, Column, ConstraintSystem, Error,
+        Fixed, FloorPlanner, Instance, Selector,
+        sealed::SealedPhase,
+    },
+    poly,
+    poly::Rotation,
+    dev::metadata::Column as ColumnMetadata,
+    halo2curves::bn256::Fr,
+};
+
+#[cfg(feature = "use_scroll_halo2_proofs")]
+pub use halo2curves::bn256;
+
 
 
