@@ -4,11 +4,11 @@ use halo2_proofs::halo2curves::bn256::Fr;
 use num::{BigInt, Num};
 use std::time::Instant;
 
-use korrekt;
+use korrekt_V2;
 
-use korrekt::circuit_analyzer::analyzer;
-use korrekt::io::analyzer_io_type;
-use korrekt::sample_circuits;
+use korrekt_V2::circuit_analyzer::analyzer;
+use korrekt_V2::io::analyzer_io_type::{self, VerificationMethod, VerificationInput};
+use korrekt_V2::sample_circuits;
 
 /// `run_underconstrained_benchmarks` macro.
 ///
@@ -60,21 +60,26 @@ pub fn run_benchmark() {
 pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
     let k = 11;
     let circuit =
-        sample_circuits::bit_decomposition::general_bit_decomp::BitDecompositonUnderConstrained::<
+        sample_circuits::pse_v1::bit_decomposition::general_bit_decomp::BitDecompositonUnderConstrained::<
             Fr,
             BITS,
         >::default();
-    let public_input = Fr::from(3);
-    let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![vec![public_input]]).unwrap();
-    let mut analyzer = analyzer::Analyzer::from(&circuit);
-    let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-    let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-        verification_method: analyzer_io_type::VerificationMethod::Random,
-        verification_input: analyzer_io_type::VerificationInput {
-            instances_string: instance_cols,
-            iterations: 1,
-        },
-    };
+
+        let mut analyzer = analyzer::Analyzer::new(&circuit, k).unwrap();
+
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: analyzer.instace_cells.clone(),
+                iterations: 5,
+            },
+        };
 
     let modulus = bn256::fr::MODULUS_STR;
     let without_prefix = modulus.trim_start_matches("0x");
@@ -83,7 +88,7 @@ pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
         .to_string();
 
     let start = Instant::now();
-    let _result = analyzer.analyze_underconstrained(analyzer_input, prover.fixed, &prime);
+    let _result = analyzer.analyze_underconstrained(analyzer_input, &prime);
     let duration = start.elapsed();
 
     println!(
