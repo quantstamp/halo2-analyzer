@@ -60,7 +60,6 @@ pub enum Operation {
 }
 
 impl<'b, F: AnalyzableField> Analyzer<F> {
-impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn new<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
         k: u32,

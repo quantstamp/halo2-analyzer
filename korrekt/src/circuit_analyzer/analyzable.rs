@@ -1,5 +1,4 @@
 use halo2curves::Group;
-use halo2curves::Group;
 use std::{
     collections::{HashMap, HashSet},
     ops::Range,
