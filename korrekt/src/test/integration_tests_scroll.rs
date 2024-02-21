@@ -15,7 +15,7 @@ mod tests {
 
     #[test]
     fn create_analyzer_test() {
-        let circuit = sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuit::<
+        let circuit = sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<
             Fr,
         >::default();
         let k: u32 = 11;
@@ -31,7 +31,7 @@ mod tests {
 
     #[test]
     fn extract_instance_cols_test() {
-        let circuit = sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuit::<
+        let circuit = sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<
             Fr,
         >::default();
         let k: u32 = 11;
@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn set_user_input_test() {
-        let circuit = sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuit::<
+        let circuit = sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<
             Fr,
         >::default();
         let k: u32 = 11;
@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn not_under_constrained_enough_random_input_test() {
-        let circuit = sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuit::<
+        let circuit = sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<
             Fr,
         >::default();
         let k: u32 = 11;
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn not_under_constrained_not_enough_input_test() {
-        let circuit = sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuit::<
+        let circuit = sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<
             Fr,
         >::default();
         let k: u32 = 11;
@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn not_under_constrained_not_enough_input_1_test() {
-        let circuit = sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuit::<
+        let circuit = sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<
             Fr,
         >::default();
         let k: u32 = 11;
@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn not_under_constrained_exact_spec_input_test() {
-        let circuit = sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuit::<
+        let circuit = sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<
             Fr,
         >::default();
         let k: u32 = 11;
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn not_under_constrained_not_exact_spec_input_test() {
-        let circuit = sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuit::<
+        let circuit = sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<
             Fr,
         >::default();
         let k: u32 = 11;
@@ -233,7 +233,7 @@ mod tests {
     #[test]
     fn under_constrained_enough_random_input_test() {
         let circuit =
-            sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuitUnderConstrained::<
+            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
             >::default();
         let k: u32 = 11;
@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn under_constrained_not_enough_random_input_test() {
         let circuit =
-            sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuitUnderConstrained::<
+            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
             >::default();
         let k: u32 = 11;
@@ -296,7 +296,7 @@ mod tests {
     #[test]
     fn under_constrained_exact_spec_input_test() {
         let circuit =
-            sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuitUnderConstrained::<
+            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
             >::default();
         let k: u32 = 11;
@@ -333,7 +333,7 @@ mod tests {
     #[test]
     fn under_constrained_not_exact_spec_input_test() {
         let circuit =
-            sample_circuits::bit_decomposition::two_bit_decomp_scroll::TwoBitDecompCircuitUnderConstrained::<
+            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
             >::default();
         let k: u32 = 11;
@@ -369,9 +369,9 @@ mod tests {
 
     #[test]
     fn analyze_unused_columns_test() {
-        let circuit: sample_circuits::bit_decomposition::add_multiplication_scroll::AddMultCircuit<
+        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<
             Fr,
-        > = sample_circuits::bit_decomposition::add_multiplication_scroll::AddMultCircuit::default();
+        > = sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let k = 5;
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -382,9 +382,9 @@ mod tests {
 
     #[test]
     fn analyze_unused_custom_gates_test() {
-        let circuit: sample_circuits::bit_decomposition::add_multiplication_scroll::AddMultCircuit<
+        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<
             Fr,
-        > = sample_circuits::bit_decomposition::add_multiplication_scroll::AddMultCircuit::default();
+        > = sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let k = 5;
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -398,9 +398,9 @@ mod tests {
 
     #[test]
     fn analyze_unconstrained_cells() {
-        let circuit: sample_circuits::bit_decomposition::add_multiplication_scroll::AddMultCircuit<
+        let circuit: sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit<
             Fr,
-        > = sample_circuits::bit_decomposition::add_multiplication_scroll::AddMultCircuit::default();
+        > = sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let k = 5;
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -472,7 +472,7 @@ mod tests {
     }
     #[test]
     fn analyze_underconstrained_single_lookup_test() {
-        let circuit = sample_circuits::lookup_circuits::lookup_underconstrained_scroll::MyCircuit::<Fr>(
+        let circuit = sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fr>(
             PhantomData,
         );
         let k = 11;
@@ -506,7 +506,7 @@ mod tests {
     #[test]
     fn analyze_underconstrained_multiple_lookup_test() {
         let circuit =
-            sample_circuits::lookup_circuits::multiple_lookups_scroll::MyCircuit::<Fr>(PhantomData);
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
 
         let k = 11;
 
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn analyze_not_underconstrained_lookup_test() {
         let circuit =
-            sample_circuits::lookup_circuits::multiple_lookups_scroll::MyCircuit::<Fr>(PhantomData);
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
         let k = 11;
 
         let a = Fr::from(1); // F[0]
