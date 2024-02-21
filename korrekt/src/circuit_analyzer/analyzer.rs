@@ -364,7 +364,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             std::fs::File::create(smt_file_path).context("Failed to create file!")?;
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_owned());
 
-        Self::decompose_polynomial(self, &mut printer);
+        let _ = Self::decompose_polynomial(self, &mut printer);
 
         let instance_string = analyzer_input.verification_input.instances_string.clone();
 
@@ -801,11 +801,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         }
                         let mut exit = false;
                         let mut col_indices = Vec::new();
-                        let mut list: Vec<ColumnOrExpression<F>> = Vec::new();
-                        enum ColumnOrExpression<F> {
-                            Index(usize),
-                            Expression(Expression<F>),
-                        }
                         for col in lookup.1.table.clone() {
                             if exit {
                                 break;

@@ -1,6 +1,5 @@
 use crate::circuit_analyzer::halo2_proofs_libs::*;
 use std::marker::PhantomData;
-use group::ff::PrimeField;
 
 #[derive(Debug, Clone)]
 pub struct FibonacciConfig {

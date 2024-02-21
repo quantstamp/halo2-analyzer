@@ -104,7 +104,7 @@ impl<F: PrimeField> Circuit<F> for MultiRowTwoBitDecompCircuit<F> {
             .assign_region(
                 || "The Region",
                 |mut region| {
-                    config.s.enable(&mut region, 0);
+                    let _ = config.s.enable(&mut region, 0);
 
                     region.assign_advice( config.advice, 0,Value::known(self.b0));
 

@@ -1,4 +1,4 @@
-use group::ff::{Field, PrimeField};
+use group::ff::PrimeField;
 use scroll_halo2_proofs::circuit::*;
 use scroll_halo2_proofs::plonk::*;
 use scroll_halo2_proofs::poly::Rotation;

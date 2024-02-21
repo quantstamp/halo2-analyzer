@@ -21,7 +21,7 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        let analyzer = Analyzer::new(&circuit, k).unwrap();
 
         assert!(analyzer.cs.gates.len().eq(&3));
         assert!(analyzer.cs.degree().eq(&3));
@@ -37,7 +37,7 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        let analyzer = Analyzer::new(&circuit, k).unwrap();
         assert!(analyzer.instace_cells.len().eq(&1));
         assert!(analyzer.instace_cells.contains_key("I-0-0"));
         assert!(analyzer.instace_cells.iter().next().unwrap().1.eq(&0));
@@ -50,7 +50,7 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        let analyzer = Analyzer::new(&circuit, k).unwrap();
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -478,10 +478,6 @@ mod tests {
             sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fr>(PhantomData);
         let k = 11;
 
-        let a = Fr::from(1);
-        let b = Fr::from(1);
-        let out = Fr::from(21);
-
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
 
         let modulus = bn256::fr::MODULUS_STR;
@@ -511,10 +507,6 @@ mod tests {
 
         let k = 11;
 
-        let a = Fr::from(1);
-        let b = Fr::from(1);
-        let out = Fr::from(21);
-
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
 
         let modulus = bn256::fr::MODULUS_STR;
@@ -541,10 +533,6 @@ mod tests {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
         let k = 11;
-
-        let a = Fr::from(1); // F[0]
-        let b = Fr::from(1); // F[1]
-        let out = Fr::from(21); // F[9]
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
 
