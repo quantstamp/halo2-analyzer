@@ -19,8 +19,8 @@ pub use halo2curves::bn256;
 /// PSE
 #[cfg(feature = "use_pse_halo2_proofs")]
 pub use pse_halo2_proofs::{
-    dev::{MockProver},
-    arithmetic::{Field},
+    dev::MockProver,
+    arithmetic::Field,
     circuit::{self, Value,Cell,Layouter,AssignedCell,SimpleFloorPlanner},
     dev::{CellValue, Region},
     plonk::{
@@ -43,7 +43,7 @@ pub use halo2curves::bn256;
 /// PSE V1
 #[cfg(feature = "use_pse_v1_halo2_proofs")]
 pub use pse_v1_halo2_proofs::{
-    dev::{MockProver},
+    dev::MockProver,
     arithmetic::{Field,FieldExt},
     circuit::{self, Value,Cell,Layouter,AssignedCell,SimpleFloorPlanner},
     dev::{CellValue, Region},
@@ -60,7 +60,7 @@ pub use pse_v1_halo2_proofs::{
 pub use group::Group;
 
 #[cfg(feature = "use_pse_v1_halo2_proofs")]
-pub use halo2curves::{bn256};
+pub use halo2curves::bn256;
 
 /// AXIOM
 #[cfg(feature = "use_axiom_halo2_proofs")]
@@ -89,7 +89,7 @@ pub use halo2curves::bn256;
 /// SCROLL
 #[cfg(feature = "use_scroll_halo2_proofs")]
 pub use scroll_halo2_proofs::{
-    dev::{MockProver},
+    dev::MockProver,
     arithmetic::Field,
     circuit::{self, Value,Cell},
     dev::{CellValue, Region},
