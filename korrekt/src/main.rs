@@ -24,7 +24,7 @@ fn main() -> Result<(), anyhow::Error> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let circuit =
-        sample_circuits::lookup_circuits::multiple_lookups_zcash::MyCircuit::<Fr>(PhantomData);
+        sample_circuits::bit_decomposition::two_bit_decomp_lookup::TwoBitDecompCircuit::<Fr>::default();
     let k = 6;
 
     let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -42,5 +42,6 @@ fn main() -> Result<(), anyhow::Error> {
     let t = analyzer
         .dispatch_analysis(analyzer_type, &prime)
         .context("Failed to perform analysis!")?;
+    //println!(": {:?}", analyzer.fixed);
     Ok(())
 }
