@@ -15,6 +15,7 @@ pub struct VerificationInput {
 pub struct AnalyzerInput {
     pub verification_method: VerificationMethod,
     pub verification_input: VerificationInput,
+    pub lookup_uninterpreted_func: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]

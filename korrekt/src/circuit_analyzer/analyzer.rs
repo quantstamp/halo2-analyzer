@@ -38,6 +38,7 @@ pub struct Analyzer<F: AnalyzableField> {
     pub instace_cells: HashMap<String, i64>,
     pub cell_to_cycle_head: HashMap<String, String>,
     pub counter: u32,
+    pub lookups: Vec<HashMap<String, usize>>,
 }
 #[derive(Debug)]
 pub enum NodeType {
@@ -77,6 +78,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             instace_cells,
             cell_to_cycle_head,
             counter: 0,
+            lookups: Vec::new(),
         })
     }
 
@@ -369,7 +371,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             std::fs::File::create(smt_file_path).context("Failed to create file!")?;
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_owned());
 
-        Self::decompose_polynomial(self, &mut printer, &analyzer_input.verification_method);
+        Self::decompose_polynomial(self, &mut printer, &analyzer_input);
         let instance_string = analyzer_input.verification_input.instances_string.clone();
 
         let mut analyzer_output: AnalyzerOutput = AnalyzerOutput {
@@ -637,6 +639,129 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             Expression::Challenge(_poly) => ("".to_string(), NodeType::Fixed),
         }
     }
+
+    fn decompose_lookup_expression(
+        poly: &Expression<F>,
+        printer: &mut smt::Printer<File>,
+        region_begin: usize,
+        region_end: usize,
+        row_num: i32,
+        es: &HashMap<Selector, Vec<usize>>,
+        fixed: &Vec<Vec<CellValue<F>>>,
+        cell_to_cycle_head: &HashMap<String, String>,
+    ) -> (String, NodeType, String) {
+        match &poly {
+            Expression::Constant(a) => {
+                todo!()
+            }
+            Expression::Selector(a) => {
+                if es.contains_key(a) {
+                    ("(as ff1 F)".to_owned(), NodeType::Fixed, "1".to_owned())
+                } else {
+                    ("(as ff0 F)".to_owned(), NodeType::Fixed, "0".to_owned())
+                }
+            }
+            Expression::Fixed(fixed_query) => {
+                let col = fixed_query.column_index;
+                let row = (fixed_query.rotation.0 + row_num) as usize + region_begin;
+
+                let mut t = 0;
+                if let CellValue::Assigned(fixed_val) = fixed[col][row] {
+                    t = u64::from_str_radix(
+                        format!("{:?}", fixed_val).strip_prefix("0x").unwrap(),
+                        16,
+                    )
+                    .unwrap();
+                }
+                let term = format!("(as ff{:?} F)", t);
+
+                (term, NodeType::Fixed, t.to_string())
+            }
+            Expression::Advice(advice_query) => {
+                let term = format!(
+                    "A-{}-{}",
+                    advice_query.column_index,
+                    advice_query.rotation.0 + row_num + region_begin as i32
+                );
+                let mut t = term.clone();
+                if cell_to_cycle_head.contains_key(&term) {
+                    t = cell_to_cycle_head[&term.clone()].to_string();
+                }
+                smt::write_var(printer, t.to_string());
+                (t.to_string(), NodeType::Advice, t.to_string())
+            }
+            Expression::Instance(instance_query) => {
+                let term = format!(
+                    "I-{}-{}",
+                    instance_query.column_index,
+                    instance_query.rotation.0 + row_num + region_begin as i32
+                );
+                let mut t = term.clone();
+                if cell_to_cycle_head.contains_key(&term) {
+                    t = cell_to_cycle_head[&term.clone()].to_string();
+                }
+                smt::write_var(printer, t.to_string());
+                (t.to_string(), NodeType::Advice, t.to_string())
+            }
+            Expression::Negated(poly) => {
+                todo!()
+            }
+            Expression::Sum(a, b) => {
+                todo!()
+            }
+            Expression::Product(a, b) => {
+                let (node_str_left, nodet_type_left, variable_left) =
+                    Self::decompose_lookup_expression(
+                        a,
+                        printer,
+                        region_begin,
+                        region_end,
+                        row_num,
+                        es,
+                        fixed,
+                        cell_to_cycle_head,
+                    );
+                let (node_str_right, nodet_type_right, variable_right) =
+                    Self::decompose_lookup_expression(
+                        b,
+                        printer,
+                        region_begin,
+                        region_end,
+                        row_num,
+                        es,
+                        fixed,
+                        cell_to_cycle_head,
+                    );
+                let term = smt::write_term(
+                    printer,
+                    "mul".to_owned(),
+                    node_str_left,
+                    nodet_type_left,
+                    node_str_right,
+                    nodet_type_right,
+                );
+                let mut var = String::from("");
+                if variable_left == "1" || variable_right == "1" {
+                    if variable_left == "1" {
+                        var = variable_right;
+                    } else {
+                        var = variable_left;
+                    }
+                }
+                (term, NodeType::Mult, var)
+            }
+            Expression::Scaled(_poly, c) => {
+                todo!()
+            }
+            #[cfg(any(
+                feature = "use_pse_halo2_proofs",
+                feature = "use_axiom_halo2_proofs",
+                feature = "use_scroll_halo2_proofs"
+            ))]
+            Expression::Challenge(_poly) => (todo!()),
+        }
+    }
+
     /// Decomposes polynomials and writes assertions using an SMT printer.
     ///
     /// This function iterates over the regions and rows of a layouter and decomposes the polynomials
@@ -645,7 +770,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn decompose_polynomial(
         &'b mut self,
         printer: &mut smt::Printer<File>,
-        verificatinMethod: &VerificationMethod,
+        analyzer_input: &AnalyzerInput,
     ) -> Result<(), anyhow::Error> {
         if !self.regions.is_empty() {
             for region in &self.regions {
@@ -678,15 +803,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
             }
         }
-        if self.cs.lookups.len() > 0 && matches!(verificatinMethod, VerificationMethod::Specific)
-        {
+        if analyzer_input.lookup_uninterpreted_func {
+            self.decompose_lookups_as_uniterpreted(printer)?;
+        } else {
             self.decompose_lookups(printer)?;
         }
-        else {
-            
-        }
         Ok(())
-        //self.decompose_lookups(printer)
     }
 
     #[cfg(any(
@@ -696,96 +818,174 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         feature = "use_pse_v1_halo2_proofs",
     ))]
     fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
-        // for region in &self.regions {
-        //     if !region.enabled_selectors.is_empty() {
-        //         let (region_begin, region_end) = region.rows.unwrap();
-        //         for row_num in 0..region_end - region_begin + 1 {
-        //             for lookup in self.cs.lookups.iter() {
-        //                 let mut cons_str_vec = Vec::new();
-        //                 for poly in &lookup.input_expressions {
-        //                     let (node_str, _) = Self::decompose_expression(
-        //                         poly,
-        //                         printer,
-        //                         region_begin,
-        //                         region_end,
-        //                         i32::try_from(row_num).ok().unwrap(),
-        //                         &region.enabled_selectors,
-        //                         &self.fixed,
-        //                         &self.cell_to_cycle_head,
-        //                     );
-        //                     cons_str_vec.push(node_str);
-        //                 }
-        //                 let mut exit = false;
-        //                 let mut col_indices = Vec::new();
-        //                 for col in lookup.table_expressions.clone() {
-        //                     if exit {
-        //                         break;
-        //                     }
-        //                     if let Expression::Fixed(fixed_query) = col {
-        //                         col_indices.push(fixed_query.column_index);
-        //                     }
-        //                 }
-        //                 let mut big_cons_str = "".to_owned();
-        //                 let mut big_cons = vec![];
-        //                 for row in 0..self.fixed[0].len() {
-        //                     //*** Iterate over look up table rows */
-        //                     if exit {
-        //                         break;
-        //                     }
-        //                     let mut equalities = vec![];
-        //                     let mut eq_str = String::new();
-        //                     for col in 0..col_indices.len() {
-        //                         //*** Iterate over fixed cols */
-        //                         let mut t = String::new();
-        //                         match self.fixed[col_indices[col]][row] {
-        //                             CellValue::Unassigned => {
-        //                                 exit = true;
-        //                                 break;
-        //                             }
-        //                             CellValue::Assigned(f) => {
-        //                                 t = format!("{:?}", f);
-        //                             }
-        //                             CellValue::Poison(_) => {}
-        //                         }
-        //                         if let CellValue::Assigned(value) =
-        //                             self.fixed[col_indices[col]][row]
-        //                         {
-        //                             t = u64::from_str_radix(
-        //                                 format!("{:?}", value).strip_prefix("0x").unwrap(),
-        //                                 16,
-        //                             )
-        //                             .unwrap()
-        //                             .to_string();
-        //                         }
-        //                         let sa = smt::get_assert(
-        //                             printer,
-        //                             cons_str_vec[col].clone(),
-        //                             t,
-        //                             NodeType::Mult,
-        //                             Operation::Equal,
-        //                         )
-        //                         .context("Failled to generate assert!")?;
-        //                         equalities.push(sa);
-        //                     }
-        //                     if exit {
-        //                         break;
-        //                     }
-        //                     for var in equalities.iter() {
-        //                         eq_str.push_str(var);
-        //                     }
-        //                     let and_eqs = smt::get_and(printer, eq_str);
+        for region in &self.regions {
+            if !region.enabled_selectors.is_empty() {
+                let (region_begin, region_end) = region.rows.unwrap();
+                for row_num in 0..region_end - region_begin + 1 {
+                    for lookup in self.cs.lookups.iter() {
+                        let mut cons_str_vec = Vec::new();
+                        for poly in &lookup.input_expressions {
+                            let (node_str, _) = Self::decompose_expression(
+                                poly,
+                                printer,
+                                region_begin,
+                                region_end,
+                                i32::try_from(row_num).ok().unwrap(),
+                                &region.enabled_selectors,
+                                &self.fixed,
+                                &self.cell_to_cycle_head,
+                            );
+                            cons_str_vec.push(node_str);
+                        }
+                        let mut exit = false;
+                        let mut col_indices = Vec::new();
+                        for col in lookup.table_expressions.clone() {
+                            if exit {
+                                break;
+                            }
+                            if let Expression::Fixed(fixed_query) = col {
+                                col_indices.push(fixed_query.column_index);
+                            }
+                        }
+                        let mut big_cons_str = "".to_owned();
+                        let mut big_cons = vec![];
+                        for row in 0..self.fixed[0].len() {
+                            //*** Iterate over look up table rows */
+                            if exit {
+                                break;
+                            }
+                            let mut equalities = vec![];
+                            let mut eq_str = String::new();
+                            for col in 0..col_indices.len() {
+                                //*** Iterate over fixed cols */
+                                let mut t = String::new();
+                                match self.fixed[col_indices[col]][row] {
+                                    CellValue::Unassigned => {
+                                        exit = true;
+                                        break;
+                                    }
+                                    CellValue::Assigned(f) => {
+                                        t = format!("{:?}", f);
+                                    }
+                                    CellValue::Poison(_) => {}
+                                }
+                                if let CellValue::Assigned(value) =
+                                    self.fixed[col_indices[col]][row]
+                                {
+                                    t = u64::from_str_radix(
+                                        format!("{:?}", value).strip_prefix("0x").unwrap(),
+                                        16,
+                                    )
+                                    .unwrap()
+                                    .to_string();
+                                }
+                                let sa = smt::get_assert(
+                                    printer,
+                                    cons_str_vec[col].clone(),
+                                    t,
+                                    NodeType::Mult,
+                                    Operation::Equal,
+                                )
+                                .context("Failled to generate assert!")?;
+                                equalities.push(sa);
+                            }
+                            if exit {
+                                break;
+                            }
+                            for var in equalities.iter() {
+                                eq_str.push_str(var);
+                            }
+                            let and_eqs = smt::get_and(printer, eq_str);
 
-        //                     big_cons.push(and_eqs);
-        //                 }
-        //                 for var in big_cons.iter() {
-        //                     big_cons_str.push_str(var);
-        //                 }
+                            big_cons.push(and_eqs);
+                        }
+                        for var in big_cons.iter() {
+                            big_cons_str.push_str(var);
+                        }
 
-        //                 smt::write_assert_bool(printer, big_cons_str, Operation::Or);
-        //             }
-        //         }
-        //     }
-        // }
+                        smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(any(
+        feature = "use_zcash_halo2_proofs",
+        feature = "use_pse_halo2_proofs",
+        feature = "use_axiom_halo2_proofs",
+        feature = "use_pse_v1_halo2_proofs",
+    ))]
+    fn decompose_lookups_as_uniterpreted(
+        &mut self,
+        printer: &mut smt::Printer<File>,
+    ) -> Result<(), anyhow::Error> {
+        let mut is_in_lookup_defined = false;
+        for region in &self.regions {
+            if !region.enabled_selectors.is_empty() {
+                let (region_begin, region_end) = region.rows.unwrap();
+                for row_num in 0..region_end - region_begin + 1 {
+                    for lookup in self.cs.lookups.iter() {
+                        let mut cons_str_vec = HashSet::new();
+                        let mut cons_lookup_arg_vec = HashSet::new();
+                        for poly in &lookup.input_expressions {
+                            let (node_str, _, var) = Self::decompose_lookup_expression(
+                                poly,
+                                printer,
+                                region_begin,
+                                region_end,
+                                i32::try_from(row_num).ok().unwrap(),
+                                &region.enabled_selectors,
+                                &self.fixed,
+                                &self.cell_to_cycle_head,
+                            );
+                            cons_str_vec.insert(node_str);
+                            cons_lookup_arg_vec.insert(var);
+                        }
+                        let mut col_indices = Vec::new();
+                        for col in lookup.table_expressions.clone() {
+                            if let Expression::Fixed(fixed_query) = col {
+                                col_indices.push(fixed_query.column_index);
+                            }
+                        }
+                        let mut lookup_mapping = HashMap::new();
+                        for (index, var) in cons_lookup_arg_vec.iter().enumerate() {
+                            if var.is_empty() {
+                                continue;
+                            }
+                            if let Some(&col_index) = col_indices.get(index) {
+                                // Insert the mapping into the HashMap
+                                lookup_mapping.insert(var.clone(), col_index);
+                            }
+                        }
+                        if !lookup_mapping.is_empty() {
+                            &self.lookups.push(lookup_mapping);
+                        }
+                        if !cons_str_vec.is_empty() {
+                            if !is_in_lookup_defined {
+                                smt::write_fn(
+                                    printer,
+                                    "isInLookupTable".to_owned(),
+                                    "F".to_owned(),
+                                    "Bool".to_owned(),
+                                );
+                                is_in_lookup_defined = true;
+                            }
+
+                            for cons_str in cons_str_vec.iter() {
+                                smt::write_assert_boolean_uniterpreted_func(
+                                    printer,
+                                    "isInLookupTable".to_owned(),
+                                    cons_str.to_owned(),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        println!("{:?}", self.lookups);
         Ok(())
     }
     #[cfg(any(feature = "use_scroll_halo2_proofs"))]
@@ -1125,7 +1325,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             AnalyzerType::UnusedColumns => self.analyze_unused_columns(),
             AnalyzerType::UnderconstrainedCircuit => {
                 let analyzer_input: AnalyzerInput =
-                    retrieve_user_input_for_underconstrained(&self.instace_cells)
+                    retrieve_user_input_for_underconstrained(&self.instace_cells, &self.cs)
                         .context("Failed to retrieve user input!")?;
                 self.analyze_underconstrained(analyzer_input, prime)
             }
