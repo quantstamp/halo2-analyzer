@@ -25,6 +25,7 @@ pub enum AnalyzerOutputStatus {
     Overconstrained,
     NotUnderconstrained,
     NotUnderconstrainedLocal,
+    NotUnderconstrainedLocalUniterpretedLookups,
     UnusedCustomGates,
     NoUnusedCustomGates,
     UnconstrainedCells,

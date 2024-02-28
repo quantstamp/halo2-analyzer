@@ -1,10 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use log::info;
 use std::{collections::HashMap, io};
-use zcash_halo2_proofs::plonk::ConstraintSystem;
-
 use crate::{
-    circuit_analyzer::analyzable::AnalyzableField,
+    circuit_analyzer::{analyzable::AnalyzableField,halo2_proofs_libs::*},
     io::analyzer_io_type::{
         AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, VerificationInput,
         VerificationMethod,
@@ -145,6 +143,21 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
         AnalyzerOutputStatus::NoUnusedCustomGates => {}
         AnalyzerOutputStatus::NoUnconstrainedCells => {}
         AnalyzerOutputStatus::NoUnusedColumns => {}
+        AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups => {
+            match analyzer_input.verification_method {
+                VerificationMethod::Specific => {
+                    println!("\nTwo assignments found to advice columns, making the circuit under-constrained for this specific input. But the assignmets are not valid in lookup table(s)!
+                    \nProbably a false positive.\n");
+                }
+                VerificationMethod::Random => {
+                    println!(
+                        "\nTwo assignments found to advice columns, making the circuit under-constrained for {} random input(s). But the assignmets are not valid in lookup table(s)!
+                        \nProbably a false positive.\n",
+                        analyzer_input.verification_input.iterations
+                    );
+                }
+            }
+        },
     }
 }
 /// Retrieves user input to determine the type of analysis for the circuit.

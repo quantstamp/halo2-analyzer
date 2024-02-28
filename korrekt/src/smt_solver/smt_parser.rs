@@ -9,13 +9,13 @@ pub enum Satisfiability {
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FieldElement {
     pub order: String,
     pub element: String,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Variable {
     pub name: String,
     pub value: FieldElement,

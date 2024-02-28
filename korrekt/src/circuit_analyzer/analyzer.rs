@@ -38,7 +38,8 @@ pub struct Analyzer<F: AnalyzableField> {
     pub instace_cells: HashMap<String, i64>,
     pub cell_to_cycle_head: HashMap<String, String>,
     pub counter: u32,
-    pub lookups: Vec<HashMap<String, usize>>,
+    pub lookup_mappings: Vec<HashMap<String, usize>>,
+    pub lookup_dependant_cells: HashMap<String, Vec<usize>>,
 }
 #[derive(Debug)]
 pub enum NodeType {
@@ -78,7 +79,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             instace_cells,
             cell_to_cycle_head,
             counter: 0,
-            lookups: Vec::new(),
+            lookup_mappings: Vec::new(),
+            lookup_dependant_cells: HashMap::new(),
         })
     }
 
@@ -419,6 +421,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         }
 
         let output_status: AnalyzerOutputStatus = Self::uniqueness_assertion(
+            self,
             smt_file_path.to_owned(),
             &instance_string,
             &analyzer_input,
@@ -928,7 +931,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 for row_num in 0..region_end - region_begin + 1 {
                     for lookup in self.cs.lookups.iter() {
                         let mut cons_str_vec = HashSet::new();
-                        let mut cons_lookup_arg_vec = HashSet::new();
+                        let mut lookup_arg_cells = HashSet::new();
                         for poly in &lookup.input_expressions {
                             let (node_str, _, var) = Self::decompose_lookup_expression(
                                 poly,
@@ -941,7 +944,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &self.cell_to_cycle_head,
                             );
                             cons_str_vec.insert(node_str);
-                            cons_lookup_arg_vec.insert(var);
+                            if !var.is_empty() {
+                                //TODO: check if we can optimize analyzer based on disabled selectores on lookups: ZKR-3207
+                                lookup_arg_cells.insert(var);
+                            }
+                        }
+                        if !lookup_arg_cells.is_empty() {
+                            for var in lookup_arg_cells.iter() {
+                                self.lookup_dependant_cells
+                                    .entry(var.clone())
+                                    .or_insert_with(Vec::new)
+                                    .push(self.lookup_mappings.len());
+                            }
                         }
                         let mut col_indices = Vec::new();
                         for col in lookup.table_expressions.clone() {
@@ -950,17 +964,16 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             }
                         }
                         let mut lookup_mapping = HashMap::new();
-                        for (index, var) in cons_lookup_arg_vec.iter().enumerate() {
+                        for (index, var) in lookup_arg_cells.iter().enumerate() {
                             if var.is_empty() {
                                 continue;
                             }
                             if let Some(&col_index) = col_indices.get(index) {
-                                // Insert the mapping into the HashMap
                                 lookup_mapping.insert(var.clone(), col_index);
                             }
                         }
                         if !lookup_mapping.is_empty() {
-                            &self.lookups.push(lookup_mapping);
+                            &self.lookup_mappings.push(lookup_mapping);
                         }
                         if !cons_str_vec.is_empty() {
                             if !is_in_lookup_defined {
@@ -985,111 +998,110 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
             }
         }
-        println!("{:?}", self.lookups);
         Ok(())
     }
     #[cfg(any(feature = "use_scroll_halo2_proofs"))]
     fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
-        // for region in &self.regions {
-        //     if !region.enabled_selectors.is_empty() {
-        //         let (region_begin, region_end) = region.rows.unwrap();
-        //         for row_num in 0..region_end - region_begin + 1 {
-        //             for lookup in &self.cs.lookups_map {
-        //                 let mut cons_str_vec = Vec::new();
-        //                 for polys in &lookup.1.inputs {
-        //                     for poly in polys {
-        //                         let (node_str, _) = Self::decompose_expression(
-        //                             &poly,
-        //                             printer,
-        //                             region_begin,
-        //                             region_end,
-        //                             i32::try_from(row_num).ok().unwrap(),
-        //                             &region.enabled_selectors,
-        //                             &self.fixed,
-        //                             &self.cell_to_cycle_head,
-        //                         );
-        //                         cons_str_vec.push(node_str.clone());
-        //                     }
-        //                 }
-        //                 let mut exit = false;
-        //                 let mut col_indices = Vec::new();
-        //                 let mut list: Vec<ColumnOrExpression<F>> = Vec::new();
-        //                 enum ColumnOrExpression<F> {
-        //                     Index(usize),
-        //                     Expression(Expression<F>),
-        //                 }
-        //                 for col in lookup.1.table.clone() {
-        //                     if exit {
-        //                         break;
-        //                     }
-        //                     if let Expression::Fixed(fixed_query) = col {
-        //                         col_indices.push(fixed_query.column_index);
-        //                     }
-        //                 }
-        //                 let mut big_cons_str = "".to_owned();
-        //                 let mut big_cons = vec![];
+        for region in &self.regions {
+            if !region.enabled_selectors.is_empty() {
+                let (region_begin, region_end) = region.rows.unwrap();
+                for row_num in 0..region_end - region_begin + 1 {
+                    for lookup in &self.cs.lookups_map {
+                        let mut cons_str_vec = Vec::new();
+                        for polys in &lookup.1.inputs {
+                            for poly in polys {
+                                let (node_str, _) = Self::decompose_expression(
+                                    &poly,
+                                    printer,
+                                    region_begin,
+                                    region_end,
+                                    i32::try_from(row_num).ok().unwrap(),
+                                    &region.enabled_selectors,
+                                    &self.fixed,
+                                    &self.cell_to_cycle_head,
+                                );
+                                cons_str_vec.push(node_str.clone());
+                            }
+                        }
+                        let mut exit = false;
+                        let mut col_indices = Vec::new();
+                        let mut list: Vec<ColumnOrExpression<F>> = Vec::new();
+                        enum ColumnOrExpression<F> {
+                            Index(usize),
+                            Expression(Expression<F>),
+                        }
+                        for col in lookup.1.table.clone() {
+                            if exit {
+                                break;
+                            }
+                            if let Expression::Fixed(fixed_query) = col {
+                                col_indices.push(fixed_query.column_index);
+                            }
+                        }
+                        let mut big_cons_str = "".to_owned();
+                        let mut big_cons = vec![];
 
-        //                 for row in 0..self.fixed[0].len() {
-        //                     //*** Iterate over look up table rows */
-        //                     if exit {
-        //                         break;
-        //                     }
-        //                     let mut equalities = vec![];
-        //                     let mut eq_str = String::new();
-        //                     for col in 0..col_indices.len() {
-        //                         //*** Iterate over fixed cols */
-        //                         let mut t = String::new();
-        //                         match self.fixed[col_indices[col]][row] {
-        //                             CellValue::Unassigned => {
-        //                                 exit = true;
-        //                                 break;
-        //                             }
-        //                             CellValue::Assigned(f) => {
-        //                                 t = format!("{:?}", f);
-        //                             }
-        //                             CellValue::Poison(_) => {}
-        //                         }
+                        for row in 0..self.fixed[0].len() {
+                            //*** Iterate over look up table rows */
+                            if exit {
+                                break;
+                            }
+                            let mut equalities = vec![];
+                            let mut eq_str = String::new();
+                            for col in 0..col_indices.len() {
+                                //*** Iterate over fixed cols */
+                                let mut t = String::new();
+                                match self.fixed[col_indices[col]][row] {
+                                    CellValue::Unassigned => {
+                                        exit = true;
+                                        break;
+                                    }
+                                    CellValue::Assigned(f) => {
+                                        t = format!("{:?}", f);
+                                    }
+                                    CellValue::Poison(_) => {}
+                                }
 
-        //                         if let CellValue::Assigned(value) =
-        //                             self.fixed[col_indices[col]][row]
-        //                         {
-        //                             t = u64::from_str_radix(
-        //                                 format!("{:?}", value).strip_prefix("0x").unwrap(),
-        //                                 16,
-        //                             )
-        //                             .unwrap()
-        //                             .to_string();
-        //                         }
+                                if let CellValue::Assigned(value) =
+                                    self.fixed[col_indices[col]][row]
+                                {
+                                    t = u64::from_str_radix(
+                                        format!("{:?}", value).strip_prefix("0x").unwrap(),
+                                        16,
+                                    )
+                                    .unwrap()
+                                    .to_string();
+                                }
 
-        //                         let sa = smt::get_assert(
-        //                             printer,
-        //                             cons_str_vec[col].clone(),
-        //                             t,
-        //                             NodeType::Mult,
-        //                             Operation::Equal,
-        //                         )
-        //                         .context("Failled to generate assert!")?;
-        //                         equalities.push(sa.clone());
-        //                     }
-        //                     if exit {
-        //                         break;
-        //                     }
-        //                     for var in equalities.iter() {
-        //                         eq_str.push_str(var);
-        //                     }
-        //                     let and_eqs = smt::get_and(printer, eq_str);
+                                let sa = smt::get_assert(
+                                    printer,
+                                    cons_str_vec[col].clone(),
+                                    t,
+                                    NodeType::Mult,
+                                    Operation::Equal,
+                                )
+                                .context("Failled to generate assert!")?;
+                                equalities.push(sa.clone());
+                            }
+                            if exit {
+                                break;
+                            }
+                            for var in equalities.iter() {
+                                eq_str.push_str(var);
+                            }
+                            let and_eqs = smt::get_and(printer, eq_str);
 
-        //                     big_cons.push(and_eqs);
-        //                 }
-        //                 for var in big_cons.iter() {
-        //                     big_cons_str.push_str(var);
-        //                 }
+                            big_cons.push(and_eqs);
+                        }
+                        for var in big_cons.iter() {
+                            big_cons_str.push_str(var);
+                        }
 
-        //                 smt::write_assert_bool(printer, big_cons_str, Operation::Or);
-        //             }
-        //         }
-        //     }
-        // }
+                        smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                    }
+                }
+            }
+        }
         Ok(())
     }
     /// Checks the uniqueness inputs and returns the analysis result.
@@ -1100,6 +1112,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     /// analysis result as `AnalyzerOutputStatus`.
     ///
     pub fn uniqueness_assertion(
+        &mut self,
         smt_file_path: String,
         instance_cols_string: &HashMap<String, i64>,
         analyzer_input: &AnalyzerInput,
@@ -1136,6 +1149,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             result = AnalyzerOutputStatus::Overconstrained;
             return Ok(result); // We can just break here.
         }
+        let mut uc_lookup_dependency_FP = false;
+        let mut uc_lookup_dependency: bool = false;
         for i in 1..=max_iterations {
             let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
                 .context("Failed to solve and get model!")?;
@@ -1214,7 +1229,59 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             let model_with_constraint =
                 Self::solve_and_get_model(smt_file_path.clone(), &variables)
                     .context("Failed to solve and get model!")?;
-            if matches!(model_with_constraint.sat, Satisfiability::Satisfiable) {
+
+            if analyzer_input.lookup_uninterpreted_func {
+                info!("Equivalent model for the same public input!(No Lookup Constraint):");
+                for r in &model_with_constraint.result {
+                    info!("{} : {}", r.1.name, r.1.value.element)
+                }
+                let mut differences = Vec::new();
+                for (key, value1) in &model.result {
+                    if let Some(value2) = model_with_constraint.result.get(key) {
+                        if value1 != value2 {
+                            differences.push((key.clone(), value1, value2));
+                        }
+                    }
+                }
+                let mut processed_lookup_mappings: HashMap<usize, bool> = HashMap::new();
+
+                uc_lookup_dependency = false;
+
+                for diff in &differences {
+                    if let Some(indices) = self.lookup_dependant_cells.get(&diff.0) {
+                        for &index in indices {
+                            let is_processed =
+                                processed_lookup_mappings.get(&index).unwrap_or(&false);
+                            if !is_processed {
+                                processed_lookup_mappings.insert(index, true);
+                                let t = self
+                                    .lookup(&model_with_constraint, index)
+                                    .context("context")?;
+
+                                if !t {
+                                    uc_lookup_dependency = true;
+                                    uc_lookup_dependency_FP = true;
+                                    if (matches!(
+                                        analyzer_input.verification_method,
+                                        VerificationMethod::Specific
+                                    ) || (matches!(
+                                        analyzer_input.verification_method,
+                                        VerificationMethod::Random
+                                    ) && i == max_iterations))
+                                    {
+                                        info!("Lookup unsuccessful! Probably a false positive!");
+                                        result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
+                                        return Ok(result);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (matches!(model_with_constraint.sat, Satisfiability::Satisfiable)
+                && !uc_lookup_dependency)
+            {
                 info!("Equivalent model for the same public input:");
                 for r in &model_with_constraint.result {
                     info!("{} : {}", r.1.name, r.1.value.element)
@@ -1246,6 +1313,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 neg_model.push_str(var);
             }
             smt::write_assert_bool(printer, neg_model, Operation::Or);
+        }
+        if uc_lookup_dependency_FP
+            && matches!(result, AnalyzerOutputStatus::NotUnderconstrainedLocal)
+        {
+            result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
         }
         Ok(result)
     }
@@ -1301,6 +1373,52 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         smt_parser::extract_model_response(output_string.to_string())
             .context("Failed to parse smt result!")
     }
+    fn lookup(&self, model_with_constraint: &ModelResult, index: usize) -> Option<bool> {
+        let lookup_mapping = &self.lookup_mappings[index];
+
+        let column_indices: Vec<_> = model_with_constraint
+            .result
+            .keys()
+            .filter_map(|key| lookup_mapping.get(key).cloned())
+            .collect();
+
+        let variables: Vec<_> = model_with_constraint.result.values().cloned().collect();
+
+        'outer: for (row_index, row) in self.fixed.iter().enumerate() {
+            for (&column_index, variable) in column_indices.iter().zip(variables.iter()) {
+                if let Some(cell) = row.get(column_index) {
+                    let mut t = String::new();
+                    match cell {
+                        CellValue::Unassigned => {
+                            //exit = true;
+                            break;
+                        }
+                        CellValue::Assigned(f) => {
+                            t = format!("{:?}", f);
+                        }
+                        CellValue::Poison(_) => {}
+                    }
+                    if let CellValue::Assigned(value) = cell {
+                        t = u64::from_str_radix(
+                            format!("{:?}", value).strip_prefix("0x").unwrap(),
+                            16,
+                        )
+                        .unwrap()
+                        .to_string();
+                    }
+                    if t != variable.value.element {
+                        continue 'outer;
+                    }
+                } else {
+                    continue 'outer;
+                }
+            }
+            return Some(true);
+        }
+
+        Some(false)
+    }
+
     /// Dispatches the analysis based on the specified analyzer type.
     ///
     /// This function takes an `AnalyzerType` enum and performs the corresponding analysis
