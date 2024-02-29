@@ -13,22 +13,24 @@ use std::marker::PhantomData;
 use crate::circuit_analyzer::halo2_proofs_libs::*;
 
 use anyhow::{Context, Ok, Result};
-use korrekt::{circuit_analyzer::{self, analyzer::Analyzer}, io};
+use korrekt::{
+    circuit_analyzer::{self, analyzer::Analyzer},
+    io,
+};
 use num::{BigInt, Num};
-extern crate log;
 extern crate env_logger;
+extern crate log;
 
-use log::{info, LevelFilter};
 use env_logger::Env;
 fn main() -> Result<(), anyhow::Error> {
-    //env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let circuit =
-        sample_circuits::bit_decomposition::two_bit_decomp_lookup::TwoBitDecompCircuit::<Fr>::default();
+        sample_circuits::lookup_circuits::multiple_lookups_zcash::MyCircuit::<Fr>(PhantomData);
+
     let k = 6;
 
     let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
 
     let modulus = bn256::fr::MODULUS_STR;
     let without_prefix = modulus.trim_start_matches("0x");

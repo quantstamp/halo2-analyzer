@@ -19,7 +19,24 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
     cs: &ConstraintSystem<F>,
 ) -> Result<AnalyzerInput> {
     let mut lookup_uninterpreted_func = false;
+
+    let mut has_lookup = false;
+    #[cfg(any(
+        feature = "use_zcash_halo2_proofs",
+        feature = "use_pse_halo2_proofs",
+        feature = "use_axiom_halo2_proofs",
+        feature = "use_pse_v1_halo2_proofs",
+    ))]
     if !cs.lookups.is_empty() {
+        has_lookup = true;
+    }
+
+    #[cfg(feature = "use_scroll_halo2_proofs")]
+    if !cs.lookups_map.is_empty() {
+        has_lookup = true;
+    }
+
+    if has_lookup {
         println!("You can use uninterpreted functions for lookup analysis for fast analysis at the cost of potential false positives:");
         println!("1. Verify the circuit with uninterpreted functions for lookups!");
         println!("2. Verify the circuit with all lookup constraints!");
