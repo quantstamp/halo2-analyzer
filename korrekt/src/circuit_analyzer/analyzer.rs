@@ -4,8 +4,8 @@ use log::info;
 
 use std::{
     collections::{HashMap, HashSet},
-    fs,
-    fs::{File, OpenOptions},
+    f32::consts::E,
+    fs::{self, File, OpenOptions},
     path::Path,
     process::Command,
 };
@@ -761,7 +761,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 feature = "use_axiom_halo2_proofs",
                 feature = "use_scroll_halo2_proofs"
             ))]
-            Expression::Challenge(_poly) => (todo!()),
+            Expression::Challenge(_poly) => todo!(),
         }
     }
 
@@ -1235,43 +1235,57 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 for r in &model_with_constraint.result {
                     info!("{} : {}", r.1.name, r.1.value.element)
                 }
-                let mut differences = Vec::new();
+                let mut processed_lookup_mappings: HashMap<usize, bool> = HashMap::new();
+                uc_lookup_dependency = false;
                 for (key, value1) in &model.result {
                     if let Some(value2) = model_with_constraint.result.get(key) {
-                        if value1 != value2 {
-                            differences.push((key.clone(), value1, value2));
-                        }
-                    }
-                }
-                let mut processed_lookup_mappings: HashMap<usize, bool> = HashMap::new();
+                        if value1 != value2 && self.lookup_dependant_cells.contains_key(key) {
+                            if let Some(indices) = self.lookup_dependant_cells.get(key) {
+                                for &index in indices {
+                                    if !processed_lookup_mappings.get(&index).unwrap_or(&false) {
+                                        processed_lookup_mappings.insert(index, true);
+                                        // Perform the lookup
+                                        let lookup_sucessful = self
+                                            .lookup(&model_with_constraint, index)
+                                            .context("Failed to perform lookup")?;
 
-                uc_lookup_dependency = false;
+                                        if lookup_sucessful {
+                                            let lookup_sucessful_model = self
+                                                .lookup(&model, index)
+                                                .context("Failed to perform lookup")?;
 
-                for diff in &differences {
-                    if let Some(indices) = self.lookup_dependant_cells.get(&diff.0) {
-                        for &index in indices {
-                            let is_processed =
-                                processed_lookup_mappings.get(&index).unwrap_or(&false);
-                            if !is_processed {
-                                processed_lookup_mappings.insert(index, true);
-                                let t = self
-                                    .lookup(&model_with_constraint, index)
-                                    .context("context")?;
-
-                                if !t {
-                                    uc_lookup_dependency = true;
-                                    uc_lookup_dependency_FP = true;
-                                    if (matches!(
-                                        analyzer_input.verification_method,
-                                        VerificationMethod::Specific
-                                    ) || (matches!(
-                                        analyzer_input.verification_method,
-                                        VerificationMethod::Random
-                                    ) && i == max_iterations))
-                                    {
-                                        info!("Lookup unsuccessful! Probably a false positive!");
-                                        result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
-                                        return Ok(result);
+                                            if !lookup_sucessful_model {
+                                                uc_lookup_dependency = true;
+                                                uc_lookup_dependency_FP = true;
+                                                if (matches!(
+                                                    analyzer_input.verification_method,
+                                                    VerificationMethod::Specific
+                                                ) || (matches!(
+                                                    analyzer_input.verification_method,
+                                                    VerificationMethod::Random
+                                                ) && i == max_iterations))
+                                                {
+                                                    info!("Lookup unsuccessful! Probably a false positive!");
+                                                    result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
+                                                    return Ok(result);
+                                                }
+                                            }
+                                        } else {
+                                            uc_lookup_dependency = true;
+                                            uc_lookup_dependency_FP = true;
+                                            if (matches!(
+                                                analyzer_input.verification_method,
+                                                VerificationMethod::Specific
+                                            ) || (matches!(
+                                                analyzer_input.verification_method,
+                                                VerificationMethod::Random
+                                            ) && i == max_iterations))
+                                            {
+                                                info!("Lookup unsuccessful! Probably a false positive!");
+                                                result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
+                                                return Ok(result);
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1375,17 +1389,26 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     }
     fn lookup(&self, model_with_constraint: &ModelResult, index: usize) -> Option<bool> {
         let lookup_mapping = &self.lookup_mappings[index];
-
+    
         let column_indices: Vec<_> = model_with_constraint
             .result
             .keys()
             .filter_map(|key| lookup_mapping.get(key).cloned())
             .collect();
-
-        let variables: Vec<_> = model_with_constraint.result.values().cloned().collect();
-
+    
+    
+        let variables: Vec<_> = model_with_constraint.result.iter()
+            .filter_map(|(key, var)| {
+                if let Some(&col_index) = lookup_mapping.get(key) {
+                    Some((col_index, var))
+                } else {
+                    None
+                }
+            })
+            .collect();
+    
         'outer: for (row_index, row) in self.fixed.iter().enumerate() {
-            for (&column_index, variable) in column_indices.iter().zip(variables.iter()) {
+            for &(column_index, variable) in &variables {
                 if let Some(cell) = row.get(column_index) {
                     let mut t = String::new();
                     match cell {
@@ -1410,15 +1433,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         continue 'outer;
                     }
                 } else {
-                    continue 'outer;
+                    continue 'outer; // Either Unassigned, Poison, or column_index out of bounds
                 }
             }
             return Some(true);
         }
-
+        // No row matched all conditions
         Some(false)
     }
-
     /// Dispatches the analysis based on the specified analyzer type.
     ///
     /// This function takes an `AnalyzerType` enum and performs the corresponding analysis

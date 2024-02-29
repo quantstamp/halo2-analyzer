@@ -1,7 +1,7 @@
 use group::ff::PrimeField as Field;
-use zcash_halo2_proofs::circuit::*;
-use zcash_halo2_proofs::plonk::*;
-use zcash_halo2_proofs::poly::Rotation;
+use pse_halo2_proofs::circuit::*;
+use pse_halo2_proofs::plonk::*;
+use pse_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
 pub struct TwoBitDecompCircuitUnderConstrained<F: Field> {
@@ -59,13 +59,13 @@ impl<F: Field> TwoBitDecopmChip<F> {
         let binary_check_table = [meta.lookup_table_column()];
         
 
-        meta.lookup(|meta| {
+        meta.lookup("BINARY_lookup", |meta| {
             let s = meta.query_selector(s);
             let lhs = meta.query_advice(b0, Rotation::cur());
             vec![(s * lhs, binary_check_table[0])]
         });
 
-        meta.lookup(|meta: &mut VirtualCells<'_, F>| {
+        meta.lookup("BINARY_lookup",|meta: &mut VirtualCells<'_, F>| {
             let s = meta.query_selector(s);
             let lhs = meta.query_advice(b1, Rotation::cur());
             vec![(s * lhs, binary_check_table[0])]
