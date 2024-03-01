@@ -58,6 +58,7 @@ mod tests {
                 instances_string: analyzer.instace_cells,
                 iterations: 5,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
         assert!(analyzer_input
             .verification_method
@@ -88,6 +89,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -118,6 +120,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 1,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
 
         let output_status = analyzer
@@ -149,6 +152,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 4,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
 
         let output_status = analyzer
@@ -185,6 +189,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
 
         let output_status = analyzer
@@ -221,6 +226,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
 
         let output_status = analyzer
@@ -252,6 +258,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
 
         let output_status = analyzer
@@ -284,6 +291,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 1,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
 
         let output_status = analyzer
@@ -321,6 +329,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
 
         let output_status = analyzer
@@ -358,6 +367,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
 
         let output_status = analyzer
@@ -432,6 +442,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
 
         let output_status = analyzer
@@ -467,6 +478,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -476,7 +488,37 @@ mod tests {
     }
 
     #[test]
-    fn analyze_underconstrained_multiple_lookup_test() {
+    fn analyze_underconstrained_multiple_uniterpreted_lookup_random_test() {
+        let circuit =
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+
+        let k = 11;
+
+        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: analyzer.instace_cells.clone(),
+                iterations: 5,
+            },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+        };
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups));
+    }
+
+    #[test]
+    fn analyze_underconstrained_multiple_lookup_random_test() {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
 
@@ -500,6 +542,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
+            lookup_uninterpreted_func: false,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -508,7 +551,42 @@ mod tests {
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
     #[test]
-    fn analyze_not_underconstrained_lookup_test() {
+    fn analyze_underconstrained_uninterpreted_specific_lookup_test() {
+        let circuit =
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+        let k = 11;
+
+        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+
+        assert!(analyzer.instace_cells.len().eq(&3));
+        let mut specified_instance_cols = HashMap::new();
+        specified_instance_cols.insert("I-0-2".to_owned(), 6);
+        specified_instance_cols.insert("I-0-1".to_owned(), 1);
+        specified_instance_cols.insert("I-0-0".to_owned(), 1);
+
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Specific,
+            verification_input: VerificationInput {
+                instances_string: specified_instance_cols,
+                iterations: 1,
+            },
+            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+        };
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups));
+    }
+
+    #[test]
+    fn analyze_underconstrained_lookup_test() {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
         let k = 11;
@@ -537,6 +615,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
+            lookup_uninterpreted_func: false,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
