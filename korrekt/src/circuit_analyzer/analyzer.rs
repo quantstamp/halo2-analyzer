@@ -1319,56 +1319,50 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
                 let mut processed_lookup_mappings: HashMap<usize, bool> = HashMap::new();
                 uc_lookup_dependency = false;
-                for (key, value1) in &model.result {
-                    if let Some(value2) = model_with_constraint.result.get(key) {
-                        if value1 != value2 && self.lookup_dependant_cells.contains_key(key) {
-                            if let Some(indices) = self.lookup_dependant_cells.get(key) {
-                                for &index in indices {
-                                    if !processed_lookup_mappings.get(&index).unwrap_or(&false) {
-                                        processed_lookup_mappings.insert(index, true);
-                                        // Perform the lookup
-                                        let lookup_sucessful = self
-                                            .lookup(&model_with_constraint, index)
-                                            .context("Failed to perform lookup")?;
+                for (_, indices) in &self.lookup_dependant_cells {
+                    for &index in indices {
+                        if !processed_lookup_mappings.get(&index).unwrap_or(&false) {
+                            processed_lookup_mappings.insert(index, true);
+                            // Perform the lookup
+                            let lookup_sucessful = self
+                                .lookup(&model_with_constraint, index)
+                                .context("Failed to perform lookup")?;
 
-                                        if lookup_sucessful {
-                                            let lookup_sucessful_model = self
-                                                .lookup(&model, index)
-                                                .context("Failed to perform lookup")?;
+                            if lookup_sucessful {
+                                let lookup_sucessful_model = self
+                                    .lookup(&model, index)
+                                    .context("Failed to perform lookup")?;
 
-                                            if !lookup_sucessful_model {
-                                                uc_lookup_dependency = true;
-                                                uc_lookup_dependency_FP = true;
-                                                if (matches!(
-                                                    analyzer_input.verification_method,
-                                                    VerificationMethod::Specific
-                                                ) || (matches!(
-                                                    analyzer_input.verification_method,
-                                                    VerificationMethod::Random
-                                                ) && i == max_iterations))
-                                                {
-                                                    info!("Lookup unsuccessful! Probably a false positive!");
-                                                    result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
-                                                    return Ok(result);
-                                                }
-                                            }
-                                        } else {
-                                            uc_lookup_dependency = true;
-                                            uc_lookup_dependency_FP = true;
-                                            if (matches!(
-                                                analyzer_input.verification_method,
-                                                VerificationMethod::Specific
-                                            ) || (matches!(
-                                                analyzer_input.verification_method,
-                                                VerificationMethod::Random
-                                            ) && i == max_iterations))
-                                            {
-                                                info!("Lookup unsuccessful! Probably a false positive!");
-                                                result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
-                                                return Ok(result);
-                                            }
-                                        }
+                                if !lookup_sucessful_model {
+                                    uc_lookup_dependency = true;
+                                    uc_lookup_dependency_FP = true;
+                                    if (matches!(
+                                        analyzer_input.verification_method,
+                                        VerificationMethod::Specific
+                                    ) || (matches!(
+                                        analyzer_input.verification_method,
+                                        VerificationMethod::Random
+                                    ) && i == max_iterations))
+                                    {
+                                        info!("Lookup unsuccessful! Probably a false positive!");
+                                        result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
+                                        return Ok(result);
                                     }
+                                }
+                            } else {
+                                uc_lookup_dependency = true;
+                                uc_lookup_dependency_FP = true;
+                                if (matches!(
+                                    analyzer_input.verification_method,
+                                    VerificationMethod::Specific
+                                ) || (matches!(
+                                    analyzer_input.verification_method,
+                                    VerificationMethod::Random
+                                ) && i == max_iterations))
+                                {
+                                    info!("Lookup unsuccessful! Probably a false positive!");
+                                    result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
+                                    return Ok(result);
                                 }
                             }
                         }
