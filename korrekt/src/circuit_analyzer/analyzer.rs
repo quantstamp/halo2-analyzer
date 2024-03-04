@@ -4,7 +4,6 @@ use log::info;
 
 use std::{
     collections::{HashMap, HashSet},
-    f32::consts::E,
     fs::{self, File, OpenOptions},
     path::Path,
     process::Command,
