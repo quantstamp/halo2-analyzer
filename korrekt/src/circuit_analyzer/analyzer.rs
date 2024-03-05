@@ -38,7 +38,6 @@ pub struct Analyzer<F: AnalyzableField> {
     pub cell_to_cycle_head: HashMap<String, String>,
     pub counter: u32,
     pub lookup_mappings: Vec<HashMap<String, usize>>,
-    pub lookup_dependant_cells: HashMap<String, Vec<usize>>,
 }
 #[derive(Debug)]
 pub enum NodeType {
@@ -79,7 +78,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             cell_to_cycle_head,
             counter: 0,
             lookup_mappings: Vec::new(),
-            lookup_dependant_cells: HashMap::new(),
         })
     }
 
@@ -239,6 +237,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             })
         }
     }
+    // Define a function to extract permutations from the provided permutation assembly.
+    // Returns three HashMaps containing pairs, instances, and cell-to-cycle head mappings.
 
     pub fn extract_permutations(
         permutation: &permutation::keygen::Assembly,
@@ -252,6 +252,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let mut cycles = Vec::<Vec<String>>::new();
         let mut num_of_cycles = 0;
         let mut cell_to_cycle_head = HashMap::<String, String>::new();
+
         for col in 0..permutation.sizes.len() {
             for row in 0..permutation.sizes[col].len() {
                 if permutation.sizes[col][row] > 1 {
@@ -774,6 +775,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         printer: &mut smt::Printer<File>,
         analyzer_input: &AnalyzerInput,
     ) -> Result<(), anyhow::Error> {
+        // Extract all gates
         if !self.regions.is_empty() {
             for region in &self.regions {
                 if !region.enabled_selectors.is_empty() {
@@ -805,9 +807,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
             }
         }
+        // Extract all lookups
         if analyzer_input.lookup_uninterpreted_func {
+            // Extract all lookups as uninterpreted functions and stores all lookup structure to be use for post-processing
             self.decompose_lookups_as_uniterpreted(printer)?;
         } else {
+            // Extract all lookup constraints
             self.decompose_lookups(printer)?;
         }
         Ok(())
@@ -819,6 +824,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         feature = "use_axiom_halo2_proofs",
         feature = "use_pse_v1_halo2_proofs",
     ))]
+    // Extracts the lookup constraints and writes assertions using an SMT printer.
     fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
@@ -912,7 +918,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         }
         Ok(())
     }
-
+    // Extracts the lookup dependant cells and writes assertions of an uninterpreted function using an SMT printer.
+    // Also extract the list of all lookup dependant cells and their corresponding lookup mappings. These data will be used for checking if a under-constrained circuit is false positive.
     #[cfg(any(
         feature = "use_zcash_halo2_proofs",
         feature = "use_pse_halo2_proofs",
@@ -923,7 +930,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         &mut self,
         printer: &mut smt::Printer<File>,
     ) -> Result<(), anyhow::Error> {
-        let mut is_in_lookup_defined = false;
+        // As we are defining one uninterpreted function for all lookups, we only need to define it once.
+        let mut is_in_lookup_func_defined = false;
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
@@ -931,7 +939,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     for lookup in self.cs.lookups.iter() {
                         let mut cons_str_vec = HashSet::new();
                         let mut lookup_arg_cells = HashSet::new();
+                        // Decompose the lookup input expressions and store the result in cons_str_vec.
                         for poly in &lookup.input_expressions {
+                            // Decompose the lookup input expressions and return the SMT compatible decomposed expression and the variable name.
                             let (node_str, _, var) = Self::decompose_lookup_expression(
                                 poly,
                                 printer,
@@ -948,14 +958,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 lookup_arg_cells.insert(var);
                             }
                         }
-                        if !lookup_arg_cells.is_empty() {
-                            for var in lookup_arg_cells.iter() {
-                                self.lookup_dependant_cells
-                                    .entry(var.clone())
-                                    .or_insert_with(Vec::new)
-                                    .push(self.lookup_mappings.len());
-                            }
-                        }
+
                         let mut col_indices = Vec::new();
                         for col in lookup.table_expressions.clone() {
                             if let Expression::Fixed(fixed_query) = col {
@@ -963,11 +966,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             }
                         }
                         let mut lookup_mapping = HashMap::new();
+                        // Using decomposed lookup input expressions and column indexes of the lookup table, we can have the whole structure of each lookup as elements of lookup_mappings
                         for (index, var) in lookup_arg_cells.iter().enumerate() {
                             if var.is_empty() {
                                 continue;
                             }
                             if let Some(&col_index) = col_indices.get(index) {
+                                // Keeping track of in the current lookup, which cell is mapped to which column in the lookup table.
                                 lookup_mapping.insert(var.clone(), col_index);
                             }
                         }
@@ -975,16 +980,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             &self.lookup_mappings.push(lookup_mapping);
                         }
                         if !cons_str_vec.is_empty() {
-                            if !is_in_lookup_defined {
+                            // The function isInLookupTable is defined only once and used for all lookups, always returns true.
+                            if !is_in_lookup_func_defined {
                                 smt::write_fn(
                                     printer,
                                     "isInLookupTable".to_owned(),
                                     "F".to_owned(),
                                     "Bool".to_owned(),
                                 );
-                                is_in_lookup_defined = true;
+                                is_in_lookup_func_defined = true;
                             }
 
+                            // The function isInLookupTable is called for each lookup, and the result is asserted to be true.
                             for cons_str in cons_str_vec.iter() {
                                 smt::write_assert_boolean_uniterpreted_func(
                                     printer,
@@ -1004,7 +1011,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         &mut self,
         printer: &mut smt::Printer<File>,
     ) -> Result<(), anyhow::Error> {
-        let mut is_in_lookup_defined = false;
+        let mut is_in_lookup_func_defined = false;
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
@@ -1031,14 +1038,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 }
                             }
                         }
-                        if !lookup_arg_cells.is_empty() {
-                            for var in lookup_arg_cells.iter() {
-                                self.lookup_dependant_cells
-                                    .entry(var.clone())
-                                    .or_insert_with(Vec::new)
-                                    .push(self.lookup_mappings.len());
-                            }
-                        }
+
                         let mut col_indices = Vec::new();
                         for col in lookup.1.table.clone() {
                             if let Expression::Fixed(fixed_query) = col {
@@ -1058,14 +1058,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             &self.lookup_mappings.push(lookup_mapping);
                         }
                         if !cons_str_vec.is_empty() {
-                            if !is_in_lookup_defined {
+                            if !is_in_lookup_func_defined {
                                 smt::write_fn(
                                     printer,
                                     "isInLookupTable".to_owned(),
                                     "F".to_owned(),
                                     "Bool".to_owned(),
                                 );
-                                is_in_lookup_defined = true;
+                                is_in_lookup_func_defined = true;
                             }
 
                             for cons_str in cons_str_vec.iter() {
@@ -1208,10 +1208,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
         let mut max_iterations: u128 = 1;
 
+        // Determine the verification method and configure the analysis accordingly.
         match analyzer_input.verification_method {
+            // For specific public input, directly write assertions for each variable.
             VerificationMethod::Specific => {
                 for var in instance_cols_string {
+                    // Declare the variables in the SMT formula.
                     smt::write_var(printer, var.0.to_owned());
+                    // Write an assertion that each veriables equals the given value.
                     smt::write_assert(
                         printer,
                         var.0.clone(),
@@ -1221,13 +1225,15 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     );
                 }
             }
+            // For random verification, set the number of iterations as specified.
             VerificationMethod::Random => {
                 max_iterations = analyzer_input.verification_input.iterations;
             }
         }
         let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
             .context("Failed to solve and get model!")?;
-        let mut valid_model_looked_up = false;
+        // With uninterpreted function, the model might be invalid due to the lookup constraints. We will ignore these models.
+        let mut valid_model_lookeded_up = false;
         if matches!(model.sat, Satisfiability::Unsatisfiable) {
             result = AnalyzerOutputStatus::Overconstrained;
             return Ok(result); // We can just break here.
@@ -1235,38 +1241,38 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let mut uc_lookup_dependency_FP = false;
         let mut uc_lookup_dependency: bool = false;
         for i in 1..=max_iterations {
+            // Attempt to solve the SMT problem and obtain a model.
             let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
                 .context("Failed to solve and get model!")?;
             if matches!(model.sat, Satisfiability::Unsatisfiable) {
                 result = AnalyzerOutputStatus::NotUnderconstrained;
                 return Ok(result); // We can just break here.
             }
+            // No need to do the lookup as they are already constrained in SMT solver where uninterpreted functions are not used for lookups.
             if !analyzer_input.lookup_uninterpreted_func {
                 info!("Model {} to be checked:", i);
                 for r in &model.result {
                     info!("{} : {}", r.1.name, r.1.value.element)
                 }
-                valid_model_looked_up = true;
-            } else {
-                let mut processed_lookup_mappings: HashMap<usize, bool> = HashMap::new();
+                valid_model_lookeded_up = true;
+            }
+            // if using uninterpreted function, we need to check if the model is valid by performing the lookup.
+            else {
                 uc_lookup_dependency = false;
-                for (_, indices) in &self.lookup_dependant_cells {
-                    for &index in indices {
-                        if !processed_lookup_mappings.get(&index).unwrap_or(&false) {
-                            processed_lookup_mappings.insert(index, true);
-                            // Perform the lookup
-                            let lookup_sucessful = self
-                                .lookup(&model, index)
-                                .context("Failed to perform lookup")?;
+                // Lookup search to make sure all values in the model are valid.
+                for index in 0..self.lookup_mappings.len() {
+                    // Perform the lookup
+                    let lookup_sucessful = self
+                        .lookup(&model, index)
+                        .context("Failed to perform lookup")?;
 
-                            if lookup_sucessful {
-                                valid_model_looked_up = true;
-                            }
-                        }
+                    if lookup_sucessful {
+                        valid_model_lookeded_up = true;
                     }
                 }
             }
-            if valid_model_looked_up {
+            // If the model is not valid, we ignore it and continue to the next iteration.
+            if valid_model_lookeded_up {
                 println!("Model {} is valid!", i);
                 info!("Model {} to be checked:", i);
                 for r in &model.result {
@@ -1338,38 +1344,33 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     Self::solve_and_get_model(smt_file_path.clone(), &variables)
                         .context("Failed to solve and get model!")?;
 
+                // If uaing uninterpreted function, we need to check if the model is valid by performing the lookup.
                 if analyzer_input.lookup_uninterpreted_func {
                     info!("Equivalent model for the same public input!(No Lookup Constraint):");
                     for r in &model_with_constraint.result {
                         info!("{} : {}", r.1.name, r.1.value.element)
                     }
-                    let mut processed_lookup_mappings: HashMap<usize, bool> = HashMap::new();
                     uc_lookup_dependency = false;
-                    for (_, indices) in &self.lookup_dependant_cells {
-                        for &index in indices {
-                            if !processed_lookup_mappings.get(&index).unwrap_or(&false) {
-                                processed_lookup_mappings.insert(index, true);
-                                // Perform the lookup
-                                let lookup_sucessful = self
-                                    .lookup(&model_with_constraint, index)
-                                    .context("Failed to perform lookup")?;
-
-                                if !lookup_sucessful {
-                                    uc_lookup_dependency = true;
-                                    uc_lookup_dependency_FP = true;
-                                    if (matches!(
-                                        analyzer_input.verification_method,
-                                        VerificationMethod::Specific
-                                    ) || (matches!(
-                                        analyzer_input.verification_method,
-                                        VerificationMethod::Random
-                                    ) && i == max_iterations))
-                                    {
-                                        info!("Lookup unsuccessful! Probably a false positive!");
-                                        result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
-                                        return Ok(result);
-                                    }
-                                }
+                    for index in 0..self.lookup_mappings.len() {
+                        // Lookup search to make sure all values in the model are valid.
+                        let lookup_sucessful = self
+                            .lookup(&model_with_constraint, index)
+                            .context("Failed to perform lookup")?;
+                        // if the lookup is not successful, the model found is not valid and the under-constraiend flag is a false positive, still we can't say if the circuit is under-constrained or not.
+                        if !lookup_sucessful {
+                            uc_lookup_dependency = true;
+                            uc_lookup_dependency_FP = true;
+                            if (matches!(
+                                analyzer_input.verification_method,
+                                VerificationMethod::Specific
+                            ) || (matches!(
+                                analyzer_input.verification_method,
+                                VerificationMethod::Random
+                            ) && i == max_iterations))
+                            {
+                                info!("Lookup unsuccessful! Probably a false positive!");
+                                result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
+                                return Ok(result);
                             }
                         }
                     }
@@ -1388,9 +1389,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
                 smt::write_pop(printer, 1);
             }
-            // else {
-            //     info!("Model {} is invalid!", i);
-            // }
+
             // If no model found, add some rules to the initial solver to make sure does not generate the same model again
             let mut negated_model_variable_assignments = vec![];
             for res in &model.result {
