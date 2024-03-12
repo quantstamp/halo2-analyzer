@@ -1,3 +1,3 @@
-pub mod lookup_axiom;
-pub mod lookup_underconstrained_axiom;
-pub mod multiple_lookups_axiom;
+pub mod lookup;
+pub mod lookup_underconstrained;
+pub mod multiple_lookups;

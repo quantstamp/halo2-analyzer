@@ -26,8 +26,7 @@ fn main() -> Result<(), anyhow::Error> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let circuit =
-        sample_circuits::lookup_circuits::multiple_lookups_zcash::MyCircuit::<Fr>(PhantomData);
-
+        sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
     let k = 6;
 
     let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -41,7 +40,7 @@ fn main() -> Result<(), anyhow::Error> {
     let analyzer_type = io::analyzer_io::retrieve_user_input_for_analyzer_type()
         .context("Failed to retrieve the user inputs!")?;
 
-    let t = analyzer
+    analyzer
         .dispatch_analysis(analyzer_type, &prime)
         .context("Failed to perform analysis!")?;
     //println!(": {:?}", analyzer.fixed);

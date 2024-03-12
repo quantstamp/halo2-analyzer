@@ -1,4 +1,4 @@
-pub mod add_multiplication_zcash;
-pub mod two_bit_decomp_zcash;
-pub mod two_bit_decomp_multirow_zcash;
 pub mod two_bit_decomp_lookup;
+pub mod add_multiplication;
+pub mod two_bit_decomp;
+pub mod two_bit_decomp_multirow;

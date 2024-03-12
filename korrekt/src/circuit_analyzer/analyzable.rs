@@ -1,3 +1,4 @@
+#[cfg(feature = "use_pse_v1_halo2_proofs")]
 use halo2curves::Group;
 use std::{
     collections::{HashMap, HashSet},
@@ -121,7 +122,7 @@ impl<F: AnalyzableField> Assignment<F> for Analyzable<F> {
         _: A,
         column: Column<Advice>,
         row: usize,
-        to: V,
+        _to: V,
     ) -> Result<(), Error>
     where
         V: FnOnce() -> circuit::Value<VR>,
@@ -154,7 +155,7 @@ impl<F: AnalyzableField> Assignment<F> for Analyzable<F> {
         //_: A,
         column: Column<Advice>,
         row: usize,
-        to: circuit::Value<Assigned<F>>,
+        _to: circuit::Value<Assigned<F>>,
     ) -> circuit::Value<&'v Assigned<F>> {
 
         if let Some(region) = self.current_region.as_mut() {
@@ -336,15 +337,15 @@ impl<F: AnalyzableField> Assignment<F> for Analyzable<F> {
         }
     }
     #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
-    fn get_challenge(&self, challenge: Challenge) -> Value<F> {
+    fn get_challenge(&self, _challenge: Challenge) -> Value<F> {
         Value::unknown()
     }
     #[cfg(any(feature = "use_scroll_halo2_proofs"))]
-    fn query_advice(&self, column: Column<Advice>, row: usize) -> Result<F, Error> {
+    fn query_advice(&self, _column: Column<Advice>, _row: usize) -> Result<F, Error> {
         todo!()
     }
     #[cfg(any(feature = "use_scroll_halo2_proofs"))]
-    fn query_fixed(&self, column: Column<Fixed>, row: usize) -> Result<F, Error> {
+    fn query_fixed(&self, _column: Column<Fixed>, _row: usize) -> Result<F, Error> {
         todo!()
     }
     
