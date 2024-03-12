@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use log::info;
 use std::{collections::HashMap, io};
 
 use crate::io::analyzer_io_type::{

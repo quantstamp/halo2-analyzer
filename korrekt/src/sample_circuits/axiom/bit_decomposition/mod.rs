@@ -1,3 +1,3 @@
-pub mod add_multiplication_axiom;
-pub mod two_bit_decomp_axiom;
-pub mod two_bit_decomp_multirow_axiom;
+pub mod add_multiplication;
+pub mod two_bit_decomp;
+pub mod two_bit_decomp_multirow;

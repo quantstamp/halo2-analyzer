@@ -54,15 +54,65 @@ export GMP_LIB=/opt/homebrew/Cellar/gmp/6.2.1_1/lib/libgmp.a
 find /usr /opt -name "libgmp.a"
 ```
 
+## Feature Flags and Halo2 Versions
+
+This project leverages feature flags to enable support of different versions of the Halo2. Each feature flag corresponds to a specific version of Halo2, allowing for flexible and targeted compilation.
+
+### Using Feature Flags
+
+To use a specific Halo2 version in your build or tests, enable the corresponding feature flag with the cargo command:
+
+- Build with a specific Halo2 version:
+
+```bash
+cargo build --features use_zcash_halo2_proofs
+```
+
+- Run tests for a specific Halo2 version:
+
+```bash
+cargo test --features use_zcash_halo2_proofs
+```
+
+Replace `use_zcash_halo2_proofs` with the relevant feature flag for the desired Halo2 version.
+
+### Managing Halo2 Patches
+
+For certain versions, multiple patches may be available. It's important to ensure that only the relevant patch is enabled to avoid conflicts. This is managed by commenting out or uncommenting the appropriate lines in the Cargo.toml file under the [patch] section.
+
 ## How to run
 
 1. Go to "korrekt"
-2. Run `cargo run` (the circuit is hard-coded in main.rs, in the future this should be a library)
+
+2. Run `cargo run` with relevant halo2 version feature flag (the circuit is hard-coded in main.rs, in the future this should be a library)
+    You must enable at least one of the available feature flags
+
+    ```bash
+    cargo run --no-default-features --features use_zcash_halo2_proofs
+    cargo run --no-default-features --features use_pse_halo2_proofs
+    cargo run --no-default-features --features use_axiom_halo2_proofs
+    cargo run --no-default-features --features use_scroll_halo2_proofs
+    cargo run --no-default-features --features use_pse_v1_halo2_proofs
+    ```
+
+    `--no-default-features` for the current setup where the default flag is set to `use_zcash_halo2_proofs`.
 
 ## How to test
 
 1. Go to "korrekt"
-2. Run `cargo test -- --test-threads=1`
+
+2. Run `cargo test -- --test-threads=1`  with relevant halo2 version feature flag.
+    You must enable at least one of the available feature flags
+
+    ```bash
+    cargo test --no-default-features --features use_zcash_halo2_proofs -- --test-threads=1
+    cargo test --no-default-features --features use_pse_halo2_proofs -- --test-threads=1
+    cargo test --no-default-features --features use_axiom_halo2_proofs -- --test-threads=1
+    cargo test --no-default-features --features use_scroll_halo2_proofs -- --test-threads=1
+    cargo test --no-default-features --features use_pse_v1_halo2_proofs -- --test-threads=1
+    ```
+
+    `--no-default-features` for the current setup where the default flag is set to `use_zcash_halo2_proofs`.
 
 ## For linting
 

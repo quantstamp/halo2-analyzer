@@ -1,7 +1,7 @@
-use group::ff::{Field, PrimeField};
-use pse_halo2_proofs::circuit::*;
-use pse_halo2_proofs::plonk::*;
-use pse_halo2_proofs::poly::Rotation;
+use group::ff::PrimeField;
+use axiom_halo2_proofs::circuit::*;
+use axiom_halo2_proofs::plonk::*;
+use axiom_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
 /// `TwoBitDecompCircuit` is a circuit designed to perform binary decomposition 
@@ -105,23 +105,23 @@ impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuit<F> {
                 |mut region| {
                     config.s.enable(&mut region, 0)?;
 
-                    region.assign_advice(|| "b0", config.b0, 0, || Value::known(self.b0))?;
+                    region.assign_advice( config.b0, 0, Value::known(self.b0));
 
-                    region.assign_advice(|| "b1", config.b1, 0, || Value::known(self.b1))?;
+                    region.assign_advice(config.b1, 0, Value::known(self.b1));
 
                     let out = region.assign_advice(
-                        || "x",
+                       
                         config.x,
                         0,
-                        || Value::known(self.b0 + F::from(2) * self.b1),
-                    )?;
+                        Value::known(self.b0 + F::from(2) * self.b1),
+                    );
 
                     Ok(out)
                 },
             )
             .unwrap();
         // expose the public input
-        layouter.constrain_instance(out.cell(), config.i, 0)?;
+        layouter.constrain_instance(out.cell(), config.i, 0);
         Ok(())
     }
 }
@@ -218,23 +218,22 @@ impl<F: PrimeField> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
                 |mut region| {
                     config.s.enable(&mut region, 0)?;
 
-                    region.assign_advice(|| "b0", config.b0, 0, || Value::known(self.b0))?;
+                    region.assign_advice( config.b0, 0, Value::known(self.b0));
 
-                    region.assign_advice(|| "b1", config.b1, 0, || Value::known(self.b1))?;
+                    region.assign_advice( config.b1, 0, Value::known(self.b1));
 
                     let out = region.assign_advice(
-                        || "x",
                         config.x,
                         0,
-                        || Value::known(self.b0 + F::from(2) * self.b1),
-                    )?;
+                        Value::known(self.b0 + F::from(2) * self.b1),
+                    );
 
                     Ok(out)
                 },
             )
             .unwrap();
         // expose the public input
-        layouter.constrain_instance(out.cell(), config.i, 0)?;
+        layouter.constrain_instance(out.cell(), config.i, 0);
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use group::ff::{Field, PrimeField};
+use group::ff:: PrimeField;
 use pse_halo2_proofs::circuit::*;
 use pse_halo2_proofs::plonk::*;
 use pse_halo2_proofs::poly::Rotation;
