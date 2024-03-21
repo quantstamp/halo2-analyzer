@@ -50,6 +50,7 @@ pub enum NodeType {
     Add,
     Scaled,
     Poly,
+    Invalid
 }
 #[derive(Debug)]
 pub enum Operation {
@@ -656,7 +657,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     ) -> (String, NodeType, String) {
         match &poly {
             Expression::Constant(a) => {
-                todo!()
+                (String::new(),NodeType::Invalid,String::new())
             }
             Expression::Selector(a) => {
                 if es.contains_key(a) {
@@ -708,10 +709,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 (t.to_string(), NodeType::Advice, t.to_string())
             }
             Expression::Negated(poly) => {
-                todo!()
+                (String::new(),NodeType::Invalid,String::new())
             }
             Expression::Sum(a, b) => {
-                todo!()
+                (String::new(),NodeType::Invalid,String::new())
             }
             Expression::Product(a, b) => {
                 let (node_str_left, nodet_type_left, variable_left) =
@@ -755,14 +756,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 (term, NodeType::Mult, var)
             }
             Expression::Scaled(_poly, c) => {
-                todo!()
+                (String::new(),NodeType::Invalid,String::new())
             }
             #[cfg(any(
                 feature = "use_pse_halo2_proofs",
                 feature = "use_axiom_halo2_proofs",
                 feature = "use_scroll_halo2_proofs"
             ))]
-            Expression::Challenge(_poly) => todo!(),
+            Expression::Challenge(_poly) => (String::new(),NodeType::Invalid,String::new()),
         }
     }
 
