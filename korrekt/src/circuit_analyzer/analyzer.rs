@@ -709,7 +709,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 (t.to_string(), NodeType::Advice, t.to_string())
             }
             Expression::Negated(poly) => {
-                (String::new(),NodeType::Invalid,String::new())
+                (String::new(),NodeType::Invalid,String::new())//TODO: add error handling for invalid expressions: ZKR-3331
             }
             Expression::Sum(a, b) => {
                 (String::new(),NodeType::Invalid,String::new())
