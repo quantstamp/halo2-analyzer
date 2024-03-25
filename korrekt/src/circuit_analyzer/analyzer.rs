@@ -50,7 +50,7 @@ pub enum NodeType {
     Add,
     Scaled,
     Poly,
-    Invalid
+    Invalid,
 }
 #[derive(Debug)]
 pub enum Operation {
@@ -656,9 +656,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         cell_to_cycle_head: &HashMap<String, String>,
     ) -> (String, NodeType, String) {
         match &poly {
-            Expression::Constant(a) => {
-                (String::new(),NodeType::Invalid,String::new())
-            }
+            Expression::Constant(a) => (String::new(), NodeType::Invalid, String::new()),
             Expression::Selector(a) => {
                 if es.contains_key(a) {
                     ("(as ff1 F)".to_owned(), NodeType::Fixed, "1".to_owned())
@@ -709,11 +707,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 (t.to_string(), NodeType::Advice, t.to_string())
             }
             Expression::Negated(poly) => {
-                (String::new(),NodeType::Invalid,String::new())//TODO: add error handling for invalid expressions: ZKR-3331
+                (String::new(), NodeType::Invalid, String::new()) //TODO: add error handling for invalid expressions: ZKR-3331
             }
-            Expression::Sum(a, b) => {
-                (String::new(),NodeType::Invalid,String::new())
-            }
+            Expression::Sum(a, b) => (String::new(), NodeType::Invalid, String::new()),
             Expression::Product(a, b) => {
                 let (node_str_left, nodet_type_left, variable_left) =
                     Self::decompose_lookup_expression(
@@ -755,15 +751,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
                 (term, NodeType::Mult, var)
             }
-            Expression::Scaled(_poly, c) => {
-                (String::new(),NodeType::Invalid,String::new())
-            }
+            Expression::Scaled(_poly, c) => (String::new(), NodeType::Invalid, String::new()),
             #[cfg(any(
                 feature = "use_pse_halo2_proofs",
                 feature = "use_axiom_halo2_proofs",
                 feature = "use_scroll_halo2_proofs"
             ))]
-            Expression::Challenge(_poly) => (String::new(),NodeType::Invalid,String::new()),
+            Expression::Challenge(_poly) => (String::new(), NodeType::Invalid, String::new()),
         }
     }
 
@@ -932,12 +926,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         &mut self,
         printer: &mut smt::Printer<File>,
     ) -> Result<(), anyhow::Error> {
-        // As we are defining one uninterpreted function for all lookups, we only need to define it once.
-        let mut is_in_lookup_func_defined = false;
+        let mut lookup_func_map = HashMap::new();
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
                 for row_num in 0..region_end - region_begin + 1 {
+                    let mut lookup_index = 0;
                     for lookup in self.cs.lookups.iter() {
                         let mut cons_str_vec = HashSet::new();
                         let mut lookup_arg_cells = HashSet::new();
@@ -981,27 +975,30 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         if !lookup_mapping.is_empty() {
                             &self.lookup_mappings.push(lookup_mapping);
                         }
+
                         if !cons_str_vec.is_empty() {
-                            // The function isInLookupTable is defined only once and used for all lookups, always returns true.
-                            if !is_in_lookup_func_defined {
+                            let uninterpreted_func_name =
+                                format!("isInLookupTable{}", lookup_index);
+                            if !lookup_func_map.contains_key(&lookup_index) {
+                                lookup_func_map.insert(lookup_index, true);
+
                                 smt::write_fn(
                                     printer,
-                                    "isInLookupTable".to_owned(),
+                                    uninterpreted_func_name.clone(),
                                     "F".to_owned(),
                                     "Bool".to_owned(),
                                 );
-                                is_in_lookup_func_defined = true;
                             }
 
-                            // The function isInLookupTable is called for each lookup, and the result is asserted to be true.
                             for cons_str in cons_str_vec.iter() {
                                 smt::write_assert_boolean_uniterpreted_func(
                                     printer,
-                                    "isInLookupTable".to_owned(),
+                                    uninterpreted_func_name.clone(),
                                     cons_str.to_owned(),
                                 );
                             }
                         }
+                        lookup_index += 1;
                     }
                 }
             }
@@ -1013,11 +1010,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         &mut self,
         printer: &mut smt::Printer<File>,
     ) -> Result<(), anyhow::Error> {
-        let mut is_in_lookup_func_defined = false;
+        let mut lookup_func_map = HashMap::new();
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
                 for row_num in 0..region_end - region_begin + 1 {
+                    let mut lookup_index = 0;
                     for lookup in &self.cs.lookups_map {
                         let mut cons_str_vec = HashSet::new();
                         let mut lookup_arg_cells = HashSet::new();
@@ -1060,24 +1058,26 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             &self.lookup_mappings.push(lookup_mapping);
                         }
                         if !cons_str_vec.is_empty() {
-                            if !is_in_lookup_func_defined {
+                            let uninterpreted_func_name =
+                                format!("isInLookupTable{}", lookup_index);
+                            if !lookup_func_map.contains_key(&lookup_index) {
+                                lookup_func_map.insert(lookup_index, true);
                                 smt::write_fn(
                                     printer,
-                                    "isInLookupTable".to_owned(),
+                                    uninterpreted_func_name.to_owned(),
                                     "F".to_owned(),
                                     "Bool".to_owned(),
                                 );
-                                is_in_lookup_func_defined = true;
                             }
-
                             for cons_str in cons_str_vec.iter() {
                                 smt::write_assert_boolean_uniterpreted_func(
                                     printer,
-                                    "isInLookupTable".to_owned(),
+                                    uninterpreted_func_name.to_owned(),
                                     cons_str.to_owned(),
                                 );
                             }
                         }
+                        lookup_index += 1;
                     }
                 }
             }
