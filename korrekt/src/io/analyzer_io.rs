@@ -35,10 +35,10 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
     }
 
     if has_lookup {
-        println!("You can use uninterpreted functions for lookup analysis for fast analysis at the cost of potential false positives:");
+        println!("You can use uninterpreted functions for lookup analysis for fast analysis at the cost of potential false positives, or use range check functions instead of inline constraints:");
         println!("1. Verify the circuit with uninterpreted functions for lookups!");
         println!("2. Verify the circuit with all lookup constraints!");
-        println!("3. Verify the circuit with interpreted functions for lookups!");
+        println!("3. Verify the circuit with interpreted functions (Range Check) for lookups!");
         let mut menu = String::new();
         io::stdin()
             .read_line(&mut menu)
