@@ -102,11 +102,20 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// The `inputs` parameter is a space-separated list of types representing the function's input parameters.
     /// The `outputs` parameter specifies the type of the function's output.
     ///
-    fn write_fn(&mut self, name: String, inputs: String, outputs: String) {
+    /// 
+    fn write_declare_fn(&mut self, name: String, inputs: String, outputs: String) {
         writeln!(
             &mut self.writer,
-            "(declare-fun {} ({}) {})",
+            "(declare-fun {} ( {} ) {})",
             name, inputs, outputs
+        )
+        .unwrap();
+    }
+    fn write_define_fn(&mut self, name: String, inputs: String, outputs: String, body: String) {
+        writeln!(
+            &mut self.writer,
+            "(define-fun {} ( {} ) {} {})",
+            name, inputs, outputs, body
         )
         .unwrap();
     }
@@ -158,8 +167,8 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
             writeln!(&mut self.writer, "(assert (and {}))", poly).unwrap();
         }
     }
-    fn write_assert_boolean_uniterpreted_func(&mut self, func_name: String, inputs: String) {
-        writeln!(&mut self.writer, "(assert ({} ({})))", func_name, inputs).unwrap();
+    fn write_assert_boolean_func(&mut self, func_name: String, inputs: String) {
+        writeln!(&mut self.writer, "(assert ({} {}))", func_name, inputs).unwrap();
     }
     /// Returns a string representing an assertion in the SMT-LIB format.
     ///
@@ -256,8 +265,11 @@ pub fn write_end<W: Write>(p: &mut Printer<W>) {
 pub fn write_var(p: &mut Printer<File>, name: String) {
     p.write_var(name);
 }
-pub fn write_fn(p: &mut Printer<File>, name: String, inputs: String, outputs: String) {
-    p.write_fn(name, inputs, outputs);
+pub fn write_define_fn(p: &mut Printer<File>, name: String, inputs: String, outputs: String, body: String) {
+    p.write_define_fn(name, inputs, outputs,body);
+}
+pub fn write_declare_fn(p: &mut Printer<File>, name: String, inputs: String, outputs: String) {
+    p.write_declare_fn(name, inputs, outputs);
 }
 pub fn write_term<W: Write>(
     p: &mut Printer<W>,
@@ -284,12 +296,12 @@ pub fn write_assert_bool(p: &mut Printer<File>, poly: String, op: analyzer::Oper
     p.write_assert_bool(poly, op);
 }
 
-pub fn write_assert_boolean_uniterpreted_func(
+pub fn write_assert_boolean_func(
     p: &mut Printer<File>,
     func_name: String,
     inputs: String,
 ) {
-    p.write_assert_boolean_uniterpreted_func(func_name, inputs);
+    p.write_assert_boolean_func(func_name, inputs);
 }
 
 pub fn get_assert(

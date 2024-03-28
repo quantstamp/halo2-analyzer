@@ -2,6 +2,7 @@
 #[cfg(feature = "use_scroll_halo2_proofs")]
 mod tests {
     use crate::circuit_analyzer::analyzer::Analyzer;
+    use crate::io::analyzer_io_type::LookupMethod;
     use crate::io::{
         analyzer_io_type,
         analyzer_io_type::{AnalyzerOutputStatus, VerificationInput, VerificationMethod},
@@ -58,7 +59,7 @@ mod tests {
                 instances_string: analyzer.instace_cells,
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
         assert!(analyzer_input
             .verification_method
@@ -89,7 +90,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -120,7 +121,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -152,7 +153,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 4,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -189,7 +190,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -226,7 +227,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -258,7 +259,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -291,7 +292,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -329,7 +330,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -367,7 +368,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -442,7 +443,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -472,7 +473,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -503,7 +504,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::Uninterpreted,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -532,7 +533,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::Uninterpreted,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -566,7 +567,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: false,
+            lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -600,7 +601,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups_map.len().gt(&0),
+            lookup_method: LookupMethod::Uninterpreted,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -639,7 +640,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: false,
+            lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
