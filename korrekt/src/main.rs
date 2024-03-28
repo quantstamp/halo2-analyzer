@@ -13,10 +13,13 @@ use std::marker::PhantomData;
 use crate::circuit_analyzer::halo2_proofs_libs::*;
 
 use anyhow::{Context, Ok, Result};
-use korrekt::{circuit_analyzer::{self, analyzer::Analyzer}, io};
+use korrekt::{
+    circuit_analyzer::{self, analyzer::Analyzer},
+    io,
+};
 use num::{BigInt, Num};
-extern crate log;
 extern crate env_logger;
+extern crate log;
 
 use env_logger::Env;
 fn main() -> Result<(), anyhow::Error> {
@@ -27,7 +30,6 @@ fn main() -> Result<(), anyhow::Error> {
     let k = 6;
 
     let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
 
     let modulus = bn256::fr::MODULUS_STR;
     let without_prefix = modulus.trim_start_matches("0x");
@@ -41,5 +43,6 @@ fn main() -> Result<(), anyhow::Error> {
     analyzer
         .dispatch_analysis(analyzer_type, &prime)
         .context("Failed to perform analysis!")?;
+    //println!(": {:?}", analyzer.fixed);
     Ok(())
 }

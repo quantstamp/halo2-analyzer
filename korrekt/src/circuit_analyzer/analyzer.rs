@@ -4,8 +4,7 @@ use log::info;
 
 use std::{
     collections::{HashMap, HashSet},
-    fs,
-    fs::{File, OpenOptions},
+    fs::{self, File, OpenOptions},
     path::Path,
     process::Command,
 };
@@ -38,6 +37,7 @@ pub struct Analyzer<F: AnalyzableField> {
     pub instace_cells: HashMap<String, i64>,
     pub cell_to_cycle_head: HashMap<String, String>,
     pub counter: u32,
+    pub lookup_mappings: Vec<HashMap<String, usize>>,
 }
 #[derive(Debug)]
 pub enum NodeType {
@@ -50,6 +50,7 @@ pub enum NodeType {
     Add,
     Scaled,
     Poly,
+    Invalid,
 }
 #[derive(Debug)]
 pub enum Operation {
@@ -77,6 +78,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             instace_cells,
             cell_to_cycle_head,
             counter: 0,
+            lookup_mappings: Vec::new(),
         })
     }
 
@@ -94,7 +96,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             used = false;
 
             // is this gate identically zero over regions?
-            'region_search: for region in self.regions.iter().filter(|reg| reg.enabled_selectors.len() > 0) {
+            'region_search: for region in self
+                .regions
+                .iter()
+                .filter(|reg| reg.enabled_selectors.len() > 0)
+            {
                 let (region_begin, region_end) = region.rows.unwrap();
                 let row_num = (region_end - region_begin + 1) as i32;
                 let selectors = region.enabled_selectors.keys().cloned().collect();
@@ -185,7 +191,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     feature = "use_pse_halo2_proofs",
                     feature = "use_axiom_halo2_proofs",
                     feature = "use_scroll_halo2_proofs",
-                    feature = "use_pse_v1_halo2_proofs"))]
+                    feature = "use_pse_v1_halo2_proofs"
+                ))]
                 let (reg_column, rotation) = (cell.0 .0, cell.1);
                 #[cfg(feature = "use_zcash_halo2_proofs")]
                 let (reg_column, rotation) = (cell.0, cell.1);
@@ -231,6 +238,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             })
         }
     }
+    // Define a function to extract permutations from the provided permutation assembly.
+    // Returns three HashMaps containing pairs, instances, and cell-to-cycle head mappings.
 
     pub fn extract_permutations(
         permutation: &permutation::keygen::Assembly,
@@ -244,6 +253,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let mut cycles = Vec::<Vec<String>>::new();
         let mut num_of_cycles = 0;
         let mut cell_to_cycle_head = HashMap::<String, String>::new();
+
         for col in 0..permutation.sizes.len() {
             for row in 0..permutation.sizes[col].len() {
                 if permutation.sizes[col][row] > 1 {
@@ -364,7 +374,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             std::fs::File::create(smt_file_path).context("Failed to create file!")?;
         let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_owned());
 
-        let _ = Self::decompose_polynomial(self, &mut printer);
+        let _ = Self::decompose_polynomial(self, &mut printer, &analyzer_input);
 
         let instance_string = analyzer_input.verification_input.instances_string.clone();
 
@@ -413,6 +423,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         }
 
         let output_status: AnalyzerOutputStatus = Self::uniqueness_assertion(
+            self,
             smt_file_path.to_owned(),
             &instance_string,
             &analyzer_input,
@@ -518,7 +529,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
-                    cell_to_cycle_head
+                    cell_to_cycle_head,
                 );
                 let term = if (matches!(node_type, NodeType::Advice)
                     || matches!(node_type, NodeType::Instance)
@@ -540,7 +551,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
-                    cell_to_cycle_head
+                    cell_to_cycle_head,
                 );
                 let (node_str_right, nodet_type_right) = Self::decompose_expression(
                     b,
@@ -550,7 +561,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
-                    cell_to_cycle_head
+                    cell_to_cycle_head,
                 );
                 let term = smt::write_term(
                     printer,
@@ -571,7 +582,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
-                    cell_to_cycle_head
+                    cell_to_cycle_head,
                 );
                 let (node_str_right, nodet_type_right) = Self::decompose_expression(
                     b,
@@ -581,7 +592,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
-                    cell_to_cycle_head
+                    cell_to_cycle_head,
                 );
                 let term = smt::write_term(
                     printer,
@@ -603,7 +614,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
-                    cell_to_cycle_head
+                    cell_to_cycle_head,
                 );
                 let (node_str_right, nodet_type_right) = Self::decompose_expression(
                     _poly,
@@ -613,7 +624,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     row_num,
                     es,
                     fixed,
-                    cell_to_cycle_head
+                    cell_to_cycle_head,
                 );
                 let term = smt::write_term(
                     printer,
@@ -633,6 +644,123 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             Expression::Challenge(_poly) => ("".to_string(), NodeType::Fixed),
         }
     }
+
+    fn decompose_lookup_expression(
+        poly: &Expression<F>,
+        printer: &mut smt::Printer<File>,
+        region_begin: usize,
+        region_end: usize,
+        row_num: i32,
+        es: &HashMap<Selector, Vec<usize>>,
+        fixed: &Vec<Vec<CellValue<F>>>,
+        cell_to_cycle_head: &HashMap<String, String>,
+    ) -> (String, NodeType, String) {
+        match &poly {
+            Expression::Constant(a) => (String::new(), NodeType::Invalid, String::new()),
+            Expression::Selector(a) => {
+                if es.contains_key(a) {
+                    ("(as ff1 F)".to_owned(), NodeType::Fixed, "1".to_owned())
+                } else {
+                    ("(as ff0 F)".to_owned(), NodeType::Fixed, "0".to_owned())
+                }
+            }
+            Expression::Fixed(fixed_query) => {
+                let col = fixed_query.column_index;
+                let row = (fixed_query.rotation.0 + row_num) as usize + region_begin;
+
+                let mut t = 0;
+                if let CellValue::Assigned(fixed_val) = fixed[col][row] {
+                    t = u64::from_str_radix(
+                        format!("{:?}", fixed_val).strip_prefix("0x").unwrap(),
+                        16,
+                    )
+                    .unwrap();
+                }
+                let term = format!("(as ff{:?} F)", t);
+
+                (term, NodeType::Fixed, t.to_string())
+            }
+            Expression::Advice(advice_query) => {
+                let term = format!(
+                    "A-{}-{}",
+                    advice_query.column_index,
+                    advice_query.rotation.0 + row_num + region_begin as i32
+                );
+                let mut t = term.clone();
+                if cell_to_cycle_head.contains_key(&term) {
+                    t = cell_to_cycle_head[&term.clone()].to_string();
+                }
+                smt::write_var(printer, t.to_string());
+                (t.to_string(), NodeType::Advice, t.to_string())
+            }
+            Expression::Instance(instance_query) => {
+                let term = format!(
+                    "I-{}-{}",
+                    instance_query.column_index,
+                    instance_query.rotation.0 + row_num + region_begin as i32
+                );
+                let mut t = term.clone();
+                if cell_to_cycle_head.contains_key(&term) {
+                    t = cell_to_cycle_head[&term.clone()].to_string();
+                }
+                smt::write_var(printer, t.to_string());
+                (t.to_string(), NodeType::Advice, t.to_string())
+            }
+            Expression::Negated(poly) => {
+                (String::new(), NodeType::Invalid, String::new()) //TODO: add error handling for invalid expressions: ZKR-3331
+            }
+            Expression::Sum(a, b) => (String::new(), NodeType::Invalid, String::new()),
+            Expression::Product(a, b) => {
+                let (node_str_left, nodet_type_left, variable_left) =
+                    Self::decompose_lookup_expression(
+                        a,
+                        printer,
+                        region_begin,
+                        region_end,
+                        row_num,
+                        es,
+                        fixed,
+                        cell_to_cycle_head,
+                    );
+                let (node_str_right, nodet_type_right, variable_right) =
+                    Self::decompose_lookup_expression(
+                        b,
+                        printer,
+                        region_begin,
+                        region_end,
+                        row_num,
+                        es,
+                        fixed,
+                        cell_to_cycle_head,
+                    );
+                let term = smt::write_term(
+                    printer,
+                    "mul".to_owned(),
+                    node_str_left,
+                    nodet_type_left,
+                    node_str_right,
+                    nodet_type_right,
+                );
+                let mut var = String::from("");
+                if variable_left == "1" || variable_right == "1" {
+                    if variable_left == "1" {
+                        var = variable_right;
+                    } else {
+                        var = variable_left;
+                    }
+                }
+                (term, NodeType::Mult, var)
+            }
+            Expression::Scaled(_poly, c) => (String::new(), NodeType::Invalid, String::new()),
+            #[cfg(any(
+                feature = "use_pse_halo2_proofs",
+                feature = "use_axiom_halo2_proofs",
+                feature = "use_scroll_halo2_proofs"
+            ))]
+            Expression::Challenge(_poly) => (String::new(), NodeType::Invalid, String::new()),
+        }
+    }
+
     /// Decomposes polynomials and writes assertions using an SMT printer.
     ///
     /// This function iterates over the regions and rows of a layouter and decomposes the polynomials
@@ -641,7 +769,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn decompose_polynomial(
         &'b mut self,
         printer: &mut smt::Printer<File>,
+        analyzer_input: &AnalyzerInput,
     ) -> Result<(), anyhow::Error> {
+        // Extract all gates
         if !self.regions.is_empty() {
             for region in &self.regions {
                 if !region.enabled_selectors.is_empty() {
@@ -673,8 +803,15 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
             }
         }
-
-        self.decompose_lookups(printer)
+        // Extract all lookups
+        if analyzer_input.lookup_uninterpreted_func {
+            // Extract all lookups as uninterpreted functions and stores all lookup structure to be use for post-processing
+            self.decompose_lookups_as_uniterpreted(printer)?;
+        } else {
+            // Extract all lookup constraints
+            self.decompose_lookups(printer)?;
+        }
+        Ok(())
     }
 
     #[cfg(any(
@@ -683,6 +820,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         feature = "use_axiom_halo2_proofs",
         feature = "use_pse_v1_halo2_proofs",
     ))]
+    // Extracts the lookup constraints and writes assertions using an SMT printer.
     fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
@@ -770,6 +908,176 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         }
 
                         smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    // Extracts the lookup dependant cells and writes assertions of an uninterpreted function using an SMT printer.
+    // Also extract the list of all lookup dependant cells and their corresponding lookup mappings. These data will be used for checking if a under-constrained circuit is false positive.
+    #[cfg(any(
+        feature = "use_zcash_halo2_proofs",
+        feature = "use_pse_halo2_proofs",
+        feature = "use_axiom_halo2_proofs",
+        feature = "use_pse_v1_halo2_proofs",
+    ))]
+    fn decompose_lookups_as_uniterpreted(
+        &mut self,
+        printer: &mut smt::Printer<File>,
+    ) -> Result<(), anyhow::Error> {
+        let mut lookup_func_map = HashMap::new();
+        for region in &self.regions {
+            if !region.enabled_selectors.is_empty() {
+                let (region_begin, region_end) = region.rows.unwrap();
+                for row_num in 0..region_end - region_begin + 1 {
+                    let mut lookup_index = 0;
+                    for lookup in self.cs.lookups.iter() {
+                        let mut cons_str_vec = HashSet::new();
+                        let mut lookup_arg_cells = HashSet::new();
+                        // Decompose the lookup input expressions and store the result in cons_str_vec.
+                        for poly in &lookup.input_expressions {
+                            // Decompose the lookup input expressions and return the SMT compatible decomposed expression and the variable name.
+                            let (node_str, _, var) = Self::decompose_lookup_expression(
+                                poly,
+                                printer,
+                                region_begin,
+                                region_end,
+                                i32::try_from(row_num).ok().unwrap(),
+                                &region.enabled_selectors,
+                                &self.fixed,
+                                &self.cell_to_cycle_head,
+                            );
+                            cons_str_vec.insert(node_str);
+                            if !var.is_empty() {
+                                //TODO: check if we can optimize analyzer based on disabled selectores on lookups: ZKR-3207
+                                lookup_arg_cells.insert(var);
+                            }
+                        }
+
+                        let mut col_indices = Vec::new();
+                        for col in lookup.table_expressions.clone() {
+                            if let Expression::Fixed(fixed_query) = col {
+                                col_indices.push(fixed_query.column_index);
+                            }
+                        }
+                        let mut lookup_mapping = HashMap::new();
+                        // Using decomposed lookup input expressions and column indexes of the lookup table, we can have the whole structure of each lookup as elements of lookup_mappings
+                        for (index, var) in lookup_arg_cells.iter().enumerate() {
+                            if var.is_empty() {
+                                continue;
+                            }
+                            if let Some(&col_index) = col_indices.get(index) {
+                                // Keeping track of in the current lookup, which cell is mapped to which column in the lookup table.
+                                lookup_mapping.insert(var.clone(), col_index);
+                            }
+                        }
+                        if !lookup_mapping.is_empty() {
+                            &self.lookup_mappings.push(lookup_mapping);
+                        }
+
+                        if !cons_str_vec.is_empty() {
+                            let uninterpreted_func_name =
+                                format!("isInLookupTable{}", lookup_index);
+                            if !lookup_func_map.contains_key(&lookup_index) {
+                                lookup_func_map.insert(lookup_index, true);
+
+                                smt::write_fn(
+                                    printer,
+                                    uninterpreted_func_name.clone(),
+                                    "F".to_owned(),
+                                    "Bool".to_owned(),
+                                );
+                            }
+
+                            for cons_str in cons_str_vec.iter() {
+                                smt::write_assert_boolean_uniterpreted_func(
+                                    printer,
+                                    uninterpreted_func_name.clone(),
+                                    cons_str.to_owned(),
+                                );
+                            }
+                        }
+                        lookup_index += 1;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    #[cfg(any(feature = "use_scroll_halo2_proofs"))]
+    fn decompose_lookups_as_uniterpreted(
+        &mut self,
+        printer: &mut smt::Printer<File>,
+    ) -> Result<(), anyhow::Error> {
+        let mut lookup_func_map = HashMap::new();
+        for region in &self.regions {
+            if !region.enabled_selectors.is_empty() {
+                let (region_begin, region_end) = region.rows.unwrap();
+                for row_num in 0..region_end - region_begin + 1 {
+                    let mut lookup_index = 0;
+                    for lookup in &self.cs.lookups_map {
+                        let mut cons_str_vec = HashSet::new();
+                        let mut lookup_arg_cells = HashSet::new();
+                        for polys in &lookup.1.inputs {
+                            for poly in polys {
+                                let (node_str, _, var) = Self::decompose_lookup_expression(
+                                    poly,
+                                    printer,
+                                    region_begin,
+                                    region_end,
+                                    i32::try_from(row_num).ok().unwrap(),
+                                    &region.enabled_selectors,
+                                    &self.fixed,
+                                    &self.cell_to_cycle_head,
+                                );
+                                cons_str_vec.insert(node_str);
+                                if !var.is_empty() {
+                                    //TODO: check if we can optimize analyzer based on disabled selectores on lookups: ZKR-3207
+                                    lookup_arg_cells.insert(var);
+                                }
+                            }
+                        }
+
+                        let mut col_indices = Vec::new();
+                        for col in lookup.1.table.clone() {
+                            if let Expression::Fixed(fixed_query) = col {
+                                col_indices.push(fixed_query.column_index);
+                            }
+                        }
+                        let mut lookup_mapping = HashMap::new();
+                        for (index, var) in lookup_arg_cells.iter().enumerate() {
+                            if var.is_empty() {
+                                continue;
+                            }
+                            if let Some(&col_index) = col_indices.get(index) {
+                                lookup_mapping.insert(var.clone(), col_index);
+                            }
+                        }
+                        if !lookup_mapping.is_empty() {
+                            &self.lookup_mappings.push(lookup_mapping);
+                        }
+                        if !cons_str_vec.is_empty() {
+                            let uninterpreted_func_name =
+                                format!("isInLookupTable{}", lookup_index);
+                            if !lookup_func_map.contains_key(&lookup_index) {
+                                lookup_func_map.insert(lookup_index, true);
+                                smt::write_fn(
+                                    printer,
+                                    uninterpreted_func_name.to_owned(),
+                                    "F".to_owned(),
+                                    "Bool".to_owned(),
+                                );
+                            }
+                            for cons_str in cons_str_vec.iter() {
+                                smt::write_assert_boolean_uniterpreted_func(
+                                    printer,
+                                    uninterpreted_func_name.to_owned(),
+                                    cons_str.to_owned(),
+                                );
+                            }
+                        }
+                        lookup_index += 1;
                     }
                 }
             }
@@ -883,6 +1191,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     /// analysis result as `AnalyzerOutputStatus`.
     ///
     pub fn uniqueness_assertion(
+        &mut self,
         smt_file_path: String,
         instance_cols_string: &HashMap<String, i64>,
         analyzer_input: &AnalyzerInput,
@@ -896,10 +1205,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
         let mut max_iterations: u128 = 1;
 
+        // Determine the verification method and configure the analysis accordingly.
         match analyzer_input.verification_method {
+            // For specific public input, directly write assertions for each variable.
             VerificationMethod::Specific => {
                 for var in instance_cols_string {
+                    // Declare the variables in the SMT formula.
                     smt::write_var(printer, var.0.to_owned());
+                    // Write an assertion that each veriables equals the given value.
                     smt::write_assert(
                         printer,
                         var.0.clone(),
@@ -909,105 +1222,170 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     );
                 }
             }
+            // For random verification, set the number of iterations as specified.
             VerificationMethod::Random => {
                 max_iterations = analyzer_input.verification_input.iterations;
             }
         }
         let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
             .context("Failed to solve and get model!")?;
+        // With uninterpreted function, the model might be invalid due to the lookup constraints. We will ignore these models.
+        let mut valid_model_lookeded_up = false;
         if matches!(model.sat, Satisfiability::Unsatisfiable) {
             result = AnalyzerOutputStatus::Overconstrained;
             return Ok(result); // We can just break here.
         }
+        let mut uc_lookup_dependency_FP = false;
+        let mut uc_lookup_dependency: bool = false;
         for i in 1..=max_iterations {
+            // Attempt to solve the SMT problem and obtain a model.
             let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
                 .context("Failed to solve and get model!")?;
             if matches!(model.sat, Satisfiability::Unsatisfiable) {
                 result = AnalyzerOutputStatus::NotUnderconstrained;
                 return Ok(result); // We can just break here.
             }
-
-            info!("Model {} to be checked:", i);
-            for r in &model.result {
-                info!("{} : {}", r.1.name, r.1.value.element)
-            }
-
-            // Imitate the creation of a new solver by utilizing the stack functionality of solver
-            smt::write_push(printer, 1);
-
-            //*** To check the model is under-constrained we need to:
-            //      1. Fix the public input
-            //      2. Change the other vars
-            //      3. add these rules to the current solver and,
-            //      4. find a model that satisfies these rules
-
-            let mut same_assignments = vec![];
-            let mut diff_assignments = vec![];
-            for var in variables.iter() {
-                // The second condition is needed because the following constraints would've been added already to the solver in the beginning.
-                // It is not strictly necessary, but there is no point in adding redundant constraints to the solver.
-                if instance_cols_string.contains_key(var)
-                    && !matches!(
-                        analyzer_input.verification_method,
-                        VerificationMethod::Specific
-                    )
-                {
-                    // 1. Fix the public input
-                    let result_from_model = &model.result[var];
-                    let sa = smt::get_assert(
-                        printer,
-                        result_from_model.name.clone(),
-                        result_from_model.value.element.clone(),
-                        NodeType::Instance,
-                        Operation::Equal,
-                    )
-                    .context("Failled to generate assert!")?;
-                    same_assignments.push(sa);
-                } else {
-                    //2. Change the other vars
-                    let result_from_model = &model.result[var];
-                    let sa = smt::get_assert(
-                        printer,
-                        result_from_model.name.clone(),
-                        result_from_model.value.element.clone(),
-                        NodeType::Instance,
-                        Operation::NotEqual,
-                    )
-                    .context("Failled to generate assert!")?;
-                    diff_assignments.push(sa);
-                }
-            }
-
-            let mut same_str = "".to_owned();
-            for var in same_assignments.iter() {
-                same_str.push_str(var);
-            }
-            let mut diff_str = "".to_owned();
-            for var in diff_assignments.iter() {
-                diff_str.push_str(var);
-            }
-
-            // 3. add these rules to the current solver,
-            let or_diff_assignments = smt::get_or(printer, diff_str);
-            same_str.push_str(&or_diff_assignments);
-            let and_all = smt::get_and(printer, same_str);
-            smt::write_assert_bool(printer, and_all, Operation::And);
-
-            // 4. find a model that satisfies these rules
-            let model_with_constraint =
-                Self::solve_and_get_model(smt_file_path.clone(), &variables)
-                    .context("Failed to solve and get model!")?;
-            if matches!(model_with_constraint.sat, Satisfiability::Satisfiable) {
-                info!("Equivalent model for the same public input:");
-                for r in &model_with_constraint.result {
+            // No need to do the lookup as they are already constrained in SMT solver where uninterpreted functions are not used for lookups.
+            if !analyzer_input.lookup_uninterpreted_func {
+                info!("Model {} to be checked:", i);
+                for r in &model.result {
                     info!("{} : {}", r.1.name, r.1.value.element)
                 }
-                result = AnalyzerOutputStatus::Underconstrained;
-                return Ok(result);
-            } else {
-                info!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+                valid_model_lookeded_up = true;
             }
-            smt::write_pop(printer, 1);
+            // if using uninterpreted function, we need to check if the model is valid by performing the lookup.
+            else {
+                uc_lookup_dependency = false;
+                // Lookup search to make sure all values in the model are valid.
+                for index in 0..self.lookup_mappings.len() {
+                    // Perform the lookup
+                    let lookup_sucessful = self
+                        .lookup(&model, index)
+                        .context("Failed to perform lookup")?;
+
+                    if lookup_sucessful {
+                        valid_model_lookeded_up = true;
+                    }
+                }
+            }
+            // If the model is not valid, we ignore it and continue to the next iteration.
+            if valid_model_lookeded_up {
+                println!("Model {} is valid!", i);
+                info!("Model {} to be checked:", i);
+                for r in &model.result {
+                    info!("{} : {}", r.1.name, r.1.value.element)
+                }
+                // Imitate the creation of a new solver by utilizing the stack functionality of solver
+                smt::write_push(printer, 1);
+
+                //*** To check the model is under-constrained we need to:
+                //      1. Fix the public input
+                //      2. Change the other vars
+                //      3. add these rules to the current solver and,
+                //      4. find a model that satisfies these rules
+
+                let mut same_assignments = vec![];
+                let mut diff_assignments = vec![];
+                for var in variables.iter() {
+                    // The second condition is needed because the following constraints would've been added already to the solver in the beginning.
+                    // It is not strictly necessary, but there is no point in adding redundant constraints to the solver.
+                    if instance_cols_string.contains_key(var)
+                        && !matches!(
+                            analyzer_input.verification_method,
+                            VerificationMethod::Specific
+                        )
+                    {
+                        // 1. Fix the public input
+                        let result_from_model = &model.result[var];
+                        let sa = smt::get_assert(
+                            printer,
+                            result_from_model.name.clone(),
+                            result_from_model.value.element.clone(),
+                            NodeType::Instance,
+                            Operation::Equal,
+                        )
+                        .context("Failled to generate assert!")?;
+                        same_assignments.push(sa);
+                    } else {
+                        //2. Change the other vars
+                        let result_from_model = &model.result[var];
+                        let sa = smt::get_assert(
+                            printer,
+                            result_from_model.name.clone(),
+                            result_from_model.value.element.clone(),
+                            NodeType::Instance,
+                            Operation::NotEqual,
+                        )
+                        .context("Failled to generate assert!")?;
+                        diff_assignments.push(sa);
+                    }
+                }
+
+                let mut same_str = "".to_owned();
+                for var in same_assignments.iter() {
+                    same_str.push_str(var);
+                }
+                let mut diff_str = "".to_owned();
+                for var in diff_assignments.iter() {
+                    diff_str.push_str(var);
+                }
+
+                // 3. add these rules to the current solver,
+                let or_diff_assignments = smt::get_or(printer, diff_str);
+                same_str.push_str(&or_diff_assignments);
+                let and_all = smt::get_and(printer, same_str);
+                smt::write_assert_bool(printer, and_all, Operation::And);
+
+                // 4. find a model that satisfies these rules
+                let model_with_constraint =
+                    Self::solve_and_get_model(smt_file_path.clone(), &variables)
+                        .context("Failed to solve and get model!")?;
+
+                // If using uninterpreted function, we need to check if the model is valid by performing the lookup.
+                if analyzer_input.lookup_uninterpreted_func {
+                    info!("Equivalent model for the same public input!(No Lookup Constraint):");
+                    for r in &model_with_constraint.result {
+                        info!("{} : {}", r.1.name, r.1.value.element)
+                    }
+                    uc_lookup_dependency = false;
+                    for index in 0..self.lookup_mappings.len() {
+                        // Lookup search to make sure all values in the model are valid.
+                        let lookup_sucessful = self
+                            .lookup(&model_with_constraint, index)
+                            .context("Failed to perform lookup")?;
+                        // if the lookup is not successful, the model found is not valid and the under-constrained flag is a false positive, still we can't say if the circuit is under-constrained or not.
+                        if !lookup_sucessful {
+                            uc_lookup_dependency = true;
+                            uc_lookup_dependency_FP = true;
+                            if (matches!(
+                                analyzer_input.verification_method,
+                                VerificationMethod::Specific
+                            ) || (matches!(
+                                analyzer_input.verification_method,
+                                VerificationMethod::Random
+                            ) && i == max_iterations))
+                            {
+                                info!("Lookup unsuccessful! Probably a false positive!");
+                                result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
+                                return Ok(result);
+                            }
+                        }
+                    }
+                }
+                if (matches!(model_with_constraint.sat, Satisfiability::Satisfiable)
+                    && !uc_lookup_dependency)
+                {
+                    info!("Equivalent model for the same public input:");
+                    for r in &model_with_constraint.result {
+                        info!("{} : {}", r.1.name, r.1.value.element)
+                    }
+                    result = AnalyzerOutputStatus::Underconstrained;
+                    return Ok(result);
+                } else {
+                    info!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+                }
+                smt::write_pop(printer, 1);
+            }
 
             // If no model found, add some rules to the initial solver to make sure does not generate the same model again
             let mut negated_model_variable_assignments = vec![];
@@ -1029,6 +1407,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 neg_model.push_str(var);
             }
             smt::write_assert_bool(printer, neg_model, Operation::Or);
+        }
+        if uc_lookup_dependency_FP
+            && matches!(result, AnalyzerOutputStatus::NotUnderconstrainedLocal)
+        {
+            result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
         }
         Ok(result)
     }
@@ -1084,6 +1467,61 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         smt_parser::extract_model_response(output_string.to_string())
             .context("Failed to parse smt result!")
     }
+    fn lookup(&self, model_with_constraint: &ModelResult, index: usize) -> Option<bool> {
+        let lookup_mapping = &self.lookup_mappings[index];
+
+        let column_indices: Vec<_> = model_with_constraint
+            .result
+            .keys()
+            .filter_map(|key| lookup_mapping.get(key).cloned())
+            .collect();
+
+        let variables: Vec<_> = model_with_constraint
+            .result
+            .iter()
+            .filter_map(|(key, var)| {
+                if let Some(&col_index) = lookup_mapping.get(key) {
+                    Some((col_index, var))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        'outer: for (row_index, row) in self.fixed.iter().enumerate() {
+            for &(column_index, variable) in &variables {
+                if let Some(cell) = row.get(column_index) {
+                    let mut t = String::new();
+                    match cell {
+                        CellValue::Unassigned => {
+                            //exit = true;
+                            break;
+                        }
+                        CellValue::Assigned(f) => {
+                            t = format!("{:?}", f);
+                        }
+                        CellValue::Poison(_) => {}
+                    }
+                    if let CellValue::Assigned(value) = cell {
+                        t = u64::from_str_radix(
+                            format!("{:?}", value).strip_prefix("0x").unwrap(),
+                            16,
+                        )
+                        .unwrap()
+                        .to_string();
+                    }
+                    if t != variable.value.element {
+                        continue 'outer;
+                    }
+                } else {
+                    continue 'outer; // Either Unassigned, Poison, or column_index out of bounds
+                }
+            }
+            return Some(true);
+        }
+        // No row matched all conditions
+        Some(false)
+    }
     /// Dispatches the analysis based on the specified analyzer type.
     ///
     /// This function takes an `AnalyzerType` enum and performs the corresponding analysis
@@ -1108,7 +1546,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             AnalyzerType::UnusedColumns => self.analyze_unused_columns(),
             AnalyzerType::UnderconstrainedCircuit => {
                 let analyzer_input: AnalyzerInput =
-                    retrieve_user_input_for_underconstrained(&self.instace_cells)
+                    retrieve_user_input_for_underconstrained(&self.instace_cells, &self.cs)
                         .context("Failed to retrieve user input!")?;
                 self.analyze_underconstrained(analyzer_input, prime)
             }

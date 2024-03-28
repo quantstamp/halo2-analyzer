@@ -1,9 +1,11 @@
 use anyhow::{anyhow, Context, Result};
 use std::{collections::HashMap, io};
-
-use crate::io::analyzer_io_type::{
-    AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, VerificationInput,
-    VerificationMethod,
+use crate::{
+    circuit_analyzer::{analyzable::AnalyzableField,halo2_proofs_libs::*},
+    io::analyzer_io_type::{
+        AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, VerificationInput,
+        VerificationMethod,
+    },
 };
 /// Retrieves user input for underconstrained circuit analysis.
 ///
@@ -11,9 +13,52 @@ use crate::io::analyzer_io_type::{
 /// or a random number of public inputs. It then collects the necessary user input based on the chosen
 /// verification type and constructs an `AnalyzerInput` struct to be used in the underconstrained analysis.
 ///
-pub fn retrieve_user_input_for_underconstrained(
+pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
     instance_cols_string: &HashMap<String, i64>,
+    cs: &ConstraintSystem<F>,
 ) -> Result<AnalyzerInput> {
+    let mut lookup_uninterpreted_func = false;
+
+    let mut has_lookup = false;
+    #[cfg(any(
+        feature = "use_zcash_halo2_proofs",
+        feature = "use_pse_halo2_proofs",
+        feature = "use_axiom_halo2_proofs",
+        feature = "use_pse_v1_halo2_proofs",
+    ))]
+    if !cs.lookups.is_empty() {
+        has_lookup = true;
+    }
+
+    #[cfg(feature = "use_scroll_halo2_proofs")]
+    if !cs.lookups_map.is_empty() {
+        has_lookup = true;
+    }
+
+    if has_lookup {
+        println!("You can use uninterpreted functions for lookup analysis for fast analysis at the cost of potential false positives:");
+        println!("1. Verify the circuit with uninterpreted functions for lookups!");
+        println!("2. Verify the circuit with all lookup constraints!");
+        let mut menu = String::new();
+        io::stdin()
+            .read_line(&mut menu)
+            .expect("Failed to read line");
+
+        let selection = menu
+            .trim()
+            .parse::<i32>() // Using i32 assuming the options are small integer values
+            .expect("Failed to parse input as integer"); // Simplifying error handling for example
+
+        // Setting lookup_uninterpreted_func based on selected option
+        lookup_uninterpreted_func = match selection {
+            1 => true,
+            2 => false,
+            _ => {
+                println!("Invalid selection, defaulting to 'false'");
+                false
+            }
+        };
+    }
     println!("You can verify the circuit for a specific public input or a random number of public inputs:");
     println!("1. verify the circuit for a specific public input!");
     println!("2. Verify for a random number of public inputs!");
@@ -35,6 +80,7 @@ pub fn retrieve_user_input_for_underconstrained(
             iterations: 1,
             instances_string: HashMap::new(),
         },
+        lookup_uninterpreted_func,
     };
 
     match verification_type {
@@ -72,9 +118,7 @@ pub fn retrieve_user_input_for_underconstrained(
             analyzer_input.verification_input.iterations = iterations;
             Ok(analyzer_input)
         }
-        _ => {
-            Err(anyhow!("Option {} Is Invalid", verification_type))
-        }
+        _ => Err(anyhow!("Option {} Is Invalid", verification_type)),
     }
 }
 /// Outputs the result of the analysis.
@@ -112,9 +156,24 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
         AnalyzerOutputStatus::Invalid => {
             println!("The analyzer output is invalid.");
         }
-        AnalyzerOutputStatus::NoUnusedCustomGates => {},
-        AnalyzerOutputStatus::NoUnconstrainedCells => {},
-        AnalyzerOutputStatus::NoUnusedColumns => {},
+        AnalyzerOutputStatus::NoUnusedCustomGates => {}
+        AnalyzerOutputStatus::NoUnconstrainedCells => {}
+        AnalyzerOutputStatus::NoUnusedColumns => {}
+        AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups => {
+            match analyzer_input.verification_method {
+                VerificationMethod::Specific => {
+                    println!("\nTwo assignments found to advice columns, making the circuit under-constrained for this specific input. But the assignmets are not valid in lookup table(s)!
+                    \nProbably a false positive.\n");
+                }
+                VerificationMethod::Random => {
+                    println!(
+                        "\nTwo assignments found to advice columns, making the circuit under-constrained for {} random input(s). But the assignmets are not valid in lookup table(s)!
+                        \nProbably a false positive.\n",
+                        analyzer_input.verification_input.iterations
+                    );
+                }
+            }
+        },
     }
 }
 /// Retrieves user input to determine the type of analysis for the circuit.
