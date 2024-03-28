@@ -1001,7 +1001,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     let mut lookup_index = 0;
                     for lookup in self.cs.lookups.iter() {
                         let mut cons_str_vec = Vec::new();
-                        let mut lookup_arg_cells = HashSet::new();
+                        let mut lookup_arg_cells = Vec::new();
                         // Decompose the lookup input expressions and store the result in cons_str_vec.
                         for poly in &lookup.input_expressions {
                             // Decompose the lookup input expressions and return the SMT compatible decomposed expression and the variable name.
@@ -1018,7 +1018,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             cons_str_vec.push(node_str);
                             if !var.is_empty() {
                                 //TODO: check if we can optimize analyzer based on disabled selectores on lookups: ZKR-3207
-                                lookup_arg_cells.insert(var);
+                                lookup_arg_cells.push(var);
                             }
                         }
 
@@ -1087,6 +1087,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             }
                             if matches!( analyzer_input.lookup_method,LookupMethod::Interpreted) {
                                 // Concatenate all lookup input expressions and write assertions of an uninterpreted function using an SMT printer.
+                                println!("lookup_arg_cells: {:?}", lookup_arg_cells);
                                 let cons_str = lookup_arg_cells
                                     .iter()
                                     .fold(String::new(), |acc, x| acc + x + " ");
@@ -1128,7 +1129,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     let mut lookup_index = 0;
                     for lookup in &self.cs.lookups_map {
                         let mut cons_str_vec = Vec::new();
-                        let mut lookup_arg_cells = HashSet::new();
+                        let mut lookup_arg_cells = Vec::new();
                         for polys in &lookup.1.inputs {
                             for poly in polys {
                                 let (node_str, _, var) = Self::decompose_lookup_expression(
@@ -1144,7 +1145,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
                                     //TODO: check if we can optimize analyzer based on disabled selectores on lookups: ZKR-3207
-                                    lookup_arg_cells.insert(var);
+                                    lookup_arg_cells.push(var);
                                 }
                             }
                         }
