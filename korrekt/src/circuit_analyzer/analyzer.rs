@@ -1494,7 +1494,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     Self::solve_and_get_model(smt_file_path.clone(), &variables)
                         .context("Failed to solve and get model!")?;
 
-                // If uaing uninterpreted function, we need to check if the model is valid by performing the lookup.
+                // If using uninterpreted function, we need to check if the model is valid by performing the lookup.
                 if matches!(analyzer_input.lookup_method,LookupMethod::Uninterpreted) {
                     info!("Equivalent model for the same public input!(No Lookup Constraint):");
                     for r in &model_with_constraint.result {
@@ -1506,7 +1506,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let lookup_sucessful = self
                             .lookup(&model_with_constraint, index)
                             .context("Failed to perform lookup")?;
-                        // if the lookup is not successful, the model found is not valid and the under-constraiend flag is a false positive, still we can't say if the circuit is under-constrained or not.
+                        // if the lookup is not successful, the model found is not valid and the under-constrained flag is a false positive, still we can't say if the circuit is under-constrained or not.
                         if !lookup_sucessful {
                             uc_lookup_dependency = true;
                             uc_lookup_dependency_FP = true;
