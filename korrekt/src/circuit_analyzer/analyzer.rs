@@ -60,6 +60,12 @@ pub enum Operation {
     Or,
 }
 
+#[derive(Debug)]
+pub enum IsZeroExpression {
+    Zero,
+    NonZero,
+}
+
 impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn new<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
@@ -473,21 +479,34 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         es: &HashMap<Selector, Vec<usize>>,
         fixed: &Vec<Vec<CellValue<F>>>,
         cell_to_cycle_head: &HashMap<String, String>,
-    ) -> (String, NodeType) {
+    ) -> (String, NodeType, IsZeroExpression) {
+        let mut is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
             Expression::Constant(a) => {
                 let constant_decimal_value =
                     u64::from_str_radix(format!("{:?}", a).strip_prefix("0x").unwrap(), 16)
                         .unwrap();
-
-                let term = format!("(as ff{:?} F)", constant_decimal_value);
-                (term, NodeType::Constant)
+                let mut term = "Constant".to_owned(); //String::new();
+                if constant_decimal_value == 0 {
+                    is_zero_expression = IsZeroExpression::Zero;
+                } else {
+                    term = format!("(as ff{:?} F)", constant_decimal_value);
+                }
+                (term, NodeType::Constant, is_zero_expression)
             }
             Expression::Selector(a) => {
                 if es.contains_key(a) {
-                    ("(as ff1 F)".to_owned(), NodeType::Fixed)
+                    (
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Fixed,
+                        IsZeroExpression::NonZero,
+                    )
                 } else {
-                    ("(as ff0 F)".to_owned(), NodeType::Fixed)
+                    (
+                        "Selector".to_owned(),
+                        NodeType::Fixed,
+                        IsZeroExpression::Zero,
+                    )
                 }
             }
             Expression::Fixed(fixed_query) => {
@@ -502,9 +521,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     )
                     .unwrap();
                 }
-                let term = format!("(as ff{:?} F)", t);
-
-                (term, NodeType::Fixed)
+                let mut term = "Fixed".to_owned(); //String::new();
+                if t == 0 {
+                    is_zero_expression = IsZeroExpression::Zero;
+                } else {
+                    term = format!("(as ff{:?} F)", t);
+                }
+                (term, NodeType::Fixed, is_zero_expression)
             }
             Expression::Advice(advice_query) => {
                 let term = format!(
@@ -517,11 +540,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     t = cell_to_cycle_head[&term.clone()].to_string();
                 }
                 smt::write_var(printer, t.to_string());
-                (t.to_string(), NodeType::Advice)
+                (t.to_string(), NodeType::Advice, is_zero_expression)
             }
-            Expression::Instance(_instance_query) => ("".to_owned(), NodeType::Instance),
+            Expression::Instance(_instance_query) => {
+                ("".to_owned(), NodeType::Instance, is_zero_expression)
+            }
             Expression::Negated(poly) => {
-                let (node_str, node_type) = Self::decompose_expression(
+                let (node_str, node_type, is_zero) = Self::decompose_expression(
                     poly,
                     printer,
                     region_begin,
@@ -531,19 +556,24 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let term = if (matches!(node_type, NodeType::Advice)
-                    || matches!(node_type, NodeType::Instance)
-                    || matches!(node_type, NodeType::Fixed)
-                    || matches!(node_type, NodeType::Constant))
-                {
-                    format!("ff.neg {}", node_str)
+                let mut term = "Negated".to_owned(); //String::new();
+                if matches!(is_zero, IsZeroExpression::Zero) {
+                    is_zero_expression = IsZeroExpression::Zero;
                 } else {
-                    format!("ff.neg ({})", node_str)
-                };
-                (term, NodeType::Negated)
+                    term = if (matches!(node_type, NodeType::Advice)
+                        || matches!(node_type, NodeType::Instance)
+                        || matches!(node_type, NodeType::Fixed)
+                        || matches!(node_type, NodeType::Constant))
+                    {
+                        format!("ff.neg {}", node_str)
+                    } else {
+                        format!("ff.neg ({})", node_str)
+                    };
+                }
+                (term, NodeType::Negated, is_zero_expression)
             }
             Expression::Sum(a, b) => {
-                let (node_str_left, nodet_type_left) = Self::decompose_expression(
+                let (node_str_left, nodet_type_left, left_is_zero) = Self::decompose_expression(
                     a,
                     printer,
                     region_begin,
@@ -553,7 +583,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let (node_str_right, nodet_type_right) = Self::decompose_expression(
+                let (node_str_right, nodet_type_right, right_is_zero) = Self::decompose_expression(
                     b,
                     printer,
                     region_begin,
@@ -563,18 +593,26 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let term = smt::write_term(
-                    printer,
-                    "add".to_owned(),
-                    node_str_left,
-                    nodet_type_left,
-                    node_str_right,
-                    nodet_type_right,
-                );
-                (term, NodeType::Add)
+                let mut term = "Sum".to_owned(); //String::new();
+                if (matches!(left_is_zero, IsZeroExpression::Zero)
+                    && matches!(right_is_zero, IsZeroExpression::Zero))
+                {
+                    is_zero_expression = IsZeroExpression::Zero;
+                } else {
+                    term = smt::write_term(
+                        printer,
+                        "add".to_owned(),
+                        node_str_left,
+                        nodet_type_left,
+                        node_str_right,
+                        nodet_type_right,
+                    );
+                }
+
+                (term, NodeType::Add, is_zero_expression)
             }
             Expression::Product(a, b) => {
-                let (node_str_left, nodet_type_left) = Self::decompose_expression(
+                let (node_str_left, nodet_type_left, left_is_zero) = Self::decompose_expression(
                     a,
                     printer,
                     region_begin,
@@ -584,7 +622,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let (node_str_right, nodet_type_right) = Self::decompose_expression(
+                let (node_str_right, nodet_type_right, right_is_zero) = Self::decompose_expression(
                     b,
                     printer,
                     region_begin,
@@ -594,19 +632,28 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let term = smt::write_term(
-                    printer,
-                    "mul".to_owned(),
-                    node_str_left,
-                    nodet_type_left,
-                    node_str_right,
-                    nodet_type_right,
-                );
-                (term, NodeType::Mult)
+
+                let mut term = "Product".to_owned(); //String::new();
+
+                if (matches!(left_is_zero, IsZeroExpression::Zero)
+                    || matches!(right_is_zero, IsZeroExpression::Zero))
+                {
+                    is_zero_expression = IsZeroExpression::Zero;
+                } else {
+                    term = smt::write_term(
+                        printer,
+                        "mul".to_owned(),
+                        node_str_left,
+                        nodet_type_left,
+                        node_str_right,
+                        nodet_type_right,
+                    );
+                }
+                (term, NodeType::Mult, is_zero_expression)
             }
             Expression::Scaled(_poly, c) => {
                 // convering the field element into an expression constant and recurse.
-                let (node_str_left, nodet_type_left) = Self::decompose_expression(
+                let (node_str_left, nodet_type_left, left_is_zer) = Self::decompose_expression(
                     &Expression::Constant(*c),
                     printer,
                     region_begin,
@@ -616,7 +663,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let (node_str_right, nodet_type_right) = Self::decompose_expression(
+                let (node_str_right, nodet_type_right, right_is_zero) = Self::decompose_expression(
                     _poly,
                     printer,
                     region_begin,
@@ -626,22 +673,29 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let term = smt::write_term(
-                    printer,
-                    "mul".to_owned(),
-                    node_str_left,
-                    nodet_type_left,
-                    node_str_right,
-                    nodet_type_right,
-                );
-                (term, NodeType::Scaled)
+                let mut term = "Scaled".to_owned(); //String::new();
+                if (matches!(left_is_zer, IsZeroExpression::Zero)
+                    || matches!(right_is_zero, IsZeroExpression::Zero))
+                {
+                    is_zero_expression = IsZeroExpression::Zero;
+                } else {
+                    term = smt::write_term(
+                        printer,
+                        "mul".to_owned(),
+                        node_str_left,
+                        nodet_type_left,
+                        node_str_right,
+                        nodet_type_right,
+                    );
+                }
+                (term, NodeType::Scaled, is_zero_expression)
             }
             #[cfg(any(
                 feature = "use_pse_halo2_proofs",
                 feature = "use_axiom_halo2_proofs",
                 feature = "use_scroll_halo2_proofs"
             ))]
-            Expression::Challenge(_poly) => ("".to_string(), NodeType::Fixed),
+            Expression::Challenge(_poly) => ("".to_string(), NodeType::Fixed, is_zero_expression),
         }
     }
 
@@ -779,7 +833,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     for row_num in 0..region_end - region_begin + 1 {
                         for gate in self.cs.gates.iter() {
                             for poly in &gate.polys {
-                                let (node_str, _) = Self::decompose_expression(
+                                let (node_str, _, is_zero) = Self::decompose_expression(
                                     poly,
                                     printer,
                                     region_begin,
@@ -790,13 +844,15 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.cell_to_cycle_head,
                                 );
 
-                                smt::write_assert(
-                                    printer,
-                                    node_str,
-                                    "0".to_owned(),
-                                    NodeType::Poly,
-                                    Operation::Equal,
-                                );
+                                if matches!(is_zero, IsZeroExpression::NonZero) {
+                                    smt::write_assert(
+                                        printer,
+                                        node_str,
+                                        "0".to_owned(),
+                                        NodeType::Poly,
+                                        Operation::Equal,
+                                    );
+                                }
                             }
                         }
                     }
@@ -828,8 +884,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 for row_num in 0..region_end - region_begin + 1 {
                     for lookup in self.cs.lookups.iter() {
                         let mut cons_str_vec = Vec::new();
+                        let mut zero_lookup_expressions =
+                            vec![false; lookup.input_expressions.len()];
+                        let mut poly_index = 0;
+
                         for poly in &lookup.input_expressions {
-                            let (node_str, _) = Self::decompose_expression(
+                            let (node_str, _, is_zero) = Self::decompose_expression(
                                 poly,
                                 printer,
                                 region_begin,
@@ -839,8 +899,16 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &self.fixed,
                                 &self.cell_to_cycle_head,
                             );
-                            cons_str_vec.push(node_str);
+
+                            if matches!(is_zero, IsZeroExpression::NonZero) {
+                                cons_str_vec.push(node_str);
+                                zero_lookup_expressions[poly_index] = false;
+                            } else {
+                                zero_lookup_expressions[poly_index] = true;
+                            }
+                            poly_index += 1;
                         }
+
                         let mut exit = false;
                         let mut col_indices = Vec::new();
                         for col in lookup.table_expressions.clone() {
@@ -862,36 +930,38 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             let mut eq_str = String::new();
                             for col in 0..col_indices.len() {
                                 //*** Iterate over fixed cols */
-                                let mut t = String::new();
-                                match self.fixed[col_indices[col]][row] {
-                                    CellValue::Unassigned => {
-                                        exit = true;
-                                        break;
+                                if !zero_lookup_expressions[col] {
+                                    let mut t = String::new();
+                                    match self.fixed[col_indices[col]][row] {
+                                        CellValue::Unassigned => {
+                                            exit = true;
+                                            break;
+                                        }
+                                        CellValue::Assigned(f) => {
+                                            t = format!("{:?}", f);
+                                        }
+                                        CellValue::Poison(_) => {}
                                     }
-                                    CellValue::Assigned(f) => {
-                                        t = format!("{:?}", f);
+                                    if let CellValue::Assigned(value) =
+                                        self.fixed[col_indices[col]][row]
+                                    {
+                                        t = u64::from_str_radix(
+                                            format!("{:?}", value).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap()
+                                        .to_string();
                                     }
-                                    CellValue::Poison(_) => {}
-                                }
-                                if let CellValue::Assigned(value) =
-                                    self.fixed[col_indices[col]][row]
-                                {
-                                    t = u64::from_str_radix(
-                                        format!("{:?}", value).strip_prefix("0x").unwrap(),
-                                        16,
+                                    let sa = smt::get_assert(
+                                        printer,
+                                        cons_str_vec[col].clone(),
+                                        t,
+                                        NodeType::Mult,
+                                        Operation::Equal,
                                     )
-                                    .unwrap()
-                                    .to_string();
+                                    .context("Failled to generate assert!")?;
+                                    equalities.push(sa);
                                 }
-                                let sa = smt::get_assert(
-                                    printer,
-                                    cons_str_vec[col].clone(),
-                                    t,
-                                    NodeType::Mult,
-                                    Operation::Equal,
-                                )
-                                .context("Failled to generate assert!")?;
-                                equalities.push(sa);
                             }
                             if exit {
                                 break;
@@ -899,15 +969,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             for var in equalities.iter() {
                                 eq_str.push_str(var);
                             }
-                            let and_eqs = smt::get_and(printer, eq_str);
-
-                            big_cons.push(and_eqs);
+                            let mut and_eqs = String::new();
+                            if !eq_str.is_empty() {
+                                and_eqs = smt::get_and(printer, eq_str);
+                                big_cons.push(and_eqs);
+                            }
                         }
                         for var in big_cons.iter() {
                             big_cons_str.push_str(var);
                         }
-
-                        smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                        if !big_cons_str.is_empty() {
+                            smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                        }
                     }
                 }
             }
@@ -1019,6 +1092,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     for lookup in &self.cs.lookups_map {
                         let mut cons_str_vec = HashSet::new();
                         let mut lookup_arg_cells = HashSet::new();
+
                         for polys in &lookup.1.inputs {
                             for poly in polys {
                                 let (node_str, _, var) = Self::decompose_lookup_expression(
@@ -1092,9 +1166,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 for row_num in 0..region_end - region_begin + 1 {
                     for lookup in &self.cs.lookups_map {
                         let mut cons_str_vec = Vec::new();
+                        let mut zero_lookup_expressions = Vec::new();
+
                         for polys in &lookup.1.inputs {
+                            zero_lookup_expressions = vec![false; polys.len()];
+                            let mut poly_index = 0;
                             for poly in polys {
-                                let (node_str, _) = Self::decompose_expression(
+                                let (node_str, _, is_zero) = Self::decompose_expression(
                                     &poly,
                                     printer,
                                     region_begin,
@@ -1104,7 +1182,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.fixed,
                                     &self.cell_to_cycle_head,
                                 );
-                                cons_str_vec.push(node_str.clone());
+
+                                if matches!(is_zero, IsZeroExpression::NonZero) {
+                                    cons_str_vec.push(node_str);
+                                    zero_lookup_expressions[poly_index] = false;
+                                } else {
+                                    zero_lookup_expressions[poly_index] = true;
+                                }
+                                poly_index += 1;
                             }
                         }
                         let mut exit = false;
@@ -1128,39 +1213,41 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             let mut equalities = vec![];
                             let mut eq_str = String::new();
                             for col in 0..col_indices.len() {
-                                //*** Iterate over fixed cols */
-                                let mut t = String::new();
-                                match self.fixed[col_indices[col]][row] {
-                                    CellValue::Unassigned => {
-                                        exit = true;
-                                        break;
+                                if !zero_lookup_expressions[col] {
+                                    //*** Iterate over fixed cols */
+                                    let mut t = String::new();
+                                    match self.fixed[col_indices[col]][row] {
+                                        CellValue::Unassigned => {
+                                            exit = true;
+                                            break;
+                                        }
+                                        CellValue::Assigned(f) => {
+                                            t = format!("{:?}", f);
+                                        }
+                                        CellValue::Poison(_) => {}
                                     }
-                                    CellValue::Assigned(f) => {
-                                        t = format!("{:?}", f);
-                                    }
-                                    CellValue::Poison(_) => {}
-                                }
 
-                                if let CellValue::Assigned(value) =
-                                    self.fixed[col_indices[col]][row]
-                                {
-                                    t = u64::from_str_radix(
-                                        format!("{:?}", value).strip_prefix("0x").unwrap(),
-                                        16,
+                                    if let CellValue::Assigned(value) =
+                                        self.fixed[col_indices[col]][row]
+                                    {
+                                        t = u64::from_str_radix(
+                                            format!("{:?}", value).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap()
+                                        .to_string();
+                                    }
+
+                                    let sa = smt::get_assert(
+                                        printer,
+                                        cons_str_vec[col].clone(),
+                                        t,
+                                        NodeType::Mult,
+                                        Operation::Equal,
                                     )
-                                    .unwrap()
-                                    .to_string();
+                                    .context("Failled to generate assert!")?;
+                                    equalities.push(sa.clone());
                                 }
-
-                                let sa = smt::get_assert(
-                                    printer,
-                                    cons_str_vec[col].clone(),
-                                    t,
-                                    NodeType::Mult,
-                                    Operation::Equal,
-                                )
-                                .context("Failled to generate assert!")?;
-                                equalities.push(sa.clone());
                             }
                             if exit {
                                 break;
@@ -1168,15 +1255,19 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             for var in equalities.iter() {
                                 eq_str.push_str(var);
                             }
-                            let and_eqs = smt::get_and(printer, eq_str);
+                            let mut and_eqs = String::new();
+                            if !eq_str.is_empty() {
+                                let and_eqs = smt::get_and(printer, eq_str);
+                            }
 
                             big_cons.push(and_eqs);
                         }
                         for var in big_cons.iter() {
                             big_cons_str.push_str(var);
                         }
-
-                        smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                        if !big_cons_str.is_empty() {
+                            smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                        }
                     }
                 }
             }
