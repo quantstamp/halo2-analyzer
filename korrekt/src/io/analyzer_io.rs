@@ -3,8 +3,7 @@ use std::{collections::HashMap, io};
 use crate::{
     circuit_analyzer::{analyzable::AnalyzableField,halo2_proofs_libs::*},
     io::analyzer_io_type::{
-        AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, VerificationInput,
-        VerificationMethod,
+        AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod
     },
 };
 /// Retrieves user input for underconstrained circuit analysis.
@@ -17,7 +16,7 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
     instance_cols_string: &HashMap<String, i64>,
     cs: &ConstraintSystem<F>,
 ) -> Result<AnalyzerInput> {
-    let mut lookup_uninterpreted_func = false;
+    let mut lookup_method = LookupMethod::InlineConstraints;
 
     let mut has_lookup = false;
     #[cfg(any(
@@ -36,9 +35,10 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
     }
 
     if has_lookup {
-        println!("You can use uninterpreted functions for lookup analysis for fast analysis at the cost of potential false positives:");
+        println!("You can use uninterpreted functions for lookup analysis for fast analysis at the cost of potential false positives, or use range check functions instead of inline constraints:");
         println!("1. Verify the circuit with uninterpreted functions for lookups!");
         println!("2. Verify the circuit with all lookup constraints!");
+        println!("3. Verify the circuit with interpreted functions (Range Check) for lookups!");
         let mut menu = String::new();
         io::stdin()
             .read_line(&mut menu)
@@ -50,12 +50,13 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
             .expect("Failed to parse input as integer"); // Simplifying error handling for example
 
         // Setting lookup_uninterpreted_func based on selected option
-        lookup_uninterpreted_func = match selection {
-            1 => true,
-            2 => false,
+        lookup_method = match selection {
+            1 => LookupMethod::Uninterpreted,
+            2 => LookupMethod::InlineConstraints,
+            3 => LookupMethod::Interpreted,
             _ => {
                 println!("Invalid selection, defaulting to 'false'");
-                false
+                LookupMethod::Invalid
             }
         };
     }
@@ -80,7 +81,7 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
             iterations: 1,
             instances_string: HashMap::new(),
         },
-        lookup_uninterpreted_func,
+        lookup_method
     };
 
     match verification_type {

@@ -2,6 +2,7 @@
 #[cfg(feature = "use_axiom_halo2_proofs")]
 mod tests {
     use crate::circuit_analyzer::analyzer::Analyzer;
+    use crate::io::analyzer_io_type::LookupMethod;
     use crate::io::{
         analyzer_io_type,
         analyzer_io_type::{AnalyzerOutputStatus, VerificationInput, VerificationMethod},
@@ -58,7 +59,7 @@ mod tests {
                 instances_string: analyzer.instace_cells,
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
         assert!(analyzer_input
             .verification_method
@@ -89,7 +90,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -120,7 +121,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -152,7 +153,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 4,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -189,7 +190,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -226,7 +227,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -258,7 +259,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -291,7 +292,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -329,7 +330,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -367,7 +368,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -443,7 +444,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
         let output_status = analyzer
@@ -474,7 +475,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: false
+            lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -504,13 +505,43 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::Uninterpreted,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups));
+    }
+
+    #[test]
+    fn analyze_underconstrained_multiple_iterpreted_lookup_random_test() {
+        let circuit =
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+
+        let k = 11;
+
+        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: analyzer.instace_cells.clone(),
+                iterations: 5,
+            },
+            lookup_method: LookupMethod::Interpreted,
+        };
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
     #[test]
@@ -534,7 +565,7 @@ mod tests {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
-            lookup_uninterpreted_func: false,
+            lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -568,7 +599,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: analyzer.cs.lookups.len().gt(&0),
+            lookup_method: LookupMethod::Uninterpreted,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)
@@ -576,7 +607,40 @@ mod tests {
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups));
     }
+    #[test]
+    fn analyze_underconstrained_interpreted_specific_lookup_test() {
+        let circuit =
+            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+        let k = 11;
 
+        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+
+        assert!(analyzer.instace_cells.len().eq(&1));
+        let mut specified_instance_cols = HashMap::new();
+        specified_instance_cols.insert("I-0-2".to_owned(), 6);
+        specified_instance_cols.insert("I-0-1".to_owned(), 1);
+        specified_instance_cols.insert("I-0-0".to_owned(), 1);
+
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Specific,
+            verification_input: VerificationInput {
+                instances_string: specified_instance_cols,
+                iterations: 1,
+            },
+            lookup_method: LookupMethod::Interpreted,
+        };
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    }
     #[test]
     fn analyze_underconstrained_lookup_test() {
         let circuit =
@@ -603,7 +667,7 @@ mod tests {
                 instances_string: specified_instance_cols,
                 iterations: 1,
             },
-            lookup_uninterpreted_func: false,
+            lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
             .analyze_underconstrained(analyzer_input, &prime)

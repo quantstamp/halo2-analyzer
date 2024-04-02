@@ -10,12 +10,18 @@ pub struct VerificationInput {
     pub instances_string: HashMap<String, i64>,
     pub iterations: u128,
 }
-
+#[derive(Debug, PartialEq, Eq)]
+pub enum LookupMethod {
+    Uninterpreted,
+    Interpreted,
+    InlineConstraints,
+    Invalid
+}
 #[derive(Debug)]
 pub struct AnalyzerInput {
     pub verification_method: VerificationMethod,
     pub verification_input: VerificationInput,
-    pub lookup_uninterpreted_func: bool,
+    pub lookup_method: LookupMethod
 }
 
 #[derive(Debug, PartialEq, Eq)]
