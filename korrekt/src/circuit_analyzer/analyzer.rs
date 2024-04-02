@@ -486,7 +486,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 let constant_decimal_value =
                     u64::from_str_radix(format!("{:?}", a).strip_prefix("0x").unwrap(), 16)
                         .unwrap();
-                let mut term = "Constant".to_owned(); //String::new();
+                let mut term = "as ff00 F".to_owned();
                 if constant_decimal_value == 0 {
                     is_zero_expression = IsZeroExpression::Zero;
                 } else {
@@ -503,7 +503,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     )
                 } else {
                     (
-                        "Selector".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         IsZeroExpression::Zero,
                     )
@@ -521,7 +521,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     )
                     .unwrap();
                 }
-                let mut term = "Fixed".to_owned(); //String::new();
+                let mut term = "as ff00 F".to_owned();
                 if t == 0 {
                     is_zero_expression = IsZeroExpression::Zero;
                 } else {
@@ -556,7 +556,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let mut term = "Negated".to_owned(); //String::new();
+                let mut term = "as ff00 F".to_owned();
                 if matches!(is_zero, IsZeroExpression::Zero) {
                     is_zero_expression = IsZeroExpression::Zero;
                 } else {
@@ -593,7 +593,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let mut term = "Sum".to_owned(); //String::new();
+                let mut term = "as ff00 F".to_owned();
                 if (matches!(left_is_zero, IsZeroExpression::Zero)
                     && matches!(right_is_zero, IsZeroExpression::Zero))
                 {
@@ -633,7 +633,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     cell_to_cycle_head,
                 );
 
-                let mut term = "Product".to_owned(); //String::new();
+                let mut term = "as ff00 F".to_owned();
 
                 if (matches!(left_is_zero, IsZeroExpression::Zero)
                     || matches!(right_is_zero, IsZeroExpression::Zero))
@@ -673,7 +673,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let mut term = "Scaled".to_owned(); //String::new();
+                let mut term = "as ff00 F".to_owned();
                 if (matches!(left_is_zer, IsZeroExpression::Zero)
                     || matches!(right_is_zero, IsZeroExpression::Zero))
                 {
@@ -833,7 +833,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     for row_num in 0..region_end - region_begin + 1 {
                         for gate in self.cs.gates.iter() {
                             for poly in &gate.polys {
-                                let (node_str, _, is_zero) = Self::decompose_expression(
+                                let (node_str, _, _) = Self::decompose_expression(
                                     poly,
                                     printer,
                                     region_begin,
@@ -844,15 +844,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.cell_to_cycle_head,
                                 );
 
-                                if matches!(is_zero, IsZeroExpression::NonZero) {
-                                    smt::write_assert(
-                                        printer,
-                                        node_str,
-                                        "0".to_owned(),
-                                        NodeType::Poly,
-                                        Operation::Equal,
-                                    );
-                                }
+                                smt::write_assert(
+                                    printer,
+                                    node_str,
+                                    "0".to_owned(),
+                                    NodeType::Poly,
+                                    Operation::Equal,
+                                );
                             }
                         }
                     }
@@ -884,8 +882,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 for row_num in 0..region_end - region_begin + 1 {
                     for lookup in self.cs.lookups.iter() {
                         let mut cons_str_vec = Vec::new();
-                        let mut zero_lookup_expressions =
-                            vec![false; lookup.input_expressions.len()];
+                        // let mut zero_lookup_expressions =
+                        //     vec![false; lookup.input_expressions.len()];
                         let mut poly_index = 0;
 
                         for poly in &lookup.input_expressions {
@@ -902,11 +900,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
                             if matches!(is_zero, IsZeroExpression::NonZero) {
                                 cons_str_vec.push(node_str);
-                                zero_lookup_expressions[poly_index] = false;
+                                //zero_lookup_expressions[poly_index] = false;
                             } else {
-                                zero_lookup_expressions[poly_index] = true;
+                                cons_str_vec.push("(as ff0 F)".to_owned());
+                                //zero_lookup_expressions[poly_index] = true;
                             }
-                            poly_index += 1;
+                            //poly_index += 1;
                         }
 
                         let mut exit = false;
@@ -930,7 +929,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             let mut eq_str = String::new();
                             for col in 0..col_indices.len() {
                                 //*** Iterate over fixed cols */
-                                if !zero_lookup_expressions[col] {
+                                //if !zero_lookup_expressions[col] {
                                     let mut t = String::new();
                                     match self.fixed[col_indices[col]][row] {
                                         CellValue::Unassigned => {
@@ -961,7 +960,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     )
                                     .context("Failled to generate assert!")?;
                                     equalities.push(sa);
-                                }
+                                //}
                             }
                             if exit {
                                 break;
