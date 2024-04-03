@@ -1170,7 +1170,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
                                     non_zero_expression.push(true);
-                                    //TODO: check if we can optimize analyzer based on disabled selectores on lookups: ZKR-3207
                                     lookup_arg_cells.push(var);
                                 }
                             }
@@ -1219,7 +1218,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         }
 
                         if !cons_str_vec.is_empty() && !lookup_mapping.is_empty() {
-                            let uninterpreted_func_name =
+                            let funcion_name =
                                 format!("isInLookupTable{}", lookup_index);
                             if !lookup_func_map.contains_key(&lookup_index) {
                                 lookup_func_map.insert(lookup_index, true);
@@ -1228,7 +1227,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     // lookup_interpreted_func {
                                     smt::write_define_fn(
                                         printer,
-                                        uninterpreted_func_name.clone(),
+                                        funcion_name.clone(),
                                         function_input,
                                         "Bool".to_owned(),
                                         function_body,
@@ -1236,7 +1235,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 } else {
                                     smt::write_declare_fn(
                                         printer,
-                                        uninterpreted_func_name.clone(),
+                                        funcion_name.clone(),
                                         "F".to_owned(),
                                         "Bool".to_owned(),
                                     );
@@ -1252,14 +1251,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 let cons_str = cons_str.trim();
                                 smt::write_assert_boolean_func(
                                     printer,
-                                    uninterpreted_func_name.clone(),
+                                    funcion_name.clone(),
                                     cons_str.to_owned(),
                                 );
                             } else {
                                 for cons_str in cons_str_vec.iter() {
                                     smt::write_assert_boolean_func(
                                         printer,
-                                        uninterpreted_func_name.clone(),
+                                        funcion_name.clone(),
                                         format!("({})", cons_str).to_owned(),
                                     );
                                 }
@@ -1301,7 +1300,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 );
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
-                                    //TODO: check if we can optimize analyzer based on disabled selectores on lookups: ZKR-3207
                                     lookup_arg_cells.push(var);
                                 }
                             }
@@ -1345,7 +1343,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             &self.lookup_mappings.push(lookup_mapping.clone());
                         }
                         if !cons_str_vec.is_empty() && !lookup_mapping.is_empty() {
-                            let uninterpreted_func_name =
+                            let function_name =
                                 format!("isInLookupTable{}", lookup_index);
                             if !lookup_func_map.contains_key(&lookup_index) {
                                 lookup_func_map.insert(lookup_index, true);
@@ -1354,7 +1352,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     // lookup_interpreted_func {
                                     smt::write_define_fn(
                                         printer,
-                                        uninterpreted_func_name.clone(),
+                                        function_name.clone(),
                                         function_input,
                                         "Bool".to_owned(),
                                         function_body,
@@ -1362,7 +1360,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 } else {
                                     smt::write_declare_fn(
                                         printer,
-                                        uninterpreted_func_name.clone(),
+                                        function_name.clone(),
                                         "F".to_owned(),
                                         "Bool".to_owned(),
                                     );
@@ -1377,14 +1375,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 let cons_str = cons_str.trim();
                                 smt::write_assert_boolean_func(
                                     printer,
-                                    uninterpreted_func_name.clone(),
+                                    function_name.clone(),
                                     cons_str.to_owned(),
                                 );
                             } else {
                                 for cons_str in cons_str_vec.iter() {
                                     smt::write_assert_boolean_func(
                                         printer,
-                                        uninterpreted_func_name.clone(),
+                                        function_name.clone(),
                                         format!("({})", cons_str).to_owned(),
                                     );
                                 }
