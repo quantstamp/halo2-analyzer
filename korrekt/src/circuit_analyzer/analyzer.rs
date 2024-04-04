@@ -829,7 +829,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                    ).with_context(|| format!("Failed to decompose the left side of the Product expression region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
+                    ).with_context(|| format!("Failed to decompose the left side of the Product expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                 let (node_str_right, nodet_type_right, variable_right, right_is_zero) =
                     Self::decompose_lookup_expression(
                         b,
@@ -1291,7 +1291,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         &self.fixed,
                                         &self.cell_to_cycle_head,
                                     )
-                                    .with_context(|| format!("Failed to decompose lookup input expression within region region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
+                                    .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
                                     lookup_arg_cells.push(var);
