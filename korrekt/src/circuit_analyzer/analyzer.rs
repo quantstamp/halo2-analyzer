@@ -721,9 +721,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         fixed: &Vec<Vec<CellValue<F>>>,
         cell_to_cycle_head: &HashMap<String, String>,
     ) -> (String, NodeType, String, IsZeroExpression) {
-        let mut is_zero_expression = IsZeroExpression::NonZero;
+        let is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
-            Expression::Constant(a) => (
+            Expression::Constant(_) => (
                 String::new(),
                 NodeType::Invalid,
                 String::new(),
@@ -806,7 +806,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     is_zero_expression,
                 )
             }
-            Expression::Negated(poly) => {
+            Expression::Negated(_) => {
                 (
                     String::new(),
                     NodeType::Invalid,
@@ -814,7 +814,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     is_zero_expression,
                 ) //TODO: add error handling for invalid expressions: ZKR-3331
             }
-            Expression::Sum(a, b) => (
+            Expression::Sum(_, _) => (
                 String::new(),
                 NodeType::Invalid,
                 String::new(),
@@ -871,7 +871,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
                 (term, NodeType::Mult, var, is_zero_expression)
             }
-            Expression::Scaled(_poly, c) => (
+            Expression::Scaled(_poly, _) => (
                 String::new(),
                 NodeType::Invalid,
                 String::new(),
@@ -979,12 +979,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 zero_lookup_expressions.push(false);
                             }
                         }
-                        let mut exit = false;
                         let mut col_indices = Vec::new();
                         for col in lookup.table_expressions.clone() {
-                            if exit {
-                                break;
-                            }
                             if let Expression::Fixed(fixed_query) = col {
                                 col_indices.push(fixed_query.column_index);
                             }
@@ -1079,7 +1075,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     fn extract_lookup_constraints_unint(
         &self,
         col_indices: Vec<usize>,
-        cons_str_vec: Vec<String>,
         printer: &mut smt::Printer<File>,
     ) -> Result<String, anyhow::Error> {
         let mut exit = false;
@@ -1188,7 +1183,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             let big_cons_str = Self::extract_lookup_constraints_unint(
                                 self,
                                 col_indices.clone(),
-                                cons_str_vec.clone(),
                                 printer,
                             )?;
 
@@ -1318,7 +1312,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             let big_cons_str = Self::extract_lookup_constraints_unint(
                                 self,
                                 col_indices.clone(),
-                                cons_str_vec.clone(),
                                 printer,
                             )?;
 
@@ -1505,7 +1498,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             result = AnalyzerOutputStatus::Overconstrained;
             return Ok(result); // We can just break here.
         }
-        let mut uc_lookup_dependency_FP = false;
+        let mut uc_lookup_dependency_fp = false;
         let mut uc_lookup_dependency: bool = false;
         for i in 1..=max_iterations {
             // Attempt to solve the SMT problem and obtain a model.
@@ -1626,7 +1619,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         // if the lookup is not successful, the model found is not valid and the under-constrained flag is a false positive, still we can't say if the circuit is under-constrained or not.
                         if !lookup_sucessful {
                             uc_lookup_dependency = true;
-                            uc_lookup_dependency_FP = true;
+                            uc_lookup_dependency_fp = true;
                             if (matches!(
                                 analyzer_input.verification_method,
                                 VerificationMethod::Specific
@@ -1678,7 +1671,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             }
             smt::write_assert_bool(printer, neg_model, Operation::Or);
         }
-        if uc_lookup_dependency_FP
+        if uc_lookup_dependency_fp
             && matches!(result, AnalyzerOutputStatus::NotUnderconstrainedLocal)
         {
             result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
@@ -1740,12 +1733,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     fn lookup(&self, model_with_constraint: &ModelResult, index: usize) -> Option<bool> {
         let lookup_mapping = &self.lookup_mappings[index];
 
-        let column_indices: Vec<_> = model_with_constraint
-            .result
-            .keys()
-            .filter_map(|key| lookup_mapping.get(key).cloned())
-            .collect();
-
         let variables: Vec<_> = model_with_constraint
             .result
             .iter()
@@ -1758,13 +1745,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             })
             .collect();
 
-        'outer: for (row_index, row) in self.fixed.iter().enumerate() {
+        'outer: for (_, row) in self.fixed.iter().enumerate() {
             for &(column_index, variable) in &variables {
                 if let Some(cell) = row.get(column_index) {
                     let mut t = String::new();
                     match cell {
                         CellValue::Unassigned => {
-                            //exit = true;
                             break;
                         }
                         CellValue::Assigned(f) => {
