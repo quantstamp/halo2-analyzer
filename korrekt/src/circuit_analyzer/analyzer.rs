@@ -1,5 +1,5 @@
 use super::{analyzable::AnalyzableField, halo2_proofs_libs::*};
-use anyhow::{Context, Result};
+use anyhow::{anyhow,Context, Result};
 use log::info;
 
 use std::{
@@ -121,7 +121,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         region_end,
                         row_num,
                         &self.fixed,
-                    );
+                    ).context("Failed to run abstract evaluation!")?;
                     if res != AbsResult::Zero {
                         used = true;
                         break 'region_search;
@@ -219,7 +219,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     region_end,
                                     row_num,
                                     &self.fixed,
-                                );
+                                ).context("Failed to run abstract evaluation!")?;
                                 if eval != AbsResult::Zero
                                     && advices.contains(&(reg_column, Rotation(rotation as i32)))
                                 {
@@ -720,30 +720,26 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         es: &HashMap<Selector, Vec<usize>>,
         fixed: &Vec<Vec<CellValue<F>>>,
         cell_to_cycle_head: &HashMap<String, String>,
-    ) -> (String, NodeType, String, IsZeroExpression) {
+    ) -> Result<(String, NodeType, String, IsZeroExpression)> {
         let is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
-            Expression::Constant(_) => (
-                String::new(),
-                NodeType::Invalid,
-                String::new(),
-                IsZeroExpression::NonZero,
-            ),
+            Expression::Constant(_) => 
+            Err(anyhow!("Constant expression in lookup expression is invalid.")),
             Expression::Selector(a) => {
                 if es.contains_key(a) {
-                    (
+                    Ok((
                         "(as ff1 F)".to_owned(),
                         NodeType::Fixed,
                         "1".to_owned(),
                         IsZeroExpression::NonZero,
-                    )
+                    ))
                 } else {
-                    (
+                    Ok((
                         "as ff0 F".to_owned(),
                         NodeType::Fixed,
                         "0".to_owned(),
                         IsZeroExpression::Zero,
-                    )
+                    ))
                 }
             }
             Expression::Fixed(fixed_query) => {
@@ -759,16 +755,16 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     .unwrap();
                 }
                 if t == 0 {
-                    return (
+                    return Ok((
                         "as ff0 F".to_owned(),
                         NodeType::Fixed,
                         "0".to_owned(),
                         IsZeroExpression::Zero,
-                    );
+                    ));
                 }
                 let term = format!("(as ff{:?} F)", t);
 
-                (term, NodeType::Fixed, t.to_string(), is_zero_expression)
+                Ok((term, NodeType::Fixed, t.to_string(), is_zero_expression))
             }
             Expression::Advice(advice_query) => {
                 let term = format!(
@@ -781,12 +777,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     t = cell_to_cycle_head[&term.clone()].to_string();
                 }
                 smt::write_var(printer, t.to_string());
-                (
+                Ok((
                     t.to_string(),
                     NodeType::Advice,
                     t.to_string(),
                     is_zero_expression,
-                )
+                ))
             }
             Expression::Instance(instance_query) => {
                 let term = format!(
@@ -799,27 +795,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     t = cell_to_cycle_head[&term.clone()].to_string();
                 }
                 smt::write_var(printer, t.to_string());
-                (
+                Ok((
                     t.to_string(),
                     NodeType::Advice,
                     t.to_string(),
                     is_zero_expression,
-                )
+                ))
             }
-            Expression::Negated(_) => {
-                (
-                    String::new(),
-                    NodeType::Invalid,
-                    String::new(),
-                    is_zero_expression,
-                ) //TODO: add error handling for invalid expressions: ZKR-3331
-            }
-            Expression::Sum(_, _) => (
-                String::new(),
-                NodeType::Invalid,
-                String::new(),
-                is_zero_expression,
-            ),
+            Expression::Negated(_) => 
+                Err(anyhow!("Negated expression in lookup expression is invalid.")),
+            
+            Expression::Sum(_, _) => 
+            Err(anyhow!("Sum expression in lookup expression is invalid.")),
             Expression::Product(a, b) => {
                 let (node_str_left, nodet_type_left, variable_left, left_is_zero) =
                     Self::decompose_lookup_expression(
@@ -831,7 +818,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                    );
+                    ).context("Decompose lookup expression failed")?;
                 let (node_str_right, nodet_type_right, variable_right, right_is_zero) =
                     Self::decompose_lookup_expression(
                         b,
@@ -842,16 +829,21 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                    );
+                    ).context("Decompose lookup expression failed")?;
+                if matches!(nodet_type_left, NodeType::Invalid) || matches!(nodet_type_right, NodeType::Invalid){
+                
+                    return Err(anyhow!("Invalid expression in Product in lookup expression is invalid."))
+                }
+                
                 if matches!(left_is_zero, IsZeroExpression::Zero)
                     || matches!(right_is_zero, IsZeroExpression::Zero)
                 {
-                    return (
+                    return Ok((
                         "as ff0 F".to_owned(),
                         NodeType::Fixed,
                         "0".to_owned(),
                         IsZeroExpression::Zero,
-                    );
+                    ));
                 }
                 let term = smt::write_term(
                     printer,
@@ -869,25 +861,15 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         var = variable_left;
                     }
                 }
-                (term, NodeType::Mult, var, is_zero_expression)
+                Ok((term, NodeType::Mult, var, is_zero_expression))
             }
-            Expression::Scaled(_poly, _) => (
-                String::new(),
-                NodeType::Invalid,
-                String::new(),
-                is_zero_expression,
-            ),
+            Expression::Scaled(_poly, _) => Err(anyhow!("Scaled expression in lookup expression is invalid.")),
             #[cfg(any(
                 feature = "use_pse_halo2_proofs",
                 feature = "use_axiom_halo2_proofs",
                 feature = "use_scroll_halo2_proofs"
             ))]
-            Expression::Challenge(_poly) => (
-                String::new(),
-                NodeType::Invalid,
-                String::new(),
-                is_zero_expression,
-            ),
+            Expression::Challenge(_poly) => Err(anyhow!("Challenge expression in lookup expression is invalid.")),
         }
     }
 
@@ -1160,7 +1142,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &region.enabled_selectors,
                                 &self.fixed,
                                 &self.cell_to_cycle_head,
-                            );
+                            ).context("Decompose lookup expression failed")?;
                             if matches!(is_zero, IsZeroExpression::NonZero) {
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
@@ -1291,7 +1273,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &region.enabled_selectors,
                                     &self.fixed,
                                     &self.cell_to_cycle_head,
-                                );
+                                ).context("Decompose lookup expression failed")?;
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
                                     lookup_arg_cells.push(var);

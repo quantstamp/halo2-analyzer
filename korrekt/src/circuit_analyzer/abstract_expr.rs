@@ -1,5 +1,5 @@
 use super::{analyzable::AnalyzableField, halo2_proofs_libs::*};
-
+use anyhow::{anyhow,Context, Result};
 use std::collections::HashSet;
 
 // abstract interpretation of expressions
@@ -65,18 +65,18 @@ pub fn eval_abstract<F: AnalyzableField>(
     region_end: usize,
     row_num: i32,
     fixed: &Vec<Vec<CellValue<F>>>,
-) -> AbsResult {
+) -> Result<AbsResult> {
     match expr {
         Expression::Constant(v) => {
             if v.is_zero().into() {
-                AbsResult::Zero
+                Ok(AbsResult::Zero)
             } else {
-                AbsResult::NonZero
+                Ok(AbsResult::NonZero)
             }
         }
         Expression::Selector(selector) => match selectors.contains(selector) {
-            true => AbsResult::NonZero,
-            false => AbsResult::Zero,
+            true => Ok(AbsResult::NonZero),
+            false => Ok(AbsResult::Zero),
         },
         Expression::Fixed(fixed_query) 
         => 
@@ -89,44 +89,44 @@ pub fn eval_abstract<F: AnalyzableField>(
                 t  = u64::from_str_radix(format!("{:?}",fixed_val).strip_prefix("0x").unwrap(), 16).unwrap();
             }
             if t == 0 {
-                AbsResult::Zero
+                Ok(AbsResult::Zero)
             } else {
-                AbsResult::Variable
+                Ok(AbsResult::Variable)
             }
         }
-        Expression::Advice { .. } => AbsResult::Variable,
-        Expression::Instance { .. } => AbsResult::Variable,
+        Expression::Advice { .. } => Ok(AbsResult::Variable),
+        Expression::Instance { .. } => Ok(AbsResult::Variable),
         Expression::Negated(expr) => eval_abstract(expr, selectors,region_begin,region_end,row_num,fixed),
         Expression::Sum(left, right) => {
-            let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed);
-            let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed);
+            let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed).context("abstract evaluation failed")?;
+            let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed).context("abstract evaluation failed")?;
             match (res1, res2) {
-                (AbsResult::Variable, _) => AbsResult::Variable,
-                (_, AbsResult::Variable) => AbsResult::Variable,
-                (AbsResult::NonZero, AbsResult::NonZero) => AbsResult::Variable,
-                (AbsResult::Zero, AbsResult::Zero) => AbsResult::Zero,
-                (AbsResult::Zero, AbsResult::NonZero) => AbsResult::NonZero,
-                (AbsResult::NonZero, AbsResult::Zero) => AbsResult::NonZero,
+                (AbsResult::Variable, _) => Ok(AbsResult::Variable),
+                (_, AbsResult::Variable) => Ok(AbsResult::Variable),
+                (AbsResult::NonZero, AbsResult::NonZero) => Ok(AbsResult::Variable),
+                (AbsResult::Zero, AbsResult::Zero) => Ok(AbsResult::Zero),
+                (AbsResult::Zero, AbsResult::NonZero) => Ok(AbsResult::NonZero),
+                (AbsResult::NonZero, AbsResult::Zero) => Ok(AbsResult::NonZero),
             }
         }
         Expression::Product(left, right) => {
-            let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed);
-            let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed);
+            let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed).context("abstract evaluation failed")?;
+            let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed).context("abstract evaluation failed")?;
             match (res1, res2) {
-                (AbsResult::Zero, _) => AbsResult::Zero,
-                (_, AbsResult::Zero) => AbsResult::Zero,
-                (AbsResult::NonZero, AbsResult::NonZero) => AbsResult::NonZero,
-                _ => AbsResult::Variable,
+                (AbsResult::Zero, _) => Ok(AbsResult::Zero),
+                (_, AbsResult::Zero) => Ok(AbsResult::Zero),
+                (AbsResult::NonZero, AbsResult::NonZero) => Ok(AbsResult::NonZero),
+                _ => Ok(AbsResult::Variable),
             }
         }
         Expression::Scaled(expr, scale) => {
             if scale.is_zero().into() {
-                AbsResult::Zero
+                Ok(AbsResult::Zero)
             } else {
                 eval_abstract(expr, selectors,region_begin,region_end,row_num,fixed)
             }
         }
         #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
-        Expression::Challenge(_) => todo!(),
+        Expression::Challenge(_) => Err(anyhow!("Challenge expression in abstract evaluation resulted in Invalid Expression")),
     }
 }
