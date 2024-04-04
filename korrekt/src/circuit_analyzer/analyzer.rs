@@ -829,7 +829,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                    ).with_context(|| format!("Failed to decompose the left side of the Product expression starting at row: {}, within region: {} to {}", row_num, region_begin, region_end))?;
+                    ).with_context(|| format!("Failed to decompose the left side of the Product expression within region from row: {} to {}", region_begin, region_end))?;
                 let (node_str_right, nodet_type_right, variable_right, right_is_zero) =
                     Self::decompose_lookup_expression(
                         b,
@@ -840,11 +840,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                    ).with_context(|| format!("Failed to decompose the right side of the Product expression starting at row: {}, within region: {} to {}", row_num, region_begin, region_end))?;
+                    ).with_context(|| format!("Failed to decompose the right side of the Product expression within region from row: {} to {}", region_begin, region_end))?;
                 if matches!(nodet_type_left, NodeType::Invalid) {
-                    return Err(anyhow!("Left side of the Product expression evaluated to an invalid type. Check the expression starting at row: {}, within region: {} to {}", row_num, region_begin, region_end));
+                    return Err(anyhow!("Left side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}", region_begin, region_end))?;
                 } else if matches!(nodet_type_right, NodeType::Invalid) {
-                    return Err(anyhow!("Right side of the Product expression evaluated to an invalid type. Check the expression starting at row: {}, within region: {} to {}", row_num, region_begin, region_end));
+                    return Err(anyhow!("Right side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}", region_begin, region_end))?;
                 }
 
                 if matches!(left_is_zero, IsZeroExpression::Zero)
