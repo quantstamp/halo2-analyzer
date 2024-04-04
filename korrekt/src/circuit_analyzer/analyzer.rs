@@ -1,5 +1,5 @@
 use super::{analyzable::AnalyzableField, halo2_proofs_libs::*};
-use anyhow::{anyhow,Context, Result};
+use anyhow::{anyhow, Context, Result};
 use log::info;
 
 use std::{
@@ -121,7 +121,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         region_end,
                         row_num,
                         &self.fixed,
-                    ).context("Failed to run abstract evaluation!")?;
+                    )
+                    .with_context(|| format!(
+                        "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
+                        region_begin, region_end
+                    ))?;
                     if res != AbsResult::Zero {
                         used = true;
                         break 'region_search;
@@ -219,7 +223,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     region_end,
                                     row_num,
                                     &self.fixed,
-                                ).context("Failed to run abstract evaluation!")?;
+                                )
+                                .with_context(|| format!(
+                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
+                                    region_begin, region_end
+                                ))?;
                                 if eval != AbsResult::Zero
                                     && advices.contains(&(reg_column, Rotation(rotation as i32)))
                                 {
@@ -723,8 +731,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     ) -> Result<(String, NodeType, String, IsZeroExpression)> {
         let is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
-            Expression::Constant(_) => 
-            Err(anyhow!("Constant expression in lookup expression is invalid.")),
+            Expression::Constant(_) => Err(anyhow!(
+                "Constant expression in lookup expression is invalid."
+            )),
             Expression::Selector(a) => {
                 if es.contains_key(a) {
                     Ok((
@@ -802,11 +811,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     is_zero_expression,
                 ))
             }
-            Expression::Negated(_) => 
-                Err(anyhow!("Negated expression in lookup expression is invalid.")),
-            
-            Expression::Sum(_, _) => 
-            Err(anyhow!("Sum expression in lookup expression is invalid.")),
+            Expression::Negated(_) => Err(anyhow!(
+                "Negated expression in lookup expression is invalid."
+            )),
+
+            Expression::Sum(_, _) => {
+                Err(anyhow!("Sum expression in lookup expression is invalid."))
+            }
             Expression::Product(a, b) => {
                 let (node_str_left, nodet_type_left, variable_left, left_is_zero) =
                     Self::decompose_lookup_expression(
@@ -818,7 +829,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                    ).context("Decompose lookup expression failed")?;
+                    ).with_context(|| format!("Failed to decompose the left side of the Product expression starting at row: {}, within region: {} to {}", row_num, region_begin, region_end))?;
                 let (node_str_right, nodet_type_right, variable_right, right_is_zero) =
                     Self::decompose_lookup_expression(
                         b,
@@ -829,12 +840,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                    ).context("Decompose lookup expression failed")?;
-                if matches!(nodet_type_left, NodeType::Invalid) || matches!(nodet_type_right, NodeType::Invalid){
-                
-                    return Err(anyhow!("Invalid expression in Product in lookup expression is invalid."))
+                    ).with_context(|| format!("Failed to decompose the right side of the Product expression starting at row: {}, within region: {} to {}", row_num, region_begin, region_end))?;
+                if matches!(nodet_type_left, NodeType::Invalid) {
+                    return Err(anyhow!("Left side of the Product expression evaluated to an invalid type. Check the expression starting at row: {}, within region: {} to {}", row_num, region_begin, region_end));
+                } else if matches!(nodet_type_right, NodeType::Invalid) {
+                    return Err(anyhow!("Right side of the Product expression evaluated to an invalid type. Check the expression starting at row: {}, within region: {} to {}", row_num, region_begin, region_end));
                 }
-                
+
                 if matches!(left_is_zero, IsZeroExpression::Zero)
                     || matches!(right_is_zero, IsZeroExpression::Zero)
                 {
@@ -863,13 +875,17 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
                 Ok((term, NodeType::Mult, var, is_zero_expression))
             }
-            Expression::Scaled(_poly, _) => Err(anyhow!("Scaled expression in lookup expression is invalid.")),
+            Expression::Scaled(_poly, _) => Err(anyhow!(
+                "Scaled expression in lookup expression is invalid."
+            )),
             #[cfg(any(
                 feature = "use_pse_halo2_proofs",
                 feature = "use_axiom_halo2_proofs",
                 feature = "use_scroll_halo2_proofs"
             ))]
-            Expression::Challenge(_poly) => Err(anyhow!("Challenge expression in lookup expression is invalid.")),
+            Expression::Challenge(_poly) => Err(anyhow!(
+                "Challenge expression in lookup expression is invalid."
+            )),
         }
     }
 
@@ -1142,7 +1158,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &region.enabled_selectors,
                                 &self.fixed,
                                 &self.cell_to_cycle_head,
-                            ).context("Decompose lookup expression failed")?;
+                            )
+                        .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                             if matches!(is_zero, IsZeroExpression::NonZero) {
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
@@ -1194,8 +1211,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         }
 
                         if !cons_str_vec.is_empty() && !lookup_mapping.is_empty() {
-                            let funcion_name =
-                                format!("isInLookupTable{}", lookup_index);
+                            let funcion_name = format!("isInLookupTable{}", lookup_index);
                             if !lookup_func_map.contains_key(&lookup_index) {
                                 lookup_func_map.insert(lookup_index, true);
                                 if matches!(analyzer_input.lookup_method, LookupMethod::Interpreted)
@@ -1264,16 +1280,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let mut lookup_arg_cells = Vec::new();
                         for polys in &lookup.1.inputs {
                             for poly in polys {
-                                let (node_str, _, var, is_zero) = Self::decompose_lookup_expression(
-                                    poly,
-                                    printer,
-                                    region_begin,
-                                    region_end,
-                                    i32::try_from(row_num).ok().unwrap(),
-                                    &region.enabled_selectors,
-                                    &self.fixed,
-                                    &self.cell_to_cycle_head,
-                                ).context("Decompose lookup expression failed")?;
+                                let (node_str, _, var, is_zero) =
+                                    Self::decompose_lookup_expression(
+                                        poly,
+                                        printer,
+                                        region_begin,
+                                        region_end,
+                                        i32::try_from(row_num).ok().unwrap(),
+                                        &region.enabled_selectors,
+                                        &self.fixed,
+                                        &self.cell_to_cycle_head,
+                                    )
+                                    .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
                                     lookup_arg_cells.push(var);
@@ -1318,8 +1336,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             &self.lookup_mappings.push(lookup_mapping.clone());
                         }
                         if !cons_str_vec.is_empty() && !lookup_mapping.is_empty() {
-                            let function_name =
-                                format!("isInLookupTable{}", lookup_index);
+                            let function_name = format!("isInLookupTable{}", lookup_index);
                             if !lookup_func_map.contains_key(&lookup_index) {
                                 lookup_func_map.insert(lookup_index, true);
                                 if matches!(analyzer_input.lookup_method, LookupMethod::Interpreted)
@@ -1380,7 +1397,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let mut zero_lookup_expressions = Vec::new();
                         let mut cons_str_vec = Vec::new();
                         for polys in &lookup.1.inputs {
-                            
                             for poly in polys {
                                 let (node_str, _, is_zero) = Self::decompose_expression(
                                     &poly,
