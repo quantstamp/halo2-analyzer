@@ -123,8 +123,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         &self.fixed,
                     )
                     .with_context(|| format!(
-                        "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
-                        region_begin, region_end
+                        "Failed to run abstract evaluation for polynomial at region from row: {} to {}, at row: {}.",
+                        region_begin, region_end, row_num
                     ))?;
                     if res != AbsResult::Zero {
                         used = true;
@@ -225,8 +225,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.fixed,
                                 )
                                 .with_context(|| format!(
-                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
-                                    region_begin, region_end
+                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}, at row: {}.",
+                                    region_begin, region_end, row_num
                                 ))?;
                                 if eval != AbsResult::Zero
                                     && advices.contains(&(reg_column, Rotation(rotation as i32)))
@@ -829,7 +829,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                    ).with_context(|| format!("Failed to decompose the left side of the Product expression within region from row: {} to {}", region_begin, region_end))?;
+                    ).with_context(|| format!("Failed to decompose the left side of the Product expression region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                 let (node_str_right, nodet_type_right, variable_right, right_is_zero) =
                     Self::decompose_lookup_expression(
                         b,
@@ -840,11 +840,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                    ).with_context(|| format!("Failed to decompose the right side of the Product expression within region from row: {} to {}", region_begin, region_end))?;
+                    ).with_context(|| format!("Failed to decompose the right side of the Product expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                 if matches!(nodet_type_left, NodeType::Invalid) {
-                    return Err(anyhow!("Left side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}", region_begin, region_end))?;
+                    return Err(anyhow!("Left side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                 } else if matches!(nodet_type_right, NodeType::Invalid) {
-                    return Err(anyhow!("Right side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}", region_begin, region_end))?;
+                    return Err(anyhow!("Right side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                 }
 
                 if matches!(left_is_zero, IsZeroExpression::Zero)
@@ -1291,7 +1291,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         &self.fixed,
                                         &self.cell_to_cycle_head,
                                     )
-                                    .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
+                                    .with_context(|| format!("Failed to decompose lookup input expression within region region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
                                     lookup_arg_cells.push(var);

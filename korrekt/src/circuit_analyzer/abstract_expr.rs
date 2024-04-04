@@ -99,12 +99,12 @@ pub fn eval_abstract<F: AnalyzableField>(
         Expression::Negated(expr) => eval_abstract(expr, selectors,region_begin,region_end,row_num,fixed),
         Expression::Sum(left, right) => {
             let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed).with_context(|| format!(
-                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
-                                    region_begin, region_end
+                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}, , at row: {}.",
+                                    region_begin, region_end,row_num
                                 ))?;
             let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed).with_context(|| format!(
-                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
-                                    region_begin, region_end
+                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}, , at row: {}.",
+                                    region_begin, region_end, row_num
                                 ))?;
             match (res1, res2) {
                 (AbsResult::Variable, _) => Ok(AbsResult::Variable),
@@ -117,12 +117,12 @@ pub fn eval_abstract<F: AnalyzableField>(
         }
         Expression::Product(left, right) => {
             let res1 = eval_abstract(left, selectors,region_begin,region_end,row_num,fixed).with_context(|| format!(
-                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
-                                    region_begin, region_end
+                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}, at row: {}.",
+                                    region_begin, region_end, row_num
                                 ))?;
             let res2 = eval_abstract(right, selectors,region_begin,region_end,row_num,fixed).with_context(|| format!(
-                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
-                                    region_begin, region_end
+                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}, at row: {}.",
+                                    region_begin, region_end, row_num
                                 ))?;
             match (res1, res2) {
                 (AbsResult::Zero, _) => Ok(AbsResult::Zero),
