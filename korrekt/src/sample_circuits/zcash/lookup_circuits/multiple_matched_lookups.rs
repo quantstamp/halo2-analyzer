@@ -156,7 +156,7 @@ impl<F: PrimeField> FibonacciChip<F> {
                         || "value",
                         self.config.range_check_table_1[0],
                         idx,
-                        || Value::known(F::from(value)),
+                        || Value::known(F::from(6-value-1)),
                     )?;
                 }
                 Ok(())
@@ -175,13 +175,13 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || "lhs",
                             self.config.xor_table[0],
                             idx,
-                            || Value::known(F::from(lhs)),
+                            || Value::known(F::from(6-lhs-1)),
                         )?;
                         table.assign_cell(
                             || "rhs",
                             self.config.xor_table[1],
                             idx,
-                            || Value::known(F::from(rhs)),
+                            || Value::known(F::from(6-rhs-1)),
                         )?;
                         table.assign_cell(
                             || "lhs ^ rhs",

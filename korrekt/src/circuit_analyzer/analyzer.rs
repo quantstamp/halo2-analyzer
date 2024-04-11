@@ -80,7 +80,6 @@ pub struct LookupTable {
     pub fixed: Vec<Vec<u64>>,
 }
 
-
 impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn new<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
@@ -1815,9 +1814,34 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     }
 
     fn have_same_rows(matrix1: Vec<Vec<u64>>, matrix2: Vec<Vec<u64>>) -> bool {
-        let set1: HashSet<_> = matrix1.into_iter().collect();
-        let set2: HashSet<_> = matrix2.into_iter().collect();
+        if matrix1.len() != matrix2.len() {
+            return false;
+        }
+        let num_columns = matrix1[0].len();
+        let num_rows = matrix1.len();
 
+
+    
+        // Transform matrices into sets of column tuples
+        let mut set1: HashSet<Vec<u64>> = HashSet::new();
+        let mut set2: HashSet<Vec<u64>> = HashSet::new();
+    
+        for col_index in 0..num_columns {
+            let mut col_tuple1 = Vec::with_capacity(num_rows);
+            let mut col_tuple2 = Vec::with_capacity(num_rows);
+    
+            for row_index in 0..num_rows {
+                col_tuple1.push(matrix1[row_index][col_index].clone());
+                col_tuple2.push(matrix2[row_index][col_index].clone());
+            }
+    
+            set1.insert(col_tuple1);
+            set2.insert(col_tuple2);
+        }
+        println!("set1: {:?}", set1);
+        println!("set2: {:?}", set2);
+
+        println!("set1 == set2: {:?}", set1 == set2);
         set1 == set2
     }
 
@@ -1837,7 +1861,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     fn extract_lookup_columns(&self, col_indices: &[usize]) -> Vec<Vec<u64>> {
         col_indices
             .iter()
-            .filter_map(|&index| self.fixed_converted.get(index).cloned()) 
+            .filter_map(|&index| self.fixed_converted.get(index).cloned())
             .collect()
     }
 
