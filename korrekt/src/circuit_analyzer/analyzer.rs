@@ -80,12 +80,6 @@ pub struct LookupTable {
     pub fixed: Vec<Vec<u64>>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum CustomCellValue {
-    U64,
-    Unassigned,
-    Poison,
-}
 
 impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn new<ConcreteCircuit: Circuit<F>>(
@@ -1265,7 +1259,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     let cons_str = lookup_arg_cells
                                         .iter()
                                         .fold(String::new(), |acc, x| acc + x + " ");
-                                    //remove space from beginning and end
                                     let cons_str = cons_str.trim();
                                     smt::write_assert_boolean_func(
                                         printer,
@@ -1844,7 +1837,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     fn extract_lookup_columns(&self, col_indices: &[usize]) -> Vec<Vec<u64>> {
         col_indices
             .iter()
-            .filter_map(|&index| self.fixed_converted.get(index).cloned()) // Use `get` to safely access the column and `cloned` to clone the inner Vec
+            .filter_map(|&index| self.fixed_converted.get(index).cloned()) 
             .collect()
     }
 
