@@ -1,8 +1,8 @@
 use group::ff::PrimeField;
+use axiom_halo2_proofs::circuit::*;
+use axiom_halo2_proofs::plonk::*;
+use axiom_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
-use zcash_halo2_proofs::circuit::*;
-use zcash_halo2_proofs::plonk::*;
-use zcash_halo2_proofs::poly::Rotation;
 
 #[derive(Debug, Clone)]
 
@@ -26,6 +26,7 @@ struct FibonacciChip<F: PrimeField> {
     config: FibonacciConfig,
     _marker: PhantomData<F>,
 }
+
 
 impl<F: PrimeField> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
@@ -79,19 +80,21 @@ impl<F: PrimeField> FibonacciChip<F> {
             vec![s * (a + b - c)]
         });
 
-        meta.lookup(|meta| {
+        meta.lookup("RC_lookup",|meta| {
             let s = meta.query_selector(s_range);
             let value = meta.query_advice(col_a, Rotation::cur());
+            //(s * out, xor_table[2]),
             vec![(s * value, range_check_table[0])]
         });
 
-        meta.lookup(|meta| {
+        meta.lookup("RC1_lookup", |meta| {
             let s1 = meta.query_selector(s_range_1);
             let value = meta.query_advice(col_b, Rotation::cur());
+            //(s * out, xor_table[2]),
             vec![(s1 * value, range_check_table_1[0])]
         });
 
-        meta.lookup(|meta| {
+        meta.lookup("XOR_lookup", |meta| {
             let s = meta.query_selector(s_xor);
             let lhs = meta.query_advice(col_a, Rotation::cur());
             let rhs = meta.query_advice(col_b, Rotation::cur());
@@ -103,8 +106,8 @@ impl<F: PrimeField> FibonacciChip<F> {
             ]
         });
 
-        meta.lookup(|meta| {
-            let s = meta.query_selector(s_xor_1);
+        meta.lookup("XOR_lookup_1", |meta| {
+            let s = meta.query_selector(s_xor);
             let lhs = meta.query_advice(col_a, Rotation::cur());
             let rhs = meta.query_advice(col_b, Rotation::cur());
             let out = meta.query_advice(col_c, Rotation::cur());
@@ -163,7 +166,6 @@ impl<F: PrimeField> FibonacciChip<F> {
             },
         )
     }
-
     fn load_xor_table(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
         layouter.assign_table(
             || "xor_table",
@@ -175,19 +177,19 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || "lhs",
                             self.config.xor_table[0],
                             idx,
-                            || Value::known(F::from(6-lhs-1)),
+                            || Value::known(F::from(lhs)),
                         )?;
                         table.assign_cell(
                             || "rhs",
                             self.config.xor_table[1],
                             idx,
-                            || Value::known(F::from(6-rhs-1)),
+                            || Value::known(F::from(rhs)),
                         )?;
                         table.assign_cell(
                             || "lhs ^ rhs",
                             self.config.xor_table[2],
                             idx,
-                            || Value::known(F::from(6-lhs-1 ^ 6-rhs-1)),
+                            || Value::known(F::from(lhs ^ rhs)),
                         )?;
                         idx += 1;
                     }
@@ -196,7 +198,6 @@ impl<F: PrimeField> FibonacciChip<F> {
             },
         )
     }
-
     fn load_xor_table_1(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
         layouter.assign_table(
             || "xor_table_1",
@@ -208,19 +209,19 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || "lhs",
                             self.config.xor_table_1[0],
                             idx,
-                            || Value::known(F::from(lhs)),
+                            || Value::known(F::from(6-lhs-1)),
                         )?;
                         table.assign_cell(
                             || "rhs",
                             self.config.xor_table_1[1],
                             idx,
-                            || Value::known(F::from(rhs)),
+                            || Value::known(F::from(6-rhs-1)),
                         )?;
                         table.assign_cell(
                             || "lhs ^ rhs",
                             self.config.xor_table_1[2],
                             idx,
-                            || Value::known(F::from(lhs ^ rhs)),
+                            || Value::known(F::from(6-lhs-1 ^ 6-rhs-1)),
                         )?;
                         idx += 1;
                     }
@@ -234,7 +235,7 @@ impl<F: PrimeField> FibonacciChip<F> {
         &self,
         mut layouter: impl Layouter<F>,
         nrows: usize,
-    ) -> Result<AssignedCell<F, F>, Error> {
+    ) -> Result<AssignedCell<&Assigned<F>,F>, Error> {
         layouter.assign_region(
             || "entire circuit",
             |mut region| {
@@ -242,69 +243,72 @@ impl<F: PrimeField> FibonacciChip<F> {
                 self.config.s_range.enable(&mut region, 0)?;
                 self.config.s_range_1.enable(&mut region, 0)?;
                 // assign first row
-                let a_cell = region.assign_advice_from_instance(
-                    || "1",
-                    self.config.instance,
-                    0,
+
+                let a_cell = region.assign_advice(
                     self.config.advice[0],
                     0,
-                )?;
-                let mut b_cell = region.assign_advice_from_instance(
-                    || "1",
-                    self.config.instance,
-                    1,
+                    Value::known(F::ONE),
+                );
+
+    
+                let mut b_cell = region.assign_advice(
                     self.config.advice[1],
                     0,
-                )?;
+                    Value::known(F::ONE),
+                );
                 let mut c_cell = region.assign_advice(
-                    || "add",
                     self.config.advice[2],
                     0,
-                    || a_cell.value().copied() + b_cell.value(),
-                )?;
+                    a_cell.value().copied() + b_cell.value().copied(),
+                );
 
                 // assign the rest of rows
                 for row in 1..nrows {
-                    b_cell.copy_advice(|| "a", &mut region, self.config.advice[0], row)?;
-                    c_cell.copy_advice(|| "b", &mut region, self.config.advice[1], row)?;
+                    b_cell.copy_advice(&mut region, self.config.advice[0], row);
+                    c_cell.copy_advice(&mut region, self.config.advice[1], row);
 
                     let new_c_cell = if row % 2 == 0 {
                         self.config.s_add.enable(&mut region, row)?;
                         self.config.s_range.enable(&mut region, row)?;
                         self.config.s_range_1.enable(&mut region, row)?;
                         region.assign_advice(
-                            || "advice",
                             self.config.advice[2],
                             row,
-                            || b_cell.value().copied() + c_cell.value(),
-                        )?
+                            b_cell.value().copied() + c_cell.value().copied(),
+                        )
                     } else {
-                        self.config.s_xor_1.enable(&mut region, row)?;
                         self.config.s_xor.enable(&mut region, row)?;
                         self.config.s_range.enable(&mut region, row)?;
                         self.config.s_range_1.enable(&mut region, row)?;
+                        let t = (|| {
+                            b_cell.value().and_then(|a| {
+                                c_cell.value().map(|b| {
+                                    let binding = F::ZERO;
+                                    let binding1 = F::ZERO;
+                                    let a_val = match a {
+                                        Assigned::Trivial(f) => f,
+                                        Assigned::Zero => &binding,
+                                        Assigned::Rational(_, _) => &binding1,
+                                    };
+                                    let binding2 = F::ZERO;
+                                    let binding3 = F::ZERO;
+                                    let b_val = match b {
+                                        Assigned::Trivial(f) => f,
+                                        Assigned::Zero => &binding2,
+                                        Assigned::Rational(_, _) => &binding3,
+                                    };
+                                    
+                                    let a_val1 = u64::from_str_radix(format!("{:?}", a_val).strip_prefix("0x").unwrap(), 16).unwrap();
+                                    let b_val1 = u64::from_str_radix(format!("{:?}", b_val).strip_prefix("0x").unwrap(), 16).unwrap();
+                                    F::from(a_val1 ^ b_val1)
+                                })
+                            })
+                        })();
                         region.assign_advice(
-                            || "advice",
                             self.config.advice[2],
                             row,
-                            || {
-                                b_cell.value().and_then(|a| {
-                                    c_cell.value().map(|b| {
-                                        let a_val = u64::from_str_radix(
-                                            format!("{:?}", a).strip_prefix("0x").unwrap(),
-                                            16,
-                                        )
-                                        .unwrap(); //a.get_lower_32() as u64;
-                                        let b_val = u64::from_str_radix(
-                                            format!("{:?}", b).strip_prefix("0x").unwrap(),
-                                            16,
-                                        )
-                                        .unwrap(); //b.get_lower_32() as u64;
-                                        F::from(a_val ^ b_val)
-                                    })
-                                })
-                            },
-                        )?
+                            t
+                        )
                     };
 
                     b_cell = c_cell;
@@ -319,9 +323,9 @@ impl<F: PrimeField> FibonacciChip<F> {
     pub fn expose_public(
         &self,
         mut layouter: impl Layouter<F>,
-        cell: AssignedCell<F, F>,
+        cell: &AssignedCell<&Assigned<F>,F>,
         row: usize,
-    ) -> Result<(), Error> {
+    ){
         layouter.constrain_instance(cell.cell(), self.config.instance, row)
     }
 }
@@ -329,6 +333,7 @@ impl<F: PrimeField> FibonacciChip<F> {
 #[derive(Default)]
 
 pub struct MyCircuit<F>(pub PhantomData<F>);
+
 
 impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     type Config = FibonacciConfig;
@@ -349,11 +354,11 @@ impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     ) -> Result<(), Error> {
         let chip = FibonacciChip::construct(config);
         chip.load_xor_table(layouter.namespace(|| "lookup table"))?;
-        chip.load_xor_table_1(layouter.namespace(|| "lookup table"))?;
+        chip.load_xor_table_1(layouter.namespace(|| "lookup table 1"))?;
         chip.load_table_range(layouter.namespace(|| "range table"))?;
         chip.load_table_range_1(layouter.namespace(|| "range table 1"))?;
         let out_cell = chip.assign(layouter.namespace(|| "entire table"), 4)?;
-        chip.expose_public(layouter.namespace(|| "out"), out_cell, 2)?;
+        chip.expose_public(layouter.namespace(|| "out"), &out_cell, 2);
 
         Ok(())
     }

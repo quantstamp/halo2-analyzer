@@ -1817,18 +1817,24 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         if matrix1.len() != matrix2.len() {
             return false;
         }
+        println!("matrix1: {:?}", matrix1);
+        println!("matrix2: {:?}", matrix2);
         let num_columns = matrix1[0].len();
+        println!("num_columns: {:?}", num_columns);
+        println!("matrix1.len(): {:?}", matrix1.len());
+        println!("matrix2.len(): {:?}", matrix2.len());
         let num_rows = matrix1.len();
+        println!("num_rows: {:?}", num_rows);
 
-
-    
         // Transform matrices into sets of column tuples
         let mut set1: HashSet<Vec<u64>> = HashSet::new();
         let mut set2: HashSet<Vec<u64>> = HashSet::new();
     
         for col_index in 0..num_columns {
             let mut col_tuple1 = Vec::with_capacity(num_rows);
+            
             let mut col_tuple2 = Vec::with_capacity(num_rows);
+            
     
             for row_index in 0..num_rows {
                 col_tuple1.push(matrix1[row_index][col_index].clone());

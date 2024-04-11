@@ -543,7 +543,64 @@ mod tests {
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
+    #[test]
+    fn analyze_underconstrained_multiple_matched_lookups_inline_random_test() {
+        let circuit =
+            sample_circuits::lookup_circuits::multiple_matched_lookups::MyCircuit::<Fr>(PhantomData);
 
+        let k = 11;
+
+        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: analyzer.instace_cells.clone(),
+                iterations: 5,
+            },
+            lookup_method: LookupMethod::InlineConstraints,
+        };
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    }
+    #[test]
+    fn analyze_underconstrained_multiple_matched_lookups_interpreted_random_test() {
+        let circuit =
+            sample_circuits::lookup_circuits::multiple_matched_lookups::MyCircuit::<Fr>(PhantomData);
+
+        let k = 11;
+
+        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: analyzer.instace_cells.clone(),
+                iterations: 5,
+            },
+            lookup_method: LookupMethod::Interpreted,
+        };
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    }
     #[test]
     fn analyze_underconstrained_multiple_lookup_random_test() {
         let circuit =
