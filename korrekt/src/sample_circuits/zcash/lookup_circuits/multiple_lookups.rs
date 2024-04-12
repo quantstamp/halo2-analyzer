@@ -73,16 +73,14 @@ impl<F: PrimeField> FibonacciChip<F> {
 
         meta.lookup(|meta| {
             let s = meta.query_selector(s_range);
-            let lhs = meta.query_advice(col_a, Rotation::cur());
-            //(s * out, xor_table[2]),
-            vec![(s * lhs, range_check_table[0])]
+            let value = meta.query_advice(col_a, Rotation::cur());
+            vec![(s * value, range_check_table[0])]
         });
 
         meta.lookup(|meta| {
             let s1 = meta.query_selector(s_range_1);
-            let rhs = meta.query_advice(col_b, Rotation::cur());
-            //(s * out, xor_table[2]),
-            vec![(s1 * rhs, range_check_table_1[0])]
+            let value = meta.query_advice(col_b, Rotation::cur());
+            vec![(s1 * value, range_check_table_1[0])]
         });
 
         meta.lookup(|meta| {
@@ -114,12 +112,12 @@ impl<F: PrimeField> FibonacciChip<F> {
         layouter.assign_table(
             || "range_check_table",
             |mut table| {
-                for (idx, lhs) in (0..4).enumerate() {
+                for (idx, value) in (0..4).enumerate() {
                     table.assign_cell(
-                        || "lhs",
+                        || "value",
                         self.config.range_check_table[0],
                         idx,
-                        || Value::known(F::from(lhs)),
+                        || Value::known(F::from(value)),
                     )?;
                 }
                 Ok(())
@@ -131,12 +129,12 @@ impl<F: PrimeField> FibonacciChip<F> {
         layouter.assign_table(
             || "range_check_table",
             |mut table| {
-                for (idx, lhs) in (0..6).enumerate() {
+                for (idx, value) in (0..6).enumerate() {
                     table.assign_cell(
-                        || "lhs",
+                        || "value",
                         self.config.range_check_table_1[0],
                         idx,
-                        || Value::known(F::from(lhs)),
+                        || Value::known(F::from(value)),
                     )?;
                 }
                 Ok(())

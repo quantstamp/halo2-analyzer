@@ -160,7 +160,7 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
         AnalyzerOutputStatus::NoUnusedCustomGates => {}
         AnalyzerOutputStatus::NoUnconstrainedCells => {}
         AnalyzerOutputStatus::NoUnusedColumns => {}
-        AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups => {
+        AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups => {
             match analyzer_input.verification_method {
                 VerificationMethod::Specific => {
                     println!("\nTwo assignments found to advice columns, making the circuit under-constrained for this specific input. But the assignmets are not valid in lookup table(s)!
