@@ -2,7 +2,6 @@ use group::ff::PrimeField;
 use scroll_halo2_proofs::circuit::*;
 use scroll_halo2_proofs::plonk::*;
 use scroll_halo2_proofs::poly::Rotation;
-use serde_json::value;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
