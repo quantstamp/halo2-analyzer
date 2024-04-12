@@ -1880,9 +1880,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         prime: &str,
     ) -> Result<AnalyzerOutput> {
         match analyzer_type {
-            AnalyzerType::UnusedGates => todo!(), //self.analyze_unused_custom_gates(),
-            AnalyzerType::UnconstrainedCells => todo!(), //self.analyze_unconstrained_cells(),
-            AnalyzerType::UnusedColumns => todo!(), //self.analyze_unused_columns(),
+            AnalyzerType::UnusedGates => self.analyze_unused_custom_gates(),
+            AnalyzerType::UnconstrainedCells => self.analyze_unconstrained_cells(),
+            AnalyzerType::UnusedColumns => self.analyze_unused_columns(),
             AnalyzerType::UnderconstrainedCircuit => {
                 let analyzer_input: AnalyzerInput =
                     retrieve_user_input_for_underconstrained(&self.instace_cells, &self.cs)
