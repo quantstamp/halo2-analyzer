@@ -113,9 +113,9 @@ impl<F: PrimeField> FibonacciChip<F> {
             let rhs = meta.query_advice(col_b, Rotation::cur());
             let out = meta.query_advice(col_c, Rotation::cur());
             vec![
-                (s.clone() * lhs, xor_table[0]),
-                (s.clone() * rhs, xor_table[1]),
-                (s * out, xor_table[2]),
+                (s.clone() * lhs, xor_table_1[0]),
+                (s.clone() * rhs, xor_table_1[1]),
+                (s * out, xor_table_1[2]),
             ]
         });
 
@@ -282,6 +282,7 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || b_cell.value().copied() + c_cell.value(),
                         )?
                     } else {
+                        self.config.s_xor_1.enable(&mut region, row)?;
                         self.config.s_xor.enable(&mut region, row)?;
                         self.config.s_range.enable(&mut region, row)?;
                         self.config.s_range_1.enable(&mut region, row)?;

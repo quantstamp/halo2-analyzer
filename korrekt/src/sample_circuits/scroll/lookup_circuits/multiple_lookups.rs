@@ -2,7 +2,6 @@ use group::ff::PrimeField;
 use scroll_halo2_proofs::circuit::*;
 use scroll_halo2_proofs::plonk::*;
 use scroll_halo2_proofs::poly::Rotation;
-use serde_json::value;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
@@ -115,7 +114,7 @@ impl<F: PrimeField> FibonacciChip<F> {
         layouter.assign_table(
             || "range_check_table",
             |mut table| {
-                for (idx, value) in (0..6).enumerate() {
+                for (idx, value) in (0..4).enumerate() {
                     table.assign_cell(
                         || "value",
                         self.config.range_check_table[0],

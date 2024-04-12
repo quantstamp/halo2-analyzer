@@ -482,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn analyze_underconstrained_multiple_uniterpreted_lookup_random_test() {
+    fn analyze_underconstrained_multiple_uninterpreted_lookup_random_test() {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
 
@@ -508,10 +508,10 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups));
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups));
     }
     #[test]
-    fn analyze_underconstrained_multiple_iterpreted_lookup_random_test() {
+    fn analyze_underconstrained_multiple_interpreted_lookup_random_test() {
         let circuit =
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
 
@@ -600,7 +600,7 @@ mod tests {
             .analyze_underconstrained(analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups));
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups));
     }
     #[test]
     fn analyze_underconstrained_interpreted_specific_lookup_test() {

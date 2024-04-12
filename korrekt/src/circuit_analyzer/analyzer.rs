@@ -1383,8 +1383,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             if !lookup_mapping.is_empty() {
                                 let _ = &self.lookup_mappings.push(lookup_mapping.clone());
                             }
-                            if !cons_str_vec.is_empty() && !lookup_mapping.is_empty() {
-                                let mut function_name = format!("isInLookupTable{}", lookup_index);
+                            if !lookup_mapping.is_empty() {
                                 if !lookup_func_map.contains_key(&lookup_index) {
                                     lookup_func_map.insert(lookup_index, true);
                                     if matches!(
@@ -1678,7 +1677,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             ) && i == max_iterations))
                             {
                                 info!("Lookup unsuccessful! Probably a false positive!");
-                                result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
+                                result = AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups;
                                 return Ok(result);
                             }
                         }
@@ -1723,7 +1722,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         if uc_lookup_dependency_fp
             && matches!(result, AnalyzerOutputStatus::NotUnderconstrainedLocal)
         {
-            result = AnalyzerOutputStatus::NotUnderconstrainedLocalUniterpretedLookups;
+            result = AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups;
         }
         Ok(result)
     }
@@ -1817,14 +1816,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         if matrix1.len() != matrix2.len() {
             return false;
         }
-        println!("matrix1: {:?}", matrix1);
-        println!("matrix2: {:?}", matrix2);
         let num_columns = matrix1[0].len();
-        println!("num_columns: {:?}", num_columns);
-        println!("matrix1.len(): {:?}", matrix1.len());
-        println!("matrix2.len(): {:?}", matrix2.len());
         let num_rows = matrix1.len();
-        println!("num_rows: {:?}", num_rows);
 
         // Transform matrices into sets of column tuples
         let mut set1: HashSet<Vec<u64>> = HashSet::new();
@@ -1844,10 +1837,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             set1.insert(col_tuple1);
             set2.insert(col_tuple2);
         }
-        println!("set1: {:?}", set1);
-        println!("set2: {:?}", set2);
 
-        println!("set1 == set2: {:?}", set1 == set2);
         set1 == set2
     }
 
