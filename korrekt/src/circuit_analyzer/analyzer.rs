@@ -91,7 +91,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
         let (permutation, instace_cells, cell_to_cycle_head) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
-        // Convert fixed to an equivalent matrix with u64 type instead of CellValue
+        // Convert fixed to an equivalent matrix with BigInt type instead of CellValue
         let mut fixed = Vec::new();
         for col in analyzable.fixed.iter() {
             let mut new_col = Vec::new();
