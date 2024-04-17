@@ -1,6 +1,8 @@
 use super::{analyzable::AnalyzableField, halo2_proofs_libs::*};
 use anyhow::{anyhow, Context, Result};
 use log::info;
+use num::{BigInt, Num};
+use num_bigint::Sign;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -33,7 +35,7 @@ pub struct Analyzer<F: AnalyzableField> {
 
     // The fixed cells in the circuit, arranged as [column][row].
     pub fixed: Vec<Vec<CellValue<F>>>,
-    pub fixed_converted: Vec<Vec<u64>>,
+    pub fixed_converted: Vec<Vec<BigInt>>,
 
     pub selectors: Vec<Vec<bool>>,
     pub log: Vec<String>,
@@ -77,7 +79,7 @@ pub struct LookupTable {
     pub function_name: String,
     pub function_body: String,
     pub num_of_columns: usize,
-    pub fixed: Vec<Vec<u64>>,
+    pub fixed: Vec<Vec<BigInt>>,
 }
 
 impl<'b, F: AnalyzableField> Analyzer<F> {
@@ -101,7 +103,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
                 match cell {
                     CellValue::Assigned(fixed_val) => {
-                        let t = u64::from_str_radix(
+                        let t = BigInt::from_str_radix(
                             format!("{:?}", fixed_val).strip_prefix("0x").unwrap(),
                             16,
                         )
@@ -533,17 +535,17 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         region_end: usize,
         row_num: i32,
         es: &HashMap<Selector, Vec<usize>>,
-        fixed: &Vec<Vec<u64>>,
+        fixed: &Vec<Vec<BigInt>>,
         cell_to_cycle_head: &HashMap<String, String>,
     ) -> (String, NodeType, IsZeroExpression) {
         let mut is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
             Expression::Constant(a) => {
                 let constant_decimal_value =
-                    u64::from_str_radix(format!("{:?}", a).strip_prefix("0x").unwrap(), 16)
+                    BigInt::from_str_radix(format!("{:?}", a).strip_prefix("0x").unwrap(), 16)
                         .unwrap();
 
-                if constant_decimal_value == 0 {
+                if constant_decimal_value.sign() == Sign::NoSign {
                     return (
                         "as ff0 F".to_owned(),
                         NodeType::Constant,
@@ -569,10 +571,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 let col = fixed_query.column_index;
                 let row = (fixed_query.rotation.0 + row_num) as usize + region_begin;
 
-                let t = fixed[col][row];
+                let t = &fixed[col][row];
                 let term = format!("(as ff{:?} F)", t);
 
-                if t == 0 {
+                if t.sign() == Sign::NoSign {
                     is_zero_expression = IsZeroExpression::Zero;
                 }
 
@@ -764,7 +766,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         region_end: usize,
         row_num: i32,
         es: &HashMap<Selector, Vec<usize>>,
-        fixed: &Vec<Vec<u64>>,
+        fixed: &Vec<Vec<BigInt>>,
         cell_to_cycle_head: &HashMap<String, String>,
     ) -> Result<(String, NodeType, String, IsZeroExpression)> {
         let is_zero_expression = IsZeroExpression::NonZero;
@@ -793,8 +795,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 let col = fixed_query.column_index;
                 let row = (fixed_query.rotation.0 + row_num) as usize + region_begin;
 
-                let t = fixed[col][row];
-                if t == 0 {
+                let t = &fixed[col][row];
+                if t.sign() == Sign::NoSign {
                     return Ok((
                         "as ff0 F".to_owned(),
                         NodeType::Fixed,
@@ -1812,7 +1814,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         Some(false)
     }
 
-    fn have_same_rows(matrix1: Vec<Vec<u64>>, matrix2: Vec<Vec<u64>>) -> bool {
+    fn have_same_rows(matrix1: Vec<Vec<BigInt>>, matrix2: Vec<Vec<BigInt>>) -> bool {
         if matrix1.len() != matrix2.len() {
             return false;
         }
@@ -1820,8 +1822,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let num_rows = matrix1.len();
 
         // Transform matrices into sets of column tuples
-        let mut set1: HashSet<Vec<u64>> = HashSet::new();
-        let mut set2: HashSet<Vec<u64>> = HashSet::new();
+        let mut set1: HashSet<Vec<BigInt>> = HashSet::new();
+        let mut set2: HashSet<Vec<BigInt>> = HashSet::new();
     
         for col_index in 0..num_columns {
             let mut col_tuple1 = Vec::with_capacity(num_rows);
@@ -1841,7 +1843,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         set1 == set2
     }
 
-    fn match_equivalent_lookup_tables(&self, new_lookup_table: &[Vec<u64>]) -> (bool, usize) {
+    fn match_equivalent_lookup_tables(&self, new_lookup_table: &[Vec<BigInt>]) -> (bool, usize) {
         for (index, existing_table) in self.lookup_tables.iter().enumerate() {
             let result =
                 Self::have_same_rows(existing_table.fixed.clone(), new_lookup_table.to_vec());
@@ -1854,7 +1856,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         (false, 0) // No match found, return false with a default index
     }
 
-    fn extract_lookup_columns(&self, col_indices: &[usize]) -> Vec<Vec<u64>> {
+    fn extract_lookup_columns(&self, col_indices: &[usize]) -> Vec<Vec<BigInt>> {
         col_indices
             .iter()
             .filter_map(|&index| self.fixed_converted.get(index).cloned())
