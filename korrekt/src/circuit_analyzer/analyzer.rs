@@ -69,6 +69,7 @@ pub enum Operation {
 #[derive(Debug)]
 pub enum IsZeroExpression {
     Zero,
+    One,
     NonZero,
 }
 
@@ -549,6 +550,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         NodeType::Constant,
                         IsZeroExpression::Zero,
                     );
+                } else if constant_decimal_value == 1 {
+                    return (
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Constant,
+                        IsZeroExpression::One,
+                    );
                 }
 
                 let term = format!("(as ff{:?} F)", constant_decimal_value);
@@ -556,7 +563,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             }
             Expression::Selector(a) => {
                 if es.contains_key(a) {
-                    ("(as ff1 F)".to_owned(), NodeType::Fixed, is_zero_expression)
+                    (
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Fixed,
+                        IsZeroExpression::One,
+                    )
                 } else {
                     (
                         "as ff0 F".to_owned(),
@@ -574,6 +585,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
                 if t == 0 {
                     is_zero_expression = IsZeroExpression::Zero;
+                } else if t == 1 {
+                    is_zero_expression = IsZeroExpression::One;
                 }
 
                 (term, NodeType::Fixed, is_zero_expression)
@@ -624,7 +637,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 (term, NodeType::Negated, is_zero_expression)
             }
             Expression::Sum(a, b) => {
-                let (node_str_left, nodet_type_left, left_is_zero) = Self::decompose_expression(
+                let (node_str_left, node_type_left, left_is_zero) = Self::decompose_expression(
                     a,
                     printer,
                     region_begin,
@@ -634,7 +647,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let (node_str_right, nodet_type_right, right_is_zero) = Self::decompose_expression(
+                let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     b,
                     printer,
                     region_begin,
@@ -659,14 +672,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     printer,
                     "add".to_owned(),
                     node_str_left,
-                    nodet_type_left,
+                    node_type_left,
                     node_str_right,
-                    nodet_type_right,
+                    node_type_right,
                 );
                 (term, NodeType::Add, is_zero_expression)
             }
             Expression::Product(a, b) => {
-                let (node_str_left, nodet_type_left, left_is_zero) = Self::decompose_expression(
+                let (node_str_left, node_type_left, left_is_zero) = Self::decompose_expression(
                     a,
                     printer,
                     region_begin,
@@ -676,7 +689,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let (node_str_right, nodet_type_right, right_is_zero) = Self::decompose_expression(
+                let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     b,
                     printer,
                     region_begin,
@@ -695,21 +708,33 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         NodeType::Fixed,
                         IsZeroExpression::Zero,
                     );
+                } else if matches!(left_is_zero, IsZeroExpression::One)
+                    && matches!(right_is_zero, IsZeroExpression::One)
+                {
+                    return (
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Fixed,
+                        IsZeroExpression::One,
+                    );
+                } else if matches!(left_is_zero, IsZeroExpression::One) {
+                    return (node_str_right, node_type_right, right_is_zero);
+                } else if matches!(right_is_zero, IsZeroExpression::One) {
+                    return (node_str_left, node_type_left, left_is_zero);
                 }
 
                 let term = smt::write_term(
                     printer,
                     "mul".to_owned(),
                     node_str_left,
-                    nodet_type_left,
+                    node_type_left,
                     node_str_right,
-                    nodet_type_right,
+                    node_type_right,
                 );
                 (term, NodeType::Mult, is_zero_expression)
             }
             Expression::Scaled(_poly, c) => {
                 // convering the field element into an expression constant and recurse.
-                let (node_str_left, nodet_type_left, lef_is_zero) = Self::decompose_expression(
+                let (node_str_left, node_type_left, left_is_zero) = Self::decompose_expression(
                     &Expression::Constant(*c),
                     printer,
                     region_begin,
@@ -719,7 +744,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                let (node_str_right, nodet_type_right, right_is_zero) = Self::decompose_expression(
+                let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     _poly,
                     printer,
                     region_begin,
@@ -729,7 +754,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     fixed,
                     cell_to_cycle_head,
                 );
-                if matches!(lef_is_zero, IsZeroExpression::Zero)
+                if matches!(left_is_zero, IsZeroExpression::Zero)
                     || matches!(right_is_zero, IsZeroExpression::Zero)
                 {
                     return (
@@ -737,14 +762,26 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         NodeType::Fixed,
                         IsZeroExpression::Zero,
                     );
+                } else if matches!(left_is_zero, IsZeroExpression::One)
+                    && matches!(right_is_zero, IsZeroExpression::One)
+                {
+                    return (
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Fixed,
+                        IsZeroExpression::One,
+                    );
+                } else if matches!(left_is_zero, IsZeroExpression::One) {
+                    return (node_str_right, node_type_right, right_is_zero);
+                } else if matches!(right_is_zero, IsZeroExpression::One) {
+                    return (node_str_left, node_type_left, left_is_zero);
                 }
                 let term = smt::write_term(
                     printer,
                     "mul".to_owned(),
                     node_str_left,
-                    nodet_type_left,
+                    node_type_left,
                     node_str_right,
-                    nodet_type_right,
+                    node_type_right,
                 );
                 (term, NodeType::Scaled, is_zero_expression)
             }
@@ -778,7 +815,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         "(as ff1 F)".to_owned(),
                         NodeType::Fixed,
                         "1".to_owned(),
-                        IsZeroExpression::NonZero,
+                        IsZeroExpression::One,
                     ))
                 } else {
                     Ok((
@@ -800,6 +837,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         NodeType::Fixed,
                         "0".to_owned(),
                         IsZeroExpression::Zero,
+                    ));
+                } else if t == 1 {
+                    return Ok((
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Fixed,
+                        "1".to_owned(),
+                        IsZeroExpression::One,
                     ));
                 }
                 let term = format!("(as ff{:?} F)", t);
@@ -850,7 +894,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 Err(anyhow!("Sum expression in lookup expression is invalid."))
             }
             Expression::Product(a, b) => {
-                let (node_str_left, nodet_type_left, variable_left, left_is_zero) =
+                let (node_str_left, node_type_left, variable_left, left_is_zero) =
                     Self::decompose_lookup_expression(
                         a,
                         printer,
@@ -861,7 +905,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         fixed,
                         cell_to_cycle_head,
                     ).with_context(|| format!("Failed to decompose the left side of the Product expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
-                let (node_str_right, nodet_type_right, variable_right, right_is_zero) =
+                let (node_str_right, node_type_right, variable_right, right_is_zero) =
                     Self::decompose_lookup_expression(
                         b,
                         printer,
@@ -872,10 +916,19 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         fixed,
                         cell_to_cycle_head,
                     ).with_context(|| format!("Failed to decompose the right side of the Product expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
-                if matches!(nodet_type_left, NodeType::Invalid) {
+                if matches!(node_type_left, NodeType::Invalid) {
                     return Err(anyhow!("Left side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
-                } else if matches!(nodet_type_right, NodeType::Invalid) {
+                } else if matches!(node_type_right, NodeType::Invalid) {
                     return Err(anyhow!("Right side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
+                }
+
+                let mut var = String::from("");
+                if variable_left == "1" || variable_right == "1" {
+                    if variable_left == "1" {
+                        var = variable_right;
+                    } else {
+                        var = variable_left;
+                    }
                 }
 
                 if matches!(left_is_zero, IsZeroExpression::Zero)
@@ -887,23 +940,30 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         "0".to_owned(),
                         IsZeroExpression::Zero,
                     ));
+                } else if matches!(left_is_zero, IsZeroExpression::One)
+                    && matches!(right_is_zero, IsZeroExpression::One)
+                {
+                    return Ok((
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Fixed,
+                        "1".to_owned(),
+                        IsZeroExpression::One,
+                    ));
+                } else if matches!(left_is_zero, IsZeroExpression::One) {
+                    return Ok((node_str_right, node_type_right, var, right_is_zero));
+                } else if matches!(right_is_zero, IsZeroExpression::One) {
+                    return Ok((node_str_left, node_type_left, var, left_is_zero));
                 }
+                
                 let term = smt::write_term(
                     printer,
                     "mul".to_owned(),
                     node_str_left,
-                    nodet_type_left,
+                    node_type_left,
                     node_str_right,
-                    nodet_type_right,
+                    node_type_right,
                 );
-                let mut var = String::from("");
-                if variable_left == "1" || variable_right == "1" {
-                    if variable_left == "1" {
-                        var = variable_right;
-                    } else {
-                        var = variable_left;
-                    }
-                }
+
                 Ok((term, NodeType::Mult, var, is_zero_expression))
             }
             Expression::Scaled(_poly, _) => Err(anyhow!(
@@ -1001,7 +1061,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &self.fixed_converted,
                                 &self.cell_to_cycle_head,
                             );
-                            if matches!(is_zero, IsZeroExpression::NonZero) {
+                            if !matches!(is_zero, IsZeroExpression::Zero) {
                                 cons_str_vec.push(node_str);
                                 zero_lookup_expressions.push(true);
                             } else {
@@ -1057,7 +1117,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     printer,
                     cons_str_vec[col].clone(),
                     t,
-                    NodeType::Mult,
+                    NodeType::Advice,
                     Operation::Equal,
                 )
                 .context("Failled to generate assert!")?;
@@ -1152,7 +1212,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &self.cell_to_cycle_head,
                             )
                         .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
-                            if matches!(is_zero, IsZeroExpression::NonZero) {
+                            if !matches!(is_zero, IsZeroExpression::Zero) {
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
                                     lookup_arg_cells.push(var);
@@ -1270,7 +1330,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         smt::write_assert_boolean_func(
                                             printer,
                                             function_name.clone(),
-                                            format!("({})", cons_str).to_owned(),
+                                            format!("{}", cons_str).to_owned(),
                                         );
                                     }
                                 }
@@ -1314,7 +1374,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         &self.cell_to_cycle_head,
                                     )
                                     .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
-                                if matches!(is_zero, IsZeroExpression::NonZero) {
+                                if !matches!(is_zero, IsZeroExpression::Zero) {
                                     cons_str_vec.push(node_str);
                                     if !var.is_empty() {
                                         lookup_arg_cells.push(var);
@@ -1428,7 +1488,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         smt::write_assert_boolean_func(
                                             printer,
                                             function_name.clone(),
-                                            format!("({})", cons_str).to_owned(),
+                                            format!("{}", cons_str).to_owned(),
                                         );
                                     }
                                 }
@@ -1462,7 +1522,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.fixed_converted,
                                     &self.cell_to_cycle_head,
                                 );
-                                if matches!(is_zero, IsZeroExpression::NonZero) {
+                                if !matches!(is_zero, IsZeroExpression::Zero) {
                                     cons_str_vec.push(node_str.clone());
                                     zero_lookup_expressions.push(true);
                                 } else {
