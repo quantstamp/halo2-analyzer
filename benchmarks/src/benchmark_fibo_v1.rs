@@ -83,6 +83,7 @@ pub fn run_benchmark() -> Vec<(usize, std::time::Duration)> {
 pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() -> Duration {
     let circuit =
         sample_circuits::copy_constraint::fibonacci_for_bench::FibonacciCircuit::<Fr,ROWS>::default();
+        let start = Instant::now();
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
@@ -104,8 +105,8 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() ->
         let public_input = vec![Fr::from(3)];
 
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-    let start = Instant::now();
-    let output_status = analyzer
+    
+    let _output_status = analyzer
             .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;

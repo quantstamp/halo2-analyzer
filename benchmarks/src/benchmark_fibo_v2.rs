@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use korrekt_V2;
 
 use korrekt_V2::circuit_analyzer::analyzer;
-use korrekt_V2::io::analyzer_io_type::{self, VerificationMethod, VerificationInput};
+use korrekt_V2::io::analyzer_io_type::{self, LookupMethod, VerificationInput, VerificationMethod};
 use korrekt_V2::sample_circuits;
 
 /// `run_underconstrained_benchmarks` macro.
@@ -78,7 +78,7 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() ->
     let circuit =
             sample_circuits::pse_v1::copy_constraint::fibonacci_for_bench::FibonacciCircuit::<Fr,ROWS>(PhantomData);
         let k: u32 = 11;
-
+        let start = Instant::now();
         let mut analyzer = analyzer::Analyzer::new(&circuit, k).unwrap();
 
         let modulus = bn256::fr::MODULUS_STR;
@@ -93,10 +93,11 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() ->
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
-    let start = Instant::now();
-    let output_status = analyzer
+    
+    let _output_status = analyzer
     .analyze_underconstrained(analyzer_input, &prime)
     .unwrap()
     .output_status;

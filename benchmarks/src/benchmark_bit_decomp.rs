@@ -7,7 +7,7 @@ use std::time::Instant;
 use korrekt_V2;
 
 use korrekt_V2::circuit_analyzer::analyzer;
-use korrekt_V2::io::analyzer_io_type::{self, VerificationMethod, VerificationInput};
+use korrekt_V2::io::analyzer_io_type::{self, LookupMethod, VerificationInput, VerificationMethod};
 use korrekt_V2::sample_circuits;
 
 /// `run_underconstrained_benchmarks` macro.
@@ -79,6 +79,7 @@ pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
+            lookup_method: LookupMethod::InlineConstraints,
         };
 
     let modulus = bn256::fr::MODULUS_STR;

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use log::info;
 use std::{collections::HashMap, io};
 use crate::{
     circuit_analyzer::{analyzable::AnalyzableField,halo2_proofs_libs::*},
@@ -130,21 +131,21 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
 pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOutput) {
     match analyzer_output.output_status {
         AnalyzerOutputStatus::Underconstrained => {
-            println!("The circuit is under-constrained.");
+            info!("The circuit is under-constrained.");
         }
         AnalyzerOutputStatus::Overconstrained => {
-            println!("The circuit is over-constrained");
+            info!("The circuit is over-constrained");
         }
         AnalyzerOutputStatus::NotUnderconstrained => {
-            println!("The circuit is not under-constrained!");
+            info!("The circuit is not under-constrained!");
         }
         AnalyzerOutputStatus::NotUnderconstrainedLocal => {
             match analyzer_input.verification_method {
                 VerificationMethod::Specific => {
-                    println!("The circuit is not under-constrained for this specific input.");
+                    info!("The circuit is not under-constrained for this specific input.");
                 }
                 VerificationMethod::Random => {
-                    println!(
+                    info!(
                         "The circuit is not under-constrained for {} random input(s).",
                         analyzer_input.verification_input.iterations
                     );

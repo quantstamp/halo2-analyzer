@@ -85,7 +85,7 @@ For certain versions, multiple patches may be available. It's important to ensur
 1. Go to "korrekt"
 
 2. Run `cargo run` with relevant halo2 version feature flag (the circuit is hard-coded in main.rs, in the future this should be a library)
-    You must enable at least one of the available feature flags
+    You should use `--no-default-features` for the current setup where the default flag is set to `use_zcash_halo2_proofs` and enable at least one of the available feature flags
 
     ```bash
     cargo run --no-default-features --features use_zcash_halo2_proofs
@@ -94,8 +94,6 @@ For certain versions, multiple patches may be available. It's important to ensur
     cargo run --no-default-features --features use_scroll_halo2_proofs
     cargo run --no-default-features --features use_pse_v1_halo2_proofs
     ```
-
-    `--no-default-features` for the current setup where the default flag is set to `use_zcash_halo2_proofs`.
 
 ## How to test
 
