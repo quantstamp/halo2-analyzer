@@ -81,6 +81,10 @@ pub struct LookupTable {
     pub function_body: String,
     pub num_of_columns: usize,
     pub fixed: Vec<Vec<BigInt>>,
+    pub column_indices: Vec<usize>,
+    pub row_set: HashSet<Vec<BigInt>>,
+    pub match_index: usize,
+    pub matched_lookup_exists: bool,
 }
 
 impl<'b, F: AnalyzableField> Analyzer<F> {
@@ -421,6 +425,93 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         (pairs, instances, cell_to_cycle_head)
     }
 
+    #[cfg(any(
+        feature = "use_zcash_halo2_proofs",
+        feature = "use_pse_halo2_proofs",
+        feature = "use_axiom_halo2_proofs",
+        feature = "use_pse_v1_halo2_proofs",
+    ))]
+    pub fn extract_lookups(
+        &mut self,
+        printer: &mut smt::Printer<File>,
+        cons_str_vec: Option<Vec<String>>,
+    ) -> Result<()> {
+        let mut lookup_index = 0;
+        for lookup in self.cs.lookups.iter() {
+            let mut col_indices = Vec::new();
+            for col in lookup.table_expressions.clone() {
+                if let Expression::Fixed(fixed_query) = col {
+                    col_indices.push(fixed_query.column_index);
+                }
+            }
+
+            let t = self.extract_lookup_columns_as_sets(&col_indices);
+
+            let (big_cons_str, matched_lookup_exists, index) =
+                Self::extract_lookup_constraints_new(
+                    self,
+                    col_indices.clone(),
+                    cons_str_vec.clone(),
+                    printer,
+                    None,
+                    t.clone(),
+                )?;
+
+            let function_body = smt::get_or(printer, big_cons_str);
+
+            if matched_lookup_exists {
+                self.lookup_tables.push(LookupTable {
+                    function_name: String::new(),
+                    function_body: String::new(),
+                    num_of_columns: col_indices.len(),
+                    fixed: Vec::new(),
+                    column_indices: Vec::new(),
+                    row_set: HashSet::new(),
+                    match_index: index,
+                    matched_lookup_exists,
+                });
+            } else {
+                self.lookup_tables.push(LookupTable {
+                    function_name: format!("isInLookupTable{}", lookup_index),
+                    function_body: function_body,
+                    num_of_columns: col_indices.len(),
+                    fixed: self.fixed_converted.clone(),
+                    column_indices: col_indices.clone(),
+                    row_set: t,
+                    match_index: 0 as usize,
+                    matched_lookup_exists,
+                });
+            }
+            lookup_index += 1;
+        }
+        println!("{:?}", self.lookup_tables);
+        Ok(())
+    }
+    #[cfg(any(feature = "use_scroll_halo2_proofs"))]
+    pub fn extract_lookups(&mut self) {
+        for lookup in self.cs.lookups_map.iter() {
+            let mut col_indices = Vec::new();
+            for col in lookup.1.table.clone() {
+                if let Expression::Fixed(fixed_query) = col {
+                    col_indices.push(fixed_query.column_index);
+                }
+            }
+            let t = self.extract_lookup_columns_as_sets(&col_indices);
+            self.lookup_tables.push(LookupTable {
+                function_name: lookup.0.clone(),
+                function_body: "lookup.1.function_body".clone().to_owned(),
+                num_of_columns: col_indices.len(),
+                fixed: self.fixed_converted.clone(),
+                column_indices: col_indices.clone(),
+                fixed_indices_offset: Vec::new(),
+                row_set: t,
+            });
+        }
+        println!(
+            "Finished extracting lookup tables: {:?}",
+            self.lookup_tables
+        );
+    }
     /// Analyzes underconstrained circuits and generates an analyzer output.
     ///
     /// This function performs the analysis of underconstrained circuits. It takes as input an `analyzer_input` struct
@@ -956,7 +1047,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 } else if matches!(right_is_zero, IsZeroExpression::One) {
                     return Ok((node_str_left, node_type_left, var, left_is_zero));
                 }
-                
+
                 let term = smt::write_term(
                     printer,
                     "mul".to_owned(),
@@ -1044,7 +1135,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         feature = "use_pse_v1_halo2_proofs",
     ))]
     // Extracts the lookup constraints and writes assertions using an SMT printer.
-    fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
+    fn decompose_lookups(
+        &mut self,
+        printer: &mut smt::Printer<File>,
+    ) -> Result<(), anyhow::Error> {        
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
@@ -1080,9 +1174,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let big_cons_str = Self::extract_lookup_constraints(
                             self,
                             col_indices,
-                            cons_str_vec,
+                            Some(cons_str_vec),
                             printer,
-                            zero_lookup_expressions,
+                            Some(zero_lookup_expressions),
                         )?;
                         if big_cons_str.is_empty() {
                             continue;
@@ -1093,88 +1187,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             }
         }
         Ok(())
-    }
-
-    fn extract_lookup_constraints(
-        &self,
-        col_indices: Vec<usize>,
-        cons_str_vec: Vec<String>,
-        printer: &mut smt::Printer<File>,
-        zero_lookup_expressions: Vec<bool>,
-    ) -> Result<String, anyhow::Error> {
-        let mut big_cons_str = "".to_owned();
-        let mut big_cons = vec![];
-        for row in 0..self.fixed_converted[0].len() {
-            //*** Iterate over look up table rows */
-            let mut equalities = vec![];
-            let mut eq_str = String::new();
-            for col in 0..col_indices.len() {
-                if !zero_lookup_expressions[col] {
-                    continue;
-                }
-                //*** Iterate over fixed cols */
-                let t = format!("{:?}", self.fixed_converted[col_indices[col]][row]);
-
-                let sa = smt::get_assert(
-                    printer,
-                    cons_str_vec[col].clone(),
-                    t,
-                    NodeType::Advice,
-                    Operation::Equal,
-                )
-                .context("Failled to generate assert!")?;
-                equalities.push(sa);
-            }
-
-            for var in equalities.iter() {
-                eq_str.push_str(var);
-            }
-            if eq_str.is_empty() {
-                continue;
-            }
-            let and_eqs = smt::get_and(printer, eq_str);
-            if and_eqs.is_empty() {
-                continue;
-            }
-            big_cons.push(and_eqs);
-        }
-        for var in big_cons.iter() {
-            big_cons_str.push_str(var);
-        }
-        Ok(big_cons_str)
-    }
-    fn extract_lookup_constraints_unint(
-        &self,
-        col_indices: Vec<usize>,
-        printer: &mut smt::Printer<File>,
-    ) -> Result<String, anyhow::Error> {
-        let mut big_cons_str = "".to_owned();
-        let mut big_cons = vec![];
-        for row in 0..self.fixed_converted[0].len() {
-            //*** Iterate over look up table rows */
-            let mut equalities = vec![];
-            let mut eq_str = String::new();
-            for col in 0..col_indices.len() {
-                let input = format!("x_{} ", col);
-                //*** Iterate over fixed cols */
-                let t = format!("{:?}", self.fixed_converted[col_indices[col]][row]);
-
-                let sa = smt::get_assert(printer, input, t, NodeType::Advice, Operation::Equal)
-                    .context("Failled to generate assert!")?;
-                equalities.push(sa);
-            }
-
-            for var in equalities.iter() {
-                eq_str.push_str(var);
-            }
-            let and_eqs = smt::get_and(printer, eq_str);
-
-            big_cons.push(and_eqs);
-        }
-        for var in big_cons.iter() {
-            big_cons_str.push_str(var);
-        }
-        Ok(big_cons_str)
     }
     // Extracts the lookup dependant cells and writes assertions of an uninterpreted function using an SMT printer.
     // Also extract the list of all lookup dependant cells and their corresponding lookup mappings. These data will be used for checking if a under-constrained circuit is false positive.
@@ -1189,6 +1201,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         printer: &mut smt::Printer<File>,
         analyzer_input: &AnalyzerInput,
     ) -> Result<(), anyhow::Error> {
+        if self.cs.lookups.len() > 0 {
+            self.extract_lookups(printer,None)?;
+        }
         let mut lookup_func_map = HashMap::new();
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
@@ -1197,7 +1212,21 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     let mut lookup_index = 0;
                     for lookup in self.cs.lookups.iter() {
                         let mut function_name = String::new();
-                        let mut matched_lookup_exists = false;
+                        let mut function_body = String::new();
+                        let lookup_table = &self.lookup_tables[lookup_index];
+
+                        if lookup_table.matched_lookup_exists {
+                            function_name = self.lookup_tables[lookup_table.match_index]
+                                .function_name
+                                .clone();
+                            function_body = self.lookup_tables[lookup_table.match_index]
+                                .function_body
+                                .clone();
+                        } else {
+                            function_name = lookup_table.function_name.clone();
+                            function_body = lookup_table.function_body.clone();
+                        }
+
                         let mut cons_str_vec = Vec::new();
                         let mut lookup_arg_cells = Vec::new();
                         // Decompose the lookup input expressions and store the result in cons_str_vec.
@@ -1223,46 +1252,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         }
 
                         if !cons_str_vec.is_empty() {
-                            let mut col_indices = Vec::new();
-                            for col in lookup.table_expressions.clone() {
-                                if let Expression::Fixed(fixed_query) = col {
-                                    col_indices.push(fixed_query.column_index);
-                                }
-                            }
+                            let col_indices =
+                                self.lookup_tables[lookup_index].column_indices.clone();
+
                             let mut function_input = String::new();
-                            let mut function_body = String::new();
-                            if matches!(analyzer_input.lookup_method, LookupMethod::Interpreted) {
-                                // First check if there is an equivalent lookup table in the lookup_tables.
-                                // If there is, we can use the existing lookup function.
-                                // Otherwise, we will generate a new lookup function.
-                                let mut index = 0;
-                                let new_lookup = self.extract_lookup_columns(&col_indices);
-                                if self.lookup_tables.len() > 0 {
-                                    (matched_lookup_exists, index) =
-                                        self.match_equivalent_lookup_tables(&new_lookup);
-                                }
-                                if matched_lookup_exists {
-                                    function_name = self.lookup_tables[index].function_name.clone();
-                                } else {
-                                    // Extract the lookup dependant cells and write assertions of an uninterpreted function using an SMT printer.
-                                    let big_cons_str = Self::extract_lookup_constraints_unint(
-                                        self,
-                                        col_indices.clone(),
-                                        printer,
-                                    )?;
 
-                                    function_body = smt::get_or(printer, big_cons_str);
-
-                                    function_name = format!("isInLookupTable{}", lookup_index);
-
-                                    self.lookup_tables.push(LookupTable {
-                                        function_name: function_name.clone(),
-                                        function_body: function_body.clone(),
-                                        num_of_columns: col_indices.len(),
-                                        fixed: new_lookup,
-                                    });
-                                }
-                            }
                             let mut lookup_mapping = HashMap::new();
                             let mut input_index = 0;
                             // Using decomposed lookup input expressions and column indexes of the lookup table, we can have the whole structure of each lookup as elements of lookup_mappings
@@ -1295,7 +1289,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         analyzer_input.lookup_method,
                                         LookupMethod::Interpreted
                                     ) {
-                                        if !matched_lookup_exists {
+                                        if !self.lookup_tables[lookup_index].matched_lookup_exists {
                                             smt::write_define_fn(
                                                 printer,
                                                 function_name.clone(),
@@ -1305,7 +1299,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                             );
                                         }
                                     } else {
-                                        function_name = format!("isInLookupTable{}", lookup_index);
                                         smt::write_declare_fn(
                                             printer,
                                             function_name.clone(),
@@ -1316,7 +1309,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 }
                                 if matches!(analyzer_input.lookup_method, LookupMethod::Interpreted)
                                 {
-                                    // Concatenate all lookup input expressions and write assertions of an uninterpreted function using an SMT printer.
+                                    // Concatenate all lookup input expressions and write assertions of an interpreted function using an SMT printer.
                                     let cons_str = lookup_arg_cells
                                         .iter()
                                         .fold(String::new(), |acc, x| acc + x + " ");
@@ -1327,7 +1320,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         cons_str.to_owned(),
                                     );
                                 } else {
-                                    function_name = format!("isInLookupTable{}", lookup_index);
                                     for cons_str in cons_str_vec.iter() {
                                         smt::write_assert_boolean_func(
                                             printer,
@@ -1345,6 +1337,132 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         }
         Ok(())
     }
+    fn extract_lookup_constraints(
+        &self,
+        col_indices: Vec<usize>,
+        cons_str_vec: Option<Vec<String>>,
+        printer: &mut smt::Printer<File>,
+        zero_lookup_expressions: Option<Vec<bool>>,
+    ) -> Result<String, anyhow::Error> {
+        let mut big_cons_str = String::new();
+        let mut big_cons = vec![];
+
+        for row in 0..self.fixed_converted[0].len() {
+            let mut equalities = vec![];
+            let mut eq_str = String::new();
+            for col in 0..col_indices.len() {
+                if zero_lookup_expressions.as_ref().map_or(false, |z| !z[col]) {
+                    continue;
+                }
+                // Define cons_str outside the match to extend its lifetime
+                let default_str = format!("x_{} ", col);
+                let cons_str = match &cons_str_vec {
+                    Some(vec) => &vec[col],
+                    None => &default_str,
+                };
+
+                let t = format!("{:?}", self.fixed_converted[col_indices[col]][row]);
+                let sa = smt::get_assert(
+                    printer,
+                    cons_str.clone(),
+                    t,
+                    NodeType::Advice,
+                    Operation::Equal,
+                )
+                .context("Failed to generate assert!")?;
+                equalities.push(sa);
+            }
+
+            for var in equalities.iter() {
+                eq_str.push_str(var);
+            }
+            if eq_str.is_empty() {
+                continue;
+            }
+            let and_eqs = smt::get_and(printer, eq_str);
+            if and_eqs.is_empty() {
+                continue;
+            }
+            big_cons.push(and_eqs);
+        }
+        for var in big_cons.iter() {
+            big_cons_str.push_str(var);
+        }
+        Ok(big_cons_str)
+    }
+    fn extract_lookup_constraints_new(
+        &self,
+        col_indices: Vec<usize>,
+        cons_str_vec: Option<Vec<String>>,
+        printer: &mut smt::Printer<File>,
+        zero_lookup_expressions: Option<Vec<bool>>,
+        row_set: HashSet<Vec<BigInt>>,
+    ) -> Result<(String, bool, usize), anyhow::Error> {
+        let mut big_cons_str = String::new();
+        let mut big_cons = vec![];
+
+        //if matches!(analyzer_input.lookup_method, LookupMethod::Interpreted) {
+        // First check if there is an equivalent lookup table in the lookup_tables.
+        // If there is, we can use the existing lookup function.
+        // Otherwise, we will generate a new lookup function.
+        let mut index = 0;
+        let mut matched_lookup_exists = false;
+        if self.lookup_tables.len() > 0 {
+            (matched_lookup_exists, index) =
+                self.match_equivalent_lookup_tables_new(row_set.clone());
+        }
+        if matched_lookup_exists {
+            Ok((self.lookup_tables[index].function_body.clone(), true, index))
+        } else {
+            for row in row_set.iter() {
+                let mut equalities = vec![];
+                let mut eq_str = String::new();
+                for col in 0..col_indices.len() {
+                    if zero_lookup_expressions.as_ref().map_or(false, |z| !z[col]) {
+                        continue;
+                    }
+                    // Define cons_str outside the match to extend its lifetime
+                    let default_str = format!("x_{} ", col);
+                    let cons_str = match &cons_str_vec {
+                        Some(vec) => &vec[col],
+                        None => &default_str,
+                    };
+
+                    let t = format!("{:?}", row[col]);
+                    let sa = smt::get_assert(
+                        printer,
+                        cons_str.clone(),
+                        t,
+                        NodeType::Advice,
+                        Operation::Equal,
+                    )
+                    .context("Failed to generate assert!")?;
+                    equalities.push(sa);
+                }
+
+                for var in equalities.iter() {
+                    eq_str.push_str(var);
+                }
+                if eq_str.is_empty() {
+                    continue;
+                }
+                let and_eqs = smt::get_and(printer, eq_str);
+                if and_eqs.is_empty() {
+                    continue;
+                }
+                big_cons.push(and_eqs);
+            }
+
+            for var in big_cons.iter() {
+                big_cons_str.push_str(var);
+            }
+            Ok((big_cons_str, false, 0))
+        }
+        // } else {
+        //     Ok((String::new(), false,0))
+        // }
+    }
+
     #[cfg(any(feature = "use_scroll_halo2_proofs"))]
     fn decompose_lookups_as_function(
         &mut self,
@@ -1407,10 +1525,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     function_name = self.lookup_tables[index].function_name.clone();
                                 } else {
                                     // Extract the lookup dependant cells and write assertions of an uninterpreted function using an SMT printer.
-                                    let big_cons_str = Self::extract_lookup_constraints_unint(
+                                    let big_cons_str = Self::extract_lookup_constraints(
                                         self,
                                         col_indices.clone(),
+                                        None,
                                         printer,
+                                        None,
                                     )?;
 
                                     function_body = smt::get_or(printer, big_cons_str);
@@ -1422,6 +1542,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         function_body: function_body.clone(),
                                         num_of_columns: col_indices.len(),
                                         fixed: new_lookup,
+                                        column_indices: col_indices.clone(),
+                                        fixed_indices_offset: Vec::new(),
+                                        row_set: HashSet::new(),
                                     });
                                 }
                             }
@@ -1541,9 +1664,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let big_cons_str = Self::extract_lookup_constraints(
                             self,
                             col_indices,
-                            cons_str_vec,
+                            Some(cons_str_vec),
                             printer,
-                            zero_lookup_expressions,
+                            Some(zero_lookup_expressions),
                         )?;
                         if big_cons_str.is_empty() {
                             continue;
@@ -1884,22 +2007,20 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         // Transform matrices into sets of column tuples
         let mut set1: HashSet<Vec<BigInt>> = HashSet::new();
         let mut set2: HashSet<Vec<BigInt>> = HashSet::new();
-    
+
         for col_index in 0..num_columns {
             let mut col_tuple1 = Vec::with_capacity(num_rows);
-            
+
             let mut col_tuple2 = Vec::with_capacity(num_rows);
-            
-    
+
             for row_index in 0..num_rows {
                 col_tuple1.push(matrix1[row_index][col_index].clone());
                 col_tuple2.push(matrix2[row_index][col_index].clone());
             }
-    
+
             set1.insert(col_tuple1);
             set2.insert(col_tuple2);
         }
-
         set1 == set2
     }
 
@@ -1916,11 +2037,49 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         (false, 0) // No match found, return false with a default index
     }
 
+    fn match_equivalent_lookup_tables_new(
+        &self,
+        new_lookup_table: HashSet<Vec<BigInt>>,
+    ) -> (bool, usize) {
+        for (index, existing_table) in self.lookup_tables.iter().enumerate() {
+            let result = existing_table.row_set == new_lookup_table;
+
+            if result {
+                return (true, index); // Match found, return true with the index of the existing table
+            }
+        }
+
+        (false, 0) // No match found, return false with a default index
+    }
+
     fn extract_lookup_columns(&self, col_indices: &[usize]) -> Vec<Vec<BigInt>> {
         col_indices
             .iter()
             .filter_map(|&index| self.fixed_converted.get(index).cloned())
             .collect()
+    }
+
+    fn extract_lookup_columns_as_sets(&self, col_indices: &[usize]) -> HashSet<Vec<BigInt>> {
+        let matrix: Vec<Vec<BigInt>> = col_indices
+            .iter()
+            .filter_map(|&index| self.fixed_converted.get(index).cloned())
+            .collect();
+        let num_columns = matrix[0].len();
+        let num_rows: usize = matrix.len();
+
+        // Transform matrices into sets of column tuples
+        let mut set: HashSet<Vec<BigInt>> = HashSet::new();
+
+        for col_index in 0..num_columns {
+            let mut col_tuple = Vec::with_capacity(num_rows);
+
+            for row_index in 0..num_rows {
+                col_tuple.push(matrix[row_index][col_index].clone());
+            }
+
+            set.insert(col_tuple);
+        }
+        set
     }
 
     /// Dispatches the analysis based on the specified analyzer type.
