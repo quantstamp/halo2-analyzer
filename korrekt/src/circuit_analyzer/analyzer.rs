@@ -425,21 +425,33 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         (pairs, instances, cell_to_cycle_head)
     }
 
-    #[cfg(any(
-        feature = "use_zcash_halo2_proofs",
-        feature = "use_pse_halo2_proofs",
-        feature = "use_axiom_halo2_proofs",
-        feature = "use_pse_v1_halo2_proofs",
-    ))]
     pub fn extract_lookups(
         &mut self,
         printer: &mut smt::Printer<File>,
         cons_str_vec: Option<Vec<String>>,
     ) -> Result<()> {
         let mut lookup_index = 0;
-        for lookup in self.cs.lookups.iter() {
+        #[cfg(any(
+            feature = "use_zcash_halo2_proofs",
+            feature = "use_pse_halo2_proofs",
+            feature = "use_axiom_halo2_proofs",
+            feature = "use_pse_v1_halo2_proofs",
+        ))]
+        let lookups = self.cs.lookups.clone();
+        #[cfg(any(feature = "use_scroll_halo2_proofs",))]
+        let lookups = self.cs.lookups_map.clone();
+        for lookup in lookups.iter() {
             let mut col_indices = Vec::new();
-            for col in lookup.table_expressions.clone() {
+            #[cfg(any(
+                feature = "use_zcash_halo2_proofs",
+                feature = "use_pse_halo2_proofs",
+                feature = "use_axiom_halo2_proofs",
+                feature = "use_pse_v1_halo2_proofs",
+            ))]
+            let table_expressions = lookup.table_expressions.clone();
+            #[cfg(any(feature = "use_scroll_halo2_proofs",))]
+            let table_expressions = lookup.1.table.clone();
+            for col in table_expressions {
                 if let Expression::Fixed(fixed_query) = col {
                     col_indices.push(fixed_query.column_index);
                 }
@@ -448,7 +460,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             let t = self.extract_lookup_columns_as_sets(&col_indices);
 
             let (big_cons_str, matched_lookup_exists, index) =
-                Self::extract_lookup_constraints_new(
+                Self::extract_lookup_constraints_as_function(
                     self,
                     col_indices.clone(),
                     cons_str_vec.clone(),
@@ -484,34 +496,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             }
             lookup_index += 1;
         }
-        println!("{:?}", self.lookup_tables);
         Ok(())
     }
-    #[cfg(any(feature = "use_scroll_halo2_proofs"))]
-    pub fn extract_lookups(&mut self) {
-        for lookup in self.cs.lookups_map.iter() {
-            let mut col_indices = Vec::new();
-            for col in lookup.1.table.clone() {
-                if let Expression::Fixed(fixed_query) = col {
-                    col_indices.push(fixed_query.column_index);
-                }
-            }
-            let t = self.extract_lookup_columns_as_sets(&col_indices);
-            self.lookup_tables.push(LookupTable {
-                function_name: lookup.0.clone(),
-                function_body: "lookup.1.function_body".clone().to_owned(),
-                num_of_columns: col_indices.len(),
-                fixed: self.fixed_converted.clone(),
-                column_indices: col_indices.clone(),
-                fixed_indices_offset: Vec::new(),
-                row_set: t,
-            });
-        }
-        println!(
-            "Finished extracting lookup tables: {:?}",
-            self.lookup_tables
-        );
-    }
+
     /// Analyzes underconstrained circuits and generates an analyzer output.
     ///
     /// This function performs the analysis of underconstrained circuits. It takes as input an `analyzer_input` struct
@@ -1135,10 +1122,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         feature = "use_pse_v1_halo2_proofs",
     ))]
     // Extracts the lookup constraints and writes assertions using an SMT printer.
-    fn decompose_lookups(
-        &mut self,
-        printer: &mut smt::Printer<File>,
-    ) -> Result<(), anyhow::Error> {        
+    fn decompose_lookups(&mut self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
@@ -1195,22 +1179,30 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         feature = "use_pse_halo2_proofs",
         feature = "use_axiom_halo2_proofs",
         feature = "use_pse_v1_halo2_proofs",
+        feature = "use_scroll_halo2_proofs",
     ))]
     fn decompose_lookups_as_function(
         &mut self,
         printer: &mut smt::Printer<File>,
         analyzer_input: &AnalyzerInput,
     ) -> Result<(), anyhow::Error> {
-        if self.cs.lookups.len() > 0 {
-            self.extract_lookups(printer,None)?;
-        }
+        self.extract_lookups(printer, None)?;
         let mut lookup_func_map = HashMap::new();
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
                 for row_num in 0..region_end - region_begin + 1 {
                     let mut lookup_index = 0;
-                    for lookup in self.cs.lookups.iter() {
+                    #[cfg(any(
+                        feature = "use_zcash_halo2_proofs",
+                        feature = "use_pse_halo2_proofs",
+                        feature = "use_axiom_halo2_proofs",
+                        feature = "use_pse_v1_halo2_proofs",
+                    ))]
+                    let lookups = self.cs.lookups.clone();
+                    #[cfg(any(feature = "use_scroll_halo2_proofs",))]
+                    let lookups = self.cs.lookups_map.clone();
+                    for lookup in lookups.iter() {
                         let mut function_name = String::new();
                         let mut function_body = String::new();
                         let lookup_table = &self.lookup_tables[lookup_index];
@@ -1230,6 +1222,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let mut cons_str_vec = Vec::new();
                         let mut lookup_arg_cells = Vec::new();
                         // Decompose the lookup input expressions and store the result in cons_str_vec.
+                        #[cfg(any(
+                            feature = "use_zcash_halo2_proofs",
+                            feature = "use_pse_halo2_proofs",
+                            feature = "use_axiom_halo2_proofs",
+                            feature = "use_pse_v1_halo2_proofs",
+                        ))]
                         for poly in &lookup.input_expressions {
                             // Decompose the lookup input expressions and return the SMT compatible decomposed expression and the variable name.
                             let (node_str, _, var, is_zero) = Self::decompose_lookup_expression(
@@ -1250,7 +1248,29 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 }
                             }
                         }
-
+                        #[cfg(any(feature = "use_scroll_halo2_proofs",))]
+                        for polys in &lookup.1.inputs {
+                            for poly in polys {
+                                let (node_str, _, var, is_zero) =
+                                    Self::decompose_lookup_expression(
+                                        poly,
+                                        printer,
+                                        region_begin,
+                                        region_end,
+                                        i32::try_from(row_num).ok().unwrap(),
+                                        &region.enabled_selectors,
+                                        &self.fixed_converted,
+                                        &self.cell_to_cycle_head,
+                                    )
+                                    .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
+                                if !matches!(is_zero, IsZeroExpression::Zero) {
+                                    cons_str_vec.push(node_str);
+                                    if !var.is_empty() {
+                                        lookup_arg_cells.push(var);
+                                    }
+                                }
+                            }
+                        }
                         if !cons_str_vec.is_empty() {
                             let col_indices =
                                 self.lookup_tables[lookup_index].column_indices.clone();
@@ -1390,7 +1410,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         }
         Ok(big_cons_str)
     }
-    fn extract_lookup_constraints_new(
+    fn extract_lookup_constraints_as_function(
         &self,
         col_indices: Vec<usize>,
         cons_str_vec: Option<Vec<String>>,
@@ -1463,169 +1483,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         // }
     }
 
-    #[cfg(any(feature = "use_scroll_halo2_proofs"))]
-    fn decompose_lookups_as_function(
-        &mut self,
-        printer: &mut smt::Printer<File>,
-        analyzer_input: &AnalyzerInput,
-    ) -> Result<(), anyhow::Error> {
-        let mut lookup_func_map = HashMap::new();
-        for region in &self.regions {
-            if !region.enabled_selectors.is_empty() {
-                let (region_begin, region_end) = region.rows.unwrap();
-                for row_num in 0..region_end - region_begin + 1 {
-                    let mut lookup_index = 0;
-                    for lookup in &self.cs.lookups_map {
-                        let mut function_name = String::new();
-                        let mut matched_lookup_exists = false;
-                        let mut cons_str_vec = Vec::new();
-                        let mut lookup_arg_cells = Vec::new();
-                        for polys in &lookup.1.inputs {
-                            for poly in polys {
-                                let (node_str, _, var, is_zero) =
-                                    Self::decompose_lookup_expression(
-                                        poly,
-                                        printer,
-                                        region_begin,
-                                        region_end,
-                                        i32::try_from(row_num).ok().unwrap(),
-                                        &region.enabled_selectors,
-                                        &self.fixed_converted,
-                                        &self.cell_to_cycle_head,
-                                    )
-                                    .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
-                                if !matches!(is_zero, IsZeroExpression::Zero) {
-                                    cons_str_vec.push(node_str);
-                                    if !var.is_empty() {
-                                        lookup_arg_cells.push(var);
-                                    }
-                                }
-                            }
-                        }
-                        if !cons_str_vec.is_empty() {
-                            let mut col_indices = Vec::new();
-                            for col in lookup.1.table.clone() {
-                                if let Expression::Fixed(fixed_query) = col {
-                                    col_indices.push(fixed_query.column_index);
-                                }
-                            }
-                            let mut function_input = String::new();
-                            let mut function_body = String::new();
-                            if matches!(analyzer_input.lookup_method, LookupMethod::Interpreted) {
-                                // First check if there is an equivalent lookup table in the lookup_tables.
-                                // If there is, we can use the existing lookup function.
-                                // Otherwise, we will generate a new lookup function.
-                                let mut index = 0;
-                                let new_lookup = self.extract_lookup_columns(&col_indices);
-                                if self.lookup_tables.len() > 0 {
-                                    (matched_lookup_exists, index) =
-                                        self.match_equivalent_lookup_tables(&new_lookup);
-                                }
-                                if matched_lookup_exists {
-                                    function_name = self.lookup_tables[index].function_name.clone();
-                                } else {
-                                    // Extract the lookup dependant cells and write assertions of an uninterpreted function using an SMT printer.
-                                    let big_cons_str = Self::extract_lookup_constraints(
-                                        self,
-                                        col_indices.clone(),
-                                        None,
-                                        printer,
-                                        None,
-                                    )?;
 
-                                    function_body = smt::get_or(printer, big_cons_str);
-
-                                    function_name = format!("isInLookupTable{}", lookup_index);
-
-                                    self.lookup_tables.push(LookupTable {
-                                        function_name: function_name.clone(),
-                                        function_body: function_body.clone(),
-                                        num_of_columns: col_indices.len(),
-                                        fixed: new_lookup,
-                                        column_indices: col_indices.clone(),
-                                        fixed_indices_offset: Vec::new(),
-                                        row_set: HashSet::new(),
-                                    });
-                                }
-                            }
-                            let mut lookup_mapping = HashMap::new();
-                            let mut input_index = 0;
-                            for (index, var) in lookup_arg_cells.iter().enumerate() {
-                                if var.is_empty() {
-                                    continue;
-                                }
-                                if let Some(&col_index) = col_indices.get(index) {
-                                    lookup_mapping.insert(var.clone(), col_index);
-                                    if matches!(
-                                        analyzer_input.lookup_method,
-                                        LookupMethod::Interpreted
-                                    ) {
-                                        function_input.push_str(&format!("(x_{} F)", input_index));
-                                        input_index += 1;
-                                    }
-                                }
-                            }
-                            if !lookup_mapping.is_empty() {
-                                let _ = &self.lookup_mappings.push(lookup_mapping.clone());
-                            }
-                            if !lookup_mapping.is_empty() {
-                                if !lookup_func_map.contains_key(&lookup_index) {
-                                    lookup_func_map.insert(lookup_index, true);
-                                    if matches!(
-                                        analyzer_input.lookup_method,
-                                        LookupMethod::Interpreted
-                                    ) {
-                                        if !matched_lookup_exists {
-                                            smt::write_define_fn(
-                                                printer,
-                                                function_name.clone(),
-                                                function_input,
-                                                "Bool".to_owned(),
-                                                function_body,
-                                            );
-                                        }
-                                    } else {
-                                        function_name = format!("isInLookupTable{}", lookup_index);
-                                        smt::write_declare_fn(
-                                            printer,
-                                            function_name.clone(),
-                                            "F".to_owned(),
-                                            "Bool".to_owned(),
-                                        );
-                                    }
-                                }
-                                if matches!(analyzer_input.lookup_method, LookupMethod::Interpreted)
-                                {
-                                    // Concatenate all lookup input expressions and write assertions of an uninterpreted function using an SMT printer.
-                                    let cons_str = lookup_arg_cells
-                                        .iter()
-                                        .fold(String::new(), |acc, x| acc + x + " ");
-                                    //remove space from beginning and end
-                                    let cons_str = cons_str.trim();
-                                    smt::write_assert_boolean_func(
-                                        printer,
-                                        function_name.clone(),
-                                        cons_str.to_owned(),
-                                    );
-                                } else {
-                                    function_name = format!("isInLookupTable{}", lookup_index);
-                                    for cons_str in cons_str_vec.iter() {
-                                        smt::write_assert_boolean_func(
-                                            printer,
-                                            function_name.clone(),
-                                            format!("{}", cons_str).to_owned(),
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                        lookup_index += 1;
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
     #[cfg(any(feature = "use_scroll_halo2_proofs"))]
     fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
         for region in &self.regions {
