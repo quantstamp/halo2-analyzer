@@ -1407,7 +1407,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 if let Some(col_index) = col_indices.get(index).cloned() {
                                     // Keeping track of in the current lookup, which cell is mapped to which column in the lookup table.
                                     lookup_mapping.insert(var.clone(), col_index);
-                                    // Conncatinate function_input with format!("(x_{} ", col_index)
+                                    // Concatenate function_input with format!("(x_{} ", col_index)
                                     if matches!(
                                         analyzer_input.lookup_method,
                                         LookupMethod::Interpreted
