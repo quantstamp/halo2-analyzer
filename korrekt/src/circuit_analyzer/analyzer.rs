@@ -79,8 +79,6 @@ pub enum IsZeroExpression {
 pub struct LookupTable {
     pub function_name: String,
     pub function_body: String,
-    pub num_of_columns: usize,
-    pub fixed: Vec<Vec<BigInt>>,
     pub column_indices: Vec<usize>,
     pub row_set: HashSet<Vec<BigInt>>,
     pub match_index: usize,
@@ -457,7 +455,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
             }
 
-            let t = self.extract_lookup_columns(&col_indices);
+            let row_set = self.extract_lookup_columns(&col_indices);
 
             let (big_cons_str, matched_lookup_exists, index) =
                 Self::extract_lookup_constraints_as_function(
@@ -466,7 +464,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     cons_str_vec.clone(),
                     printer,
                     None,
-                    t.clone(),
+                    row_set.clone(),
                 )?;
 
             let function_body = smt::get_or(printer, big_cons_str);
@@ -475,8 +473,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 self.lookup_tables.push(LookupTable {
                     function_name: String::new(),
                     function_body: String::new(),
-                    num_of_columns: col_indices.len(),
-                    fixed: Vec::new(),
                     column_indices: Vec::new(),
                     row_set: HashSet::new(),
                     match_index: index,
@@ -486,10 +482,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 self.lookup_tables.push(LookupTable {
                     function_name: format!("isInLookupTable{}", lookup_index),
                     function_body: function_body,
-                    num_of_columns: col_indices.len(),
-                    fixed: self.fixed_converted.clone(),
                     column_indices: col_indices.clone(),
-                    row_set: t,
+                    row_set,
                     match_index: 0 as usize,
                     matched_lookup_exists,
                 });
