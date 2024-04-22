@@ -457,7 +457,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
             }
 
-            let t = self.extract_lookup_columns_as_sets(&col_indices);
+            let t = self.extract_lookup_columns(&col_indices);
 
             let (big_cons_str, matched_lookup_exists, index) =
                 Self::extract_lookup_constraints_as_function(
@@ -1429,7 +1429,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let mut matched_lookup_exists = false;
         if self.lookup_tables.len() > 0 {
             (matched_lookup_exists, index) =
-                self.match_equivalent_lookup_tables_new(row_set.clone());
+                self.match_equivalent_lookup_tables(row_set.clone());
         }
         if matched_lookup_exists {
             Ok((self.lookup_tables[index].function_body.clone(), true, index))
@@ -1882,20 +1882,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         set1 == set2
     }
 
-    fn match_equivalent_lookup_tables(&self, new_lookup_table: &[Vec<BigInt>]) -> (bool, usize) {
-        for (index, existing_table) in self.lookup_tables.iter().enumerate() {
-            let result =
-                Self::have_same_rows(existing_table.fixed.clone(), new_lookup_table.to_vec());
-
-            if result {
-                return (true, index); // Match found, return true with the index of the existing table
-            }
-        }
-
-        (false, 0) // No match found, return false with a default index
-    }
-
-    fn match_equivalent_lookup_tables_new(
+    fn match_equivalent_lookup_tables(
         &self,
         new_lookup_table: HashSet<Vec<BigInt>>,
     ) -> (bool, usize) {
@@ -1910,14 +1897,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         (false, 0) // No match found, return false with a default index
     }
 
-    fn extract_lookup_columns(&self, col_indices: &[usize]) -> Vec<Vec<BigInt>> {
-        col_indices
-            .iter()
-            .filter_map(|&index| self.fixed_converted.get(index).cloned())
-            .collect()
-    }
-
-    fn extract_lookup_columns_as_sets(&self, col_indices: &[usize]) -> HashSet<Vec<BigInt>> {
+    fn extract_lookup_columns(&self, col_indices: &[usize]) -> HashSet<Vec<BigInt>> {
         let matrix: Vec<Vec<BigInt>> = col_indices
             .iter()
             .filter_map(|&index| self.fixed_converted.get(index).cloned())
