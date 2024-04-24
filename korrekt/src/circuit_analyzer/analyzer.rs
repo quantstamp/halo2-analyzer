@@ -34,8 +34,7 @@ pub struct Analyzer<F: AnalyzableField> {
     pub regions: Vec<Region>,
 
     // The fixed cells in the circuit, arranged as [column][row].
-    pub fixed: Vec<Vec<CellValue<F>>>,
-    pub fixed_converted: Vec<Vec<BigInt>>,
+    pub fixed: Vec<Vec<BigInt>>,
 
     pub selectors: Vec<Vec<bool>>,
     pub log: Vec<String>,
@@ -128,8 +127,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         Ok(Analyzer {
             cs: analyzable.cs,
             regions: analyzable.regions,
-            fixed: analyzable.fixed,
-            fixed_converted: fixed,
+            fixed: fixed,
             selectors: analyzable.selectors,
             log: Vec::new(),
             permutation,
@@ -161,7 +159,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 .filter(|reg| reg.enabled_selectors.len() > 0)
             {
                 let (region_begin, region_end) = region.rows.unwrap();
-                let row_num = (region_end - region_begin + 1) as i32;
                 let selectors = region.enabled_selectors.keys().cloned().collect();
                 for poly in gate.polynomials() {
                     let res = abstract_expr::eval_abstract(
@@ -169,12 +166,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         &selectors,
                         region_begin,
                         region_end,
-                        row_num,
                         &self.fixed,
                     )
                     .with_context(|| format!(
-                        "Failed to run abstract evaluation for polynomial at region from row: {} to {}, at row: {}.",
-                        region_begin, region_end, row_num
+                        "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
+                        region_begin, region_end
                     ))?;
                     if res != AbsResult::Zero {
                         used = true;
@@ -247,7 +243,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         for region in self.regions.iter() {
             let selectors = region.enabled_selectors.keys().cloned().collect();
             let (region_begin, region_end) = region.rows.unwrap();
-            let row_num = (region_end - region_begin + 1) as i32;
             let mut used;
             for cell in region.cells.clone() {
                 #[cfg(any(
@@ -271,18 +266,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &selectors,
                                     region_begin,
                                     region_end,
-                                    row_num,
                                     &self.fixed,
                                 )
                                 .with_context(|| format!(
-                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}, at row: {}.",
-                                    region_begin, region_end, row_num
+                                    "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
+                                    region_begin, region_end
                                 ))?;
                                 if eval != AbsResult::Zero
                                     && advices.contains(&(reg_column, Rotation(rotation as i32)))
                                 {
                                     used = true;
                                 }
+
                             }
                         }
                     }
@@ -463,7 +458,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     col_indices.clone(),
                     cons_str_vec.clone(),
                     printer,
-                    None,
                     row_set.clone(),
                 )?;
 
@@ -1079,7 +1073,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     region_end,
                                     i32::try_from(row_num).ok().unwrap(),
                                     &region.enabled_selectors,
-                                    &self.fixed_converted,
+                                    &self.fixed,
                                     &self.cell_to_cycle_head,
                                 );
 
@@ -1132,7 +1126,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 region_end,
                                 i32::try_from(row_num).ok().unwrap(),
                                 &region.enabled_selectors,
-                                &self.fixed_converted,
+                                &self.fixed,
                                 &self.cell_to_cycle_head,
                             );
                             if !matches!(is_zero, IsZeroExpression::Zero) {
@@ -1176,7 +1170,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let mut big_cons_str = String::new();
         let mut big_cons = vec![];
 
-        for row in 0..self.fixed_converted[0].len() {
+        for row in 0..self.fixed[0].len() {
             let mut equalities = vec![];
             let mut eq_str = String::new();
             for col in 0..col_indices.len() {
@@ -1190,7 +1184,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     None => &default_str,
                 };
 
-                let t = format!("{:?}", self.fixed_converted[col_indices[col]][row]);
+                let t = format!("{:?}", self.fixed[col_indices[col]][row]);
                 let sa = smt::get_assert(
                     printer,
                     cons_str.clone(),
@@ -1224,7 +1218,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         col_indices: Vec<usize>,
         cons_str_vec: Option<Vec<String>>,
         printer: &mut smt::Printer<File>,
-        zero_lookup_expressions: Option<Vec<bool>>,
         row_set: HashSet<Vec<BigInt>>,
     ) -> Result<(String, bool, usize), anyhow::Error> {
         let mut big_cons_str = String::new();
@@ -1247,9 +1240,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 let mut equalities = vec![];
                 let mut eq_str = String::new();
                 for col in 0..col_indices.len() {
-                    if zero_lookup_expressions.as_ref().map_or(false, |z| !z[col]) {
-                        continue;
-                    }
                     // Define cons_str outside the match to extend its lifetime
                     let default_str = format!("x_{} ", col);
                     let cons_str = match &cons_str_vec {
@@ -1286,10 +1276,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 big_cons_str.push_str(var);
             }
             Ok((big_cons_str, false, 0))
-        }
-        // } else {
-        //     Ok((String::new(), false,0))
-        // }
+        } 
     }
     // Extracts the lookup dependant cells and writes assertions of an uninterpreted function using an SMT printer.
     // Also extract the list of all lookup dependant cells and their corresponding lookup mappings. These data will be used for checking if a under-constrained circuit is false positive.
@@ -1356,7 +1343,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 region_end,
                                 i32::try_from(row_num).ok().unwrap(),
                                 &region.enabled_selectors,
-                                &self.fixed_converted,
+                                &self.fixed,
                                 &self.cell_to_cycle_head,
                             )
                         .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
@@ -1378,7 +1365,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         region_end,
                                         i32::try_from(row_num).ok().unwrap(),
                                         &region.enabled_selectors,
-                                        &self.fixed_converted,
+                                        &self.fixed,
                                         &self.cell_to_cycle_head,
                                     )
                                     .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
@@ -1497,7 +1484,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     region_end,
                                     i32::try_from(row_num).ok().unwrap(),
                                     &region.enabled_selectors,
-                                    &self.fixed_converted,
+                                    &self.fixed,
                                     &self.cell_to_cycle_head,
                                 );
                                 if !matches!(is_zero, IsZeroExpression::Zero) {
@@ -1832,7 +1819,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             })
             .collect();
 
-        'outer: for (_, row) in self.fixed_converted.iter().enumerate() {
+        'outer: for (_, row) in self.fixed.iter().enumerate() {
             for &(column_index, variable) in &variables {
                 if let Some(cell) = row.get(column_index) {
                     let t = format!("{:?}", cell);
@@ -1895,7 +1882,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     fn extract_lookup_columns(&self, col_indices: &[usize]) -> HashSet<Vec<BigInt>> {
         let matrix: Vec<Vec<BigInt>> = col_indices
             .iter()
-            .filter_map(|&index| self.fixed_converted.get(index).cloned())
+            .filter_map(|&index| self.fixed.get(index).cloned())
             .collect();
         let num_columns = matrix[0].len();
         let num_rows: usize = matrix.len();
