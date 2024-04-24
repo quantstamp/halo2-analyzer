@@ -107,10 +107,11 @@ impl<F: Field> Circuit<F> for AddMultCircuit<F> {
                 || "test 2",
                 |mut region| {
                     // do mul (into next)
-                    region.assign_advice(config.columns[0], 0, Value::known(self.a));
-                    region.assign_advice(config.columns[1], 0, Value::known(self.b));
+                    // TODO: Investigate axiom region rows handling: ZKR-3636 
+                    region.assign_advice(config.columns[0], 2, Value::known(self.a));
+                    region.assign_advice(config.columns[1], 2, Value::known(self.b));
                     let c = self.a * self.b;
-                    region.assign_advice(config.columns[0], 1, Value::known(c));
+                    region.assign_advice(config.columns[0], 3, Value::known(c));
                     Ok(())
                 },
             )
