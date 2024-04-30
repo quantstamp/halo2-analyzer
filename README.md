@@ -99,7 +99,7 @@ For certain versions, multiple patches may be available. It's important to ensur
 
 1. Go to "korrekt"
 
-2. Run `cargo run` for the default feature falg (`use_zcash_halo2_proofs`). 
+2. Run `cargo run` for the default feature flag (`use_zcash_halo2_proofs`).
 
     ```bash
     cargo run
@@ -120,20 +120,19 @@ For certain versions, multiple patches may be available. It's important to ensur
 
 1. Go to "korrekt"
 
-2. Run `cargo test -- --test-threads=1` for the default feature falg (`use_zcash_halo2_proofs`).
+2. Run `cargo test` for the default feature flag (`use_zcash_halo2_proofs`).
 
     ```bash
-    cargo test -- --test-threads=1
+    cargo test
     ```
 
-   For other versions of halo2 run `cargo test -- --test-threads=1` with relevant halo2 version feature flag:
+   For other versions of halo2 run `cargo test` with relevant halo2 version feature flag:
 
     ```bash
-    cargo test -- --test-threads=1
-    cargo test --no-default-features --features use_pse_halo2_proofs -- --test-threads=1
-    cargo test --no-default-features --features use_axiom_halo2_proofs -- --test-threads=1
-    cargo test --no-default-features --features use_scroll_halo2_proofs -- --test-threads=1
-    cargo test --no-default-features --features use_pse_v1_halo2_proofs -- --test-threads=1
+    cargo test --no-default-features --features use_pse_halo2_proofs
+    cargo test --no-default-features --features use_axiom_halo2_proofs
+    cargo test --no-default-features --features use_scroll_halo2_proofs
+    cargo test --no-default-features --features use_pse_v1_halo2_proofs
     ```
 
 ## For linting
