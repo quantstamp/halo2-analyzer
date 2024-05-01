@@ -60,21 +60,36 @@ This project leverages feature flags to enable support of different versions of 
 
 ### Using Feature Flags
 
-To use a specific Halo2 version in your build or tests, enable the corresponding feature flag with the cargo command:
+Feature flags can be managed directly via the `Cargo.toml` file or through command line options when building or testing.
 
-- Build with a specific Halo2 version:
+#### Default Feature Flags
 
-```bash
-cargo build --features use_zcash_halo2_proofs
-```
+- **Default Configuration:**
+  By default, the `use_zcash_halo2_proofs` feature is enabled in the `Cargo.toml`.
 
-- Run tests for a specific Halo2 version:
+- **Changing the Default Feature Flag:**
+  There are two ways for changing the default feature flag related to the Halo2 version:
 
-```bash
-cargo test --features use_zcash_halo2_proofs
-```
+    1. **Modifying the `Cargo.toml` File:**
+       To change the default feature flag used in builds and tests, you can modify the `Cargo.toml` file. Update the `[features]` section by replacing `use_zcash_halo2_proofs` with the feature flag of your choice. This will set a new default feature for the project, affecting all builds and tests unless overridden in the command line.
 
-Replace `use_zcash_halo2_proofs` with the relevant feature flag for the desired Halo2 version.
+    2. **Disabling Default Features via Command Line:**
+       You can disable default features in command line or in cargo toml.
+       For disabling the default in command line and specifying your desired flag:
+
+       ```bash
+       cargo build --no-default-features --features your_custom_feature
+       cargo test --no-default-features --features your_custom_feature
+       ```
+
+       By removing the default flag from `crgo.toml` the commands will be:
+
+       ```bash
+       cargo build --features your_custom_feature
+       cargo test --features your_custom_feature
+       ```
+
+        Replace `your_custom_feature` with the appropriate feature flag. This ensures that only the specified feature is active during the build or test process.
 
 ### Managing Halo2 Patches
 
@@ -84,35 +99,41 @@ For certain versions, multiple patches may be available. It's important to ensur
 
 1. Go to "korrekt"
 
-2. Run `cargo run` with relevant halo2 version feature flag (the circuit is hard-coded in main.rs, in the future this should be a library)
-    You must enable at least one of the available feature flags
+2. Run `cargo run` for the default feature flag (`use_zcash_halo2_proofs`).
 
     ```bash
-    cargo run --no-default-features --features use_zcash_halo2_proofs
+    cargo run
+    ```
+
+    For other versions of halo2 run `cargo run` with relevant halo2 version feature flag:
+
+    ```bash
     cargo run --no-default-features --features use_pse_halo2_proofs
     cargo run --no-default-features --features use_axiom_halo2_proofs
     cargo run --no-default-features --features use_scroll_halo2_proofs
     cargo run --no-default-features --features use_pse_v1_halo2_proofs
     ```
 
-    `--no-default-features` for the current setup where the default flag is set to `use_zcash_halo2_proofs`.
+   A circuit is hard-coded in main.rs, in the future this should be a library.
 
 ## How to test
 
 1. Go to "korrekt"
 
-2. Run `cargo test -- --test-threads=1`  with relevant halo2 version feature flag.
-    You must enable at least one of the available feature flags
+2. Run `cargo test` for the default feature flag (`use_zcash_halo2_proofs`).
 
     ```bash
-    cargo test --no-default-features --features use_zcash_halo2_proofs -- --test-threads=1
-    cargo test --no-default-features --features use_pse_halo2_proofs -- --test-threads=1
-    cargo test --no-default-features --features use_axiom_halo2_proofs -- --test-threads=1
-    cargo test --no-default-features --features use_scroll_halo2_proofs -- --test-threads=1
-    cargo test --no-default-features --features use_pse_v1_halo2_proofs -- --test-threads=1
+    cargo test
     ```
 
-    `--no-default-features` for the current setup where the default flag is set to `use_zcash_halo2_proofs`.
+   For other versions of halo2 run `cargo test` with relevant halo2 version feature flag:
+
+    ```bash
+    cargo test --no-default-features --features use_pse_halo2_proofs
+    cargo test --no-default-features --features use_axiom_halo2_proofs
+    cargo test --no-default-features --features use_scroll_halo2_proofs
+    cargo test --no-default-features --features use_pse_v1_halo2_proofs
+    ```
 
 ## For linting
 
@@ -144,7 +165,7 @@ More on this below.
 
 Calling the Halo2 "Gates" is kind of a misnomer, for multiple reasons:
 
-##### They are very powerful.
+##### They are very powerful
 
 Halo2 "gates" are very powerful: they can enforce any number of arbitrary non-deterministic relations.
 For instance, the following can be enforced by a single Halo2 gate:
