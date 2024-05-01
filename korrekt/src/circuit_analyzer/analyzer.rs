@@ -496,7 +496,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     /// The analyzer output is returned as a `Result` indicating success or an error if the analysis fails.
     pub fn analyze_underconstrained(
         &mut self,
-        analyzer_input: AnalyzerInput,
+        analyzer_input: &AnalyzerInput,
         base_field_prime: &str,
     ) -> Result<AnalyzerOutput> {
         fs::create_dir_all("src/output/").unwrap();
@@ -1917,17 +1917,22 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     ///
     pub fn dispatch_analysis(
         &mut self,
-        analyzer_type: AnalyzerType,
+        analyzer_input: &mut AnalyzerInput,
         prime: &str,
     ) -> Result<AnalyzerOutput> {
-        match analyzer_type {
+        match analyzer_input.analysis_type {
             AnalyzerType::UnusedGates => self.analyze_unused_custom_gates(),
             AnalyzerType::UnconstrainedCells => self.analyze_unconstrained_cells(),
             AnalyzerType::UnusedColumns => self.analyze_unused_columns(),
             AnalyzerType::UnderconstrainedCircuit => {
-                let analyzer_input: AnalyzerInput =
-                    retrieve_user_input_for_underconstrained(&self.instace_cells, &self.cs)
-                        .context("Failed to retrieve user input!")?;
+                if analyzer_input.verification_method == VerificationMethod::Specific {
+                    let instance = retrieve_user_input_for_underconstrained::<Fr>(
+                        analyzer_input,
+                        &self.instace_cells,
+                    )
+                    .context("Failed to retrieve user input!")?;
+                    analyzer_input.verification_input.instances_string = instance;
+                }
                 self.analyze_underconstrained(analyzer_input, prime)
             }
         }
