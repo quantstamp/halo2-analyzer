@@ -11,10 +11,10 @@ mod tests {
     use halo2curves::bn256;
     use zcash_halo2_proofs::pasta::Fp as Fr;
 
+    use ff::PrimeField;
     use num::{BigInt, Num};
     use std::collections::HashMap;
     use std::marker::PhantomData;
-    use ff::PrimeField;
 
     #[test]
     fn create_zcash_analyzer_test() {
@@ -72,9 +72,7 @@ mod tests {
 
     #[test]
     fn simple_test() {
-        let circuit =
-            sample_circuits::simple::mul::MulCircuit::<Fr>::default(
-            );
+        let circuit = sample_circuits::simple::mul::MulCircuit::<Fr>::default();
         let k: u32 = 3;
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -502,8 +500,9 @@ mod tests {
     }
     #[test]
     fn analyze_underconstrained_fibonacci_constant_init_test() {
-        let circuit =
-            sample_circuits::copy_constraint::fibonacci_constant_init::FibonacciCircuit::<Fr>(PhantomData);
+        let circuit = sample_circuits::copy_constraint::fibonacci_constant_init::FibonacciCircuit::<
+            Fr,
+        >(PhantomData);
         let k: u32 = 11;
 
         let mut analyzer = Analyzer::new(&circuit, k).unwrap();
@@ -515,7 +514,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -546,7 +545,7 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -577,7 +576,7 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -589,7 +588,9 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups));
+        assert!(
+            output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups)
+        );
     }
 
     #[test]
@@ -608,7 +609,7 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -624,8 +625,9 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
     }
     #[test]
     fn analyze_underconstrained_multiple_matched_lookups_inline_random_test() {
-        let circuit =
-            sample_circuits::lookup_circuits::multiple_matched_lookups::MyCircuit::<Fr>(PhantomData);
+        let circuit = sample_circuits::lookup_circuits::multiple_matched_lookups::MyCircuit::<Fr>(
+            PhantomData,
+        );
 
         let k = 11;
 
@@ -638,7 +640,7 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -654,8 +656,9 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
     }
     #[test]
     fn analyze_underconstrained_multiple_matched_lookups_interpreted_random_test() {
-        let circuit =
-            sample_circuits::lookup_circuits::multiple_matched_lookups::MyCircuit::<Fr>(PhantomData);
+        let circuit = sample_circuits::lookup_circuits::multiple_matched_lookups::MyCircuit::<Fr>(
+            PhantomData,
+        );
 
         let k = 11;
 
@@ -668,7 +671,7 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -698,7 +701,7 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -733,7 +736,7 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,
@@ -745,7 +748,9 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups));
+        assert!(
+            output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups)
+        );
     }
     #[test]
     fn analyze_underconstrained_interpreted_specific_lookup_test() {
@@ -768,7 +773,7 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,
@@ -803,7 +808,7 @@ analysis_type: AnalyzerType::UnderconstrainedCircuit,
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,

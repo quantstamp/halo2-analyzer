@@ -1,4 +1,3 @@
-use clap::{App, Arg};
 #[cfg(feature = "use_axiom_halo2_proofs")]
 use korrekt::sample_circuits::axiom as sample_circuits;
 #[cfg(feature = "use_pse_halo2_proofs")]
@@ -11,11 +10,9 @@ use korrekt::sample_circuits::scroll as sample_circuits;
 use korrekt::sample_circuits::zcash as sample_circuits;
 use std::{collections::HashMap, marker::PhantomData};
 
-use crate::circuit_analyzer::halo2_proofs_libs::*;
-
 use anyhow::{Context, Ok};
 use korrekt::{
-    circuit_analyzer::{self, analyzer::Analyzer},
+    circuit_analyzer::analyzer::Analyzer,
     io::analyzer_io_type::{
         AnalyzerInput, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
     },
@@ -27,41 +24,47 @@ extern crate log;
 use env_logger::Env;
 
 use anyhow::Result;
+use clap::{App, Arg, ArgMatches};
 use korrekt::circuit_analyzer::halo2_proofs_libs::*;
 use log::{info, warn};
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    let matches = App::new("Circuit Analyzer")
-        .version("1.0")
-        .author("Your Name <your_email@example.com>")
-        .about("Analyzes circuits using different parameters and methods")
+    let matches = App::new("Halo2 Analyzer")
+        .version("2.0")
+        .author("fatemeh@guantstamp.com")
+        .about("Analyzes circuits for various valnerabilities")
         .arg(Arg::new("profile")
-        .short('p')
-        .long("profile")
-        .takes_value(true)
-        .help("Select a predefined configuration profile: default, specific_public_input, random_public_input_five_iterations, random_uninterpreted, random_interpreted"))
-        .arg(Arg::new("lookup")
-            .short('l')
-            .long("lookup")
+            .short('p')
+            .long("profile")
             .takes_value(true)
-            .help("Sets the lookup method: uninterpreted, interpreted, inline"))
-        .arg(Arg::new("iterations")
-            .short('i')
-            .long("iterations")
-            .takes_value(true)
-            .help("Number of iterations for random input verification"))
+            .help("Select a predefined configuration profile: default, specific_public_input, random_public_input_five_iterations, random_uninterpreted, random_interpreted")
+            .conflicts_with_all(&["lookup", "iterations", "type", "verification"]))
         .arg(Arg::new("type")
             .short('t')
             .long("type")
             .takes_value(true)
-            .help("Type of analysis: unused_gates, unused_columns, unconstrained_cells, underconstrained_circuit"))
+            .help("Type of analysis: unused_gates, unused_columns, unconstrained_cells, underconstrained_circuit")
+            .required(true))
+        .arg(Arg::new("lookup")
+            .short('l')
+            .long("lookup")
+            .takes_value(true)
+            .help("Sets the lookup method: uninterpreted, interpreted, inline")
+            .required_if_eq("type", "underconstrained_circuit"))
         .arg(Arg::new("verification")
             .short('v')
             .long("verification")
             .takes_value(true)
-            .help("Verification method: specific or random"))
+            .help("Verification method: specific or random")
+            .required_if_eq("type", "underconstrained_circuit"))
+        .arg(Arg::new("iterations")
+            .short('i')
+            .long("iterations")
+            .takes_value(true)
+            .help("Number of iterations for random input verification")
+            .required_if_eq("verification", "random"))
         .get_matches();
 
     let mut config = if let Some(profile) = matches.value_of("profile") {
@@ -80,38 +83,54 @@ fn main() -> Result<()> {
             _ => return Err(anyhow::anyhow!("Invalid configuration profile selected")),
         }
     } else {
-        let lookup_method = parse_lookup_method(matches.value_of("lookup"));
+        let analysis_type = parse_analysis_type(matches.value_of("type"));
+        
+        let verification_method = matches
+            .value_of("verification")
+            .map(parse_verification_method);
+
+        ensure_no_conflicting_args(&matches, &analysis_type, verification_method.unwrap())?;
+        let lookup_method = matches.value_of("lookup").map(parse_lookup_method);
         let iterations = matches
             .value_of("iterations")
-            .unwrap_or("1")
-            .parse::<u128>()
-            .unwrap_or(1);
-        let analysis_type = parse_analysis_type(matches.value_of("type"));
-        let verification_method = parse_verification_method(matches.value_of("verification"));
+            .map(|i| i.parse::<u128>().unwrap_or(1));
 
-        let analyzer_input = setup_analyzer(
-            lookup_method,
-            iterations,
+        info!("Analysis Type: {:?}", analysis_type);
+        if let Some(lm) = lookup_method {
+            info!("Lookup Method: {:?}", lm);
+        }
+        if let Some(vm) = verification_method {
+            info!("Verification Method: {:?}", vm);
+        }
+        if let Some(it) = iterations {
+            info!("Iterations: {}", it);
+        }
+
+        setup_analyzer(
+            lookup_method.unwrap(),
+            iterations.unwrap_or(1),
             analysis_type,
-            verification_method,
-        )?;
-        analyzer_input
+            verification_method.unwrap(),
+        )?
     };
-
     run_analysis(&mut config)?;
 
     Ok(())
 }
-
-fn parse_lookup_method(input: Option<&str>) -> LookupMethod {
+fn parse_lookup_method(input: &str) -> LookupMethod {
     match input {
-        Some("uninterpreted") => LookupMethod::Uninterpreted,
-        Some("interpreted") => LookupMethod::Interpreted,
-        Some("inline") => LookupMethod::InlineConstraints,
-        _ => {
-            warn!("No lookup method provided, defaulting to 'InlineConstraints'");
-            LookupMethod::InlineConstraints
-        }
+        "uninterpreted" => LookupMethod::Uninterpreted,
+        "interpreted" => LookupMethod::Interpreted,
+        "inline" => LookupMethod::InlineConstraints,
+        _ => LookupMethod::InlineConstraints, // Default case
+    }
+}
+
+fn parse_verification_method(input: &str) -> VerificationMethod {
+    match input {
+        "specific" => VerificationMethod::Specific,
+        "random" => VerificationMethod::Random,
+        _ => VerificationMethod::Random, // Default case
     }
 }
 
@@ -127,16 +146,39 @@ fn parse_analysis_type(input: Option<&str>) -> AnalyzerType {
         }
     }
 }
-
-fn parse_verification_method(input: Option<&str>) -> VerificationMethod {
-    match input {
-        Some("specific") => VerificationMethod::Specific,
-        Some("random") => VerificationMethod::Random,
-        _ => {
-            warn!("No verification method specified, using 'Random' as default");
-            VerificationMethod::Random
+fn ensure_no_conflicting_args(
+    matches: &ArgMatches,
+    analysis_type: &AnalyzerType,
+    verification_method: VerificationMethod,
+) -> Result<()> {
+    match analysis_type {
+        AnalyzerType::UnusedGates
+        | AnalyzerType::UnusedColumns
+        | AnalyzerType::UnconstrainedCells => {
+            if matches.is_present("lookup")
+                || matches.is_present("verification")
+                || matches.is_present("iterations")
+            {
+                return Err(anyhow::anyhow!(
+                    "No additional flags should be set for the selected analysis type: {:?}",
+                    analysis_type
+                ));
+            }
         }
+        _ => {}
     }
+    match verification_method {
+        VerificationMethod::Specific => {
+            if matches.is_present("iterations") {
+                return Err(anyhow::anyhow!(
+                    "No iterations flag should be set for the selected verification method: {:?}",
+                    verification_method
+                ));
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn setup_analyzer(

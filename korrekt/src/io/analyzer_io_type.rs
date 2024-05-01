@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 // #[derive(Debug, PartialEq, Eq)]
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone,Copy)]
 pub enum VerificationMethod {
     Specific,
     Random,
@@ -13,7 +13,7 @@ pub struct VerificationInput {
     pub instances_string: HashMap<String, i64>,
     pub iterations: u128,
 }
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone,Copy)]
 pub enum LookupMethod {
     Uninterpreted,
     Interpreted,

@@ -1931,7 +1931,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         &self.instace_cells,
                     )
                     .context("Failed to retrieve user input!")?;
-                    analyzer_input.verification_input.instances_string = instance;
+                    analyzer_input.verification_input.instances_string = instance.clone();
+                    println!("Instance columns: {:?}", instance);
+                }
+                else {
+                    analyzer_input.verification_input.instances_string = self.instace_cells.clone();
                 }
                 self.analyze_underconstrained(analyzer_input, prime)
             }
