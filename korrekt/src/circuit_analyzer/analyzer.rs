@@ -1562,6 +1562,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             VerificationMethod::Random => {
                 max_iterations = analyzer_input.verification_input.iterations;
             }
+            VerificationMethod::None => {},
         }
         let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
             .context("Failed to solve and get model!")?;

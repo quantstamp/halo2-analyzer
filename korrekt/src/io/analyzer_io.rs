@@ -55,6 +55,7 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
                         analyzer_input.verification_input.iterations
                     );
                 }
+                VerificationMethod::None => {},
             }
         }
         
@@ -72,6 +73,7 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
                         analyzer_input.verification_input.iterations
                     );
                 }
+                VerificationMethod::None => {},
             }
         }
         AnalyzerOutputStatus::UnusedCustomGates => {}
@@ -96,6 +98,7 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
                         analyzer_input.verification_input.iterations
                     );
                 }
+                VerificationMethod::None => {},
             }
         },
     }

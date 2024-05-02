@@ -39,32 +39,36 @@ fn main() -> Result<()> {
             .short('p')
             .long("profile")
             .takes_value(true)
-            .help("Select a predefined configuration profile: default, specific_public_input, random_public_input_five_iterations, random_uninterpreted, random_interpreted")
+            .help("Select a predefined configuration profile: default (d), specific_public_input (spi), random_public_input_five_iterations (rpi5), random_uninterpreted (ru), random_interpreted (ri)")
+            .possible_values(&["default", "d", "specific_public_input", "spi", "random_public_input_five_iterations", "rpi5", "random_uninterpreted", "ru", "random_interpreted", "ri"])
             .conflicts_with_all(&["lookup", "iterations", "type", "verification"]))
         .arg(Arg::new("type")
             .short('t')
             .long("type")
             .takes_value(true)
-            .help("Type of analysis: unused_gates, unused_columns, unconstrained_cells, underconstrained_circuit")
+            .help("Type of analysis: unused_gates (ug), unused_columns (uc), unconstrained_cells (ucc), underconstrained_circuit (undcc)")
+            .possible_values(&["unused_gates", "ug", "unused_columns", "uc", "unconstrained_cells", "ucc", "underconstrained_circuit", "undcc"])
             .required(true))
         .arg(Arg::new("lookup")
             .short('l')
             .long("lookup")
             .takes_value(true)
-            .help("Sets the lookup method: uninterpreted, interpreted, inline")
-            .required_if_eq("type", "underconstrained_circuit"))
+            .help("Sets the lookup method: uninterpreted (u), interpreted (i), inline (in)")
+            .possible_values(&["uninterpreted", "u", "interpreted", "i", "inline", "in"])
+            .required_if_eq_any(&[("type", "underconstrained_circuit"), ("type", "undcc")]))
         .arg(Arg::new("verification")
             .short('v')
             .long("verification")
             .takes_value(true)
-            .help("Verification method: specific or random")
-            .required_if_eq("type", "underconstrained_circuit"))
+            .help("Verification method: specific (s), random (r)")
+            .possible_values(&["specific", "s", "random", "r"])
+            .required_if_eq_any(&[("type", "underconstrained_circuit"), ("type", "undcc")]))
         .arg(Arg::new("iterations")
             .short('i')
             .long("iterations")
             .takes_value(true)
-            .help("Number of iterations for random input verification")
-            .required_if_eq("verification", "random"))
+            .help("Number of iterations for random input verification (only needed if verification is 'random')")
+            .required_if_eq_any(&[("verification", "random"),("verification", "r")]))
         .get_matches();
 
     let mut config = if let Some(profile) = matches.value_of("profile") {
@@ -84,12 +88,11 @@ fn main() -> Result<()> {
         }
     } else {
         let analysis_type = parse_analysis_type(matches.value_of("type"));
-        
+
         let verification_method = matches
             .value_of("verification")
             .map(parse_verification_method);
 
-        ensure_no_conflicting_args(&matches, &analysis_type, verification_method.unwrap())?;
         let lookup_method = matches.value_of("lookup").map(parse_lookup_method);
         let iterations = matches
             .value_of("iterations")
@@ -106,11 +109,13 @@ fn main() -> Result<()> {
             info!("Iterations: {}", it);
         }
 
+        ensure_no_conflicting_args(&matches, &analysis_type, verification_method)?;
+
         setup_analyzer(
-            lookup_method.unwrap(),
+            lookup_method.unwrap_or(LookupMethod::None),
             iterations.unwrap_or(1),
             analysis_type,
-            verification_method.unwrap(),
+            verification_method.unwrap_or(VerificationMethod::None),
         )?
     };
     run_analysis(&mut config)?;
@@ -119,27 +124,27 @@ fn main() -> Result<()> {
 }
 fn parse_lookup_method(input: &str) -> LookupMethod {
     match input {
-        "uninterpreted" => LookupMethod::Uninterpreted,
-        "interpreted" => LookupMethod::Interpreted,
-        "inline" => LookupMethod::InlineConstraints,
+        "uninterpreted" | "u" => LookupMethod::Uninterpreted,
+        "interpreted" | "i" => LookupMethod::Interpreted,
+        "inline" | "in" => LookupMethod::InlineConstraints,
         _ => LookupMethod::InlineConstraints, // Default case
     }
 }
 
 fn parse_verification_method(input: &str) -> VerificationMethod {
     match input {
-        "specific" => VerificationMethod::Specific,
-        "random" => VerificationMethod::Random,
+        "specific" | "s" => VerificationMethod::Specific,
+        "random" | "r" => VerificationMethod::Random,
         _ => VerificationMethod::Random, // Default case
     }
 }
 
 fn parse_analysis_type(input: Option<&str>) -> AnalyzerType {
     match input {
-        Some("unused_gates") => AnalyzerType::UnusedGates,
-        Some("unused_columns") => AnalyzerType::UnusedColumns,
-        Some("unconstrained_cells") => AnalyzerType::UnconstrainedCells,
-        Some("underconstrained_circuit") => AnalyzerType::UnderconstrainedCircuit,
+        Some("unused_gates") | Some("ug") => AnalyzerType::UnusedGates,
+        Some("unused_columns") | Some("uc") => AnalyzerType::UnusedColumns,
+        Some("unconstrained_cells") | Some("ucc") => AnalyzerType::UnconstrainedCells,
+        Some("underconstrained_circuit") | Some("uncc") => AnalyzerType::UnderconstrainedCircuit,
         _ => {
             warn!("No analysis type specified, defaulting to 'UnderconstrainedCircuit'");
             AnalyzerType::UnderconstrainedCircuit
@@ -149,7 +154,7 @@ fn parse_analysis_type(input: Option<&str>) -> AnalyzerType {
 fn ensure_no_conflicting_args(
     matches: &ArgMatches,
     analysis_type: &AnalyzerType,
-    verification_method: VerificationMethod,
+    verification_method: Option<VerificationMethod>,
 ) -> Result<()> {
     match analysis_type {
         AnalyzerType::UnusedGates
@@ -167,16 +172,19 @@ fn ensure_no_conflicting_args(
         }
         _ => {}
     }
-    match verification_method {
-        VerificationMethod::Specific => {
-            if matches.is_present("iterations") {
-                return Err(anyhow::anyhow!(
+
+    if matches!(analysis_type, AnalyzerType::UnderconstrainedCircuit) {
+        match verification_method.unwrap() {
+            VerificationMethod::Specific => {
+                if matches.is_present("iterations") {
+                    return Err(anyhow::anyhow!(
                     "No iterations flag should be set for the selected verification method: {:?}",
                     verification_method
                 ));
+                }
             }
+            _ => {}
         }
-        _ => {}
     }
     Ok(())
 }

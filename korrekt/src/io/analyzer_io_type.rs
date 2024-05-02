@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub enum VerificationMethod {
     Specific,
     Random,
+    None
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -18,7 +19,7 @@ pub enum LookupMethod {
     Uninterpreted,
     Interpreted,
     InlineConstraints,
-    Invalid
+    None
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AnalyzerInput {
