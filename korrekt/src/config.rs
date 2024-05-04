@@ -22,21 +22,8 @@ impl AnalyzerInput {
         
         Ok(config)
     }
-    // Default configuration for general use
-    pub fn default() -> Self {
-        Self {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
-            verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: HashMap::new(),
-                iterations: 5,
-            },
-            lookup_method: LookupMethod::InlineConstraints,
-        }
-    }
-
-    // Specific predefined configurations for typical use cases
-    pub fn specific_public_input_inline_lookup() -> Self {
+    
+    pub fn specific_inline() -> Self {
         Self {
             analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
@@ -48,7 +35,7 @@ impl AnalyzerInput {
         }
     }
 
-    pub fn random_public_input_five_iterations_inline_lookup() -> Self {
+    pub fn random_inline() -> Self {
         Self {
             analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
@@ -60,7 +47,7 @@ impl AnalyzerInput {
         }
     }
 
-    pub fn random_public_input_five_iterations_uninterpreted_lookup() -> Self {
+    pub fn random_uninterpreted() -> Self {
         Self {
             analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
@@ -72,7 +59,7 @@ impl AnalyzerInput {
         }
     }
 
-    pub fn random_public_input_five_iterations_interpreted_lookup() -> Self {
+    pub fn random_interpreted() -> Self {
         Self {
             analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,

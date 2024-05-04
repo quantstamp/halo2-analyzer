@@ -102,19 +102,44 @@ For certain versions, multiple patches may be available. It's important to ensur
 2. Run `cargo run` for the default feature flag (`use_zcash_halo2_proofs`).
 
     ```bash
-    cargo run
+    cargo run -- [OPTIONS]
     ```
 
     For other versions of halo2 run `cargo run` with relevant halo2 version feature flag:
 
     ```bash
-    cargo run --no-default-features --features use_pse_halo2_proofs
-    cargo run --no-default-features --features use_axiom_halo2_proofs
-    cargo run --no-default-features --features use_scroll_halo2_proofs
-    cargo run --no-default-features --features use_pse_v1_halo2_proofs
+    cargo run --no-default-features --features use_pse_halo2_proofs -- [OPTIONS]
+    cargo run --no-default-features --features use_axiom_halo2_proofs -- [OPTIONS]
+    cargo run --no-default-features --features use_scroll_halo2_proofs -- [OPTIONS]
+    cargo run --no-default-features --features use_pse_v1_halo2_proofs -- [OPTIONS]
     ```
 
-   A circuit is hard-coded in main.rs, in the future this should be a library.
+Replace `[OPTIONS]` with the desired options as described below.
+
+### Options
+
+- `-p, --profile <PROFILE>`: Select a predefined configuration profile. Available profiles include:
+  - `specific_inline` (`si`)
+  - `random_inline` (`rin`)
+  - `random_uninterpreted` (`ru`)
+  - `random_interpreted` (`ri`)
+
+- `-t, --type <TYPE>`: Specify the type of analysis to be performed. Available types include:
+  - `unused_gates` (`ug`)
+  - `unused_columns` (`uc`)
+  - `unconstrained_cells` (`ucc`)
+  - `underconstrained_circuit` (`undcc`)
+
+- `-l, --lookup <METHOD>`: Set the lookup method. This option is required for the `underconstrained_circuit` type. Available methods include:
+  - `uninterpreted` (`u`)
+  - `interpreted` (`i`)
+  - `inline` (`in`)
+
+- `-v, --verification <METHOD>`: Specify the verification method. This option is required for the `underconstrained_circuit` type. Available methods include:
+  - `specific` (`s`)
+  - `random` (`r`)
+
+- `-i, --iterations <COUNT>`: Specify the number of iterations for random input verification. This option is only needed if the verification method is set to `random`.
 
 ## How to test
 

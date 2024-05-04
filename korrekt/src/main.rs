@@ -39,8 +39,8 @@ fn main() -> Result<()> {
             .short('p')
             .long("profile")
             .takes_value(true)
-            .help("Select a predefined configuration profile: default (d), specific_public_input (spi), random_public_input_five_iterations (rpi5), random_uninterpreted (ru), random_interpreted (ri)")
-            .possible_values(&["default", "d", "specific_public_input", "spi", "random_public_input_five_iterations", "rpi5", "random_uninterpreted", "ru", "random_interpreted", "ri"])
+            .help("Select a predefined configuration profile: specific_inline (si), random_inline (ri), random_uninterpreted (ru), random_interpreted (ri)")
+            .possible_values(&["specific_inline", "si", "random_inline", "rin", "random_uninterpreted", "ru", "random_interpreted", "ri"])
             .conflicts_with_all(&["lookup", "iterations", "type", "verification"]))
         .arg(Arg::new("type")
             .short('t')
@@ -73,16 +73,15 @@ fn main() -> Result<()> {
 
     let mut config = if let Some(profile) = matches.value_of("profile") {
         match profile {
-            "default" => AnalyzerInput::default(),
-            "specific_public_input" => AnalyzerInput::specific_public_input_inline_lookup(),
-            "random_public_input_five_iterations" => {
-                AnalyzerInput::random_public_input_five_iterations_inline_lookup()
+            "specific_inline" | "si" => AnalyzerInput::specific_inline(),
+            "random_inline" | "rin" => {
+                AnalyzerInput::random_inline()
             }
-            "random_uninterpreted" => {
-                AnalyzerInput::random_public_input_five_iterations_uninterpreted_lookup()
+            "random_uninterpreted" | "ru" => {
+                AnalyzerInput::random_uninterpreted()
             }
-            "random_interpreted" => {
-                AnalyzerInput::random_public_input_five_iterations_interpreted_lookup()
+            "random_interpreted" | "ri"=> {
+                AnalyzerInput::random_interpreted()
             }
             _ => return Err(anyhow::anyhow!("Invalid configuration profile selected")),
         }
