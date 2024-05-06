@@ -199,7 +199,7 @@ fn setup_analyzer(
     })
 }
 
-fn run_analysis(input: &mut AnalyzerInput) -> anyhow::Result<()> {
+fn run_analysis(analyzer_input: &mut AnalyzerInput) -> anyhow::Result<()> {
     let circuit = sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
     let k = 6;
 
@@ -212,7 +212,7 @@ fn run_analysis(input: &mut AnalyzerInput) -> anyhow::Result<()> {
         .to_string();
 
     analyzer
-        .dispatch_analysis(input, &prime)
+        .dispatch_analysis(analyzer_input, &prime)
         .context("Failed to perform analysis!")?;
     Ok(())
 }
