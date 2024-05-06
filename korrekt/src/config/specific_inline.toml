@@ -1,0 +1,5 @@
+[analyzer_input]
+analysis_type = "UnderconstrainedCircuit"
+verification_method = "specific"
+iterations = "1"
+lookup_method = "inline"

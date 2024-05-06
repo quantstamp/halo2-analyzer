@@ -8,7 +8,7 @@ use korrekt::sample_circuits::pse_v1 as sample_circuits;
 use korrekt::sample_circuits::scroll as sample_circuits;
 #[cfg(feature = "use_zcash_halo2_proofs")]
 use korrekt::sample_circuits::zcash as sample_circuits;
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData, path::Path};
 
 use anyhow::{Context, Ok};
 use korrekt::{
@@ -36,12 +36,12 @@ fn main() -> Result<()> {
         .author("fatemeh@guantstamp.com")
         .about("Analyzes circuits for various valnerabilities")
         .arg(Arg::new("profile")
-            .short('p')
-            .long("profile")
-            .takes_value(true)
-            .help("Select a predefined configuration profile: specific_inline (si), random_inline (ri), random_uninterpreted (ru), random_interpreted (ri)")
-            .possible_values(&["specific_inline", "si", "random_inline", "rin", "random_uninterpreted", "ru", "random_interpreted", "ri"])
-            .conflicts_with_all(&["lookup", "iterations", "type", "verification"]))
+        .short('p')
+        .long("profile")
+        .takes_value(true)
+        .possible_values(&["specific_inline", "random_inline", "random_uninterpreted", "random_interpreted"])
+        .conflicts_with_all(&["lookup", "iterations", "type", "verification"])
+        .help("Select a predefined configuration profile"))
         .arg(Arg::new("type")
             .short('t')
             .long("type")
@@ -71,21 +71,9 @@ fn main() -> Result<()> {
             .required_if_eq_any(&[("verification", "random"),("verification", "r")]))
         .get_matches();
 
-    let mut config = if let Some(profile) = matches.value_of("profile") {
-        match profile {
-            "specific_inline" | "si" => AnalyzerInput::specific_inline(),
-            "random_inline" | "rin" => {
-                AnalyzerInput::random_inline()
-            }
-            "random_uninterpreted" | "ru" => {
-                AnalyzerInput::random_uninterpreted()
-            }
-            "random_interpreted" | "ri"=> {
-                AnalyzerInput::random_interpreted()
-            }
-            _ => return Err(anyhow::anyhow!("Invalid configuration profile selected")),
-        }
-    } else {
+        let mut config = if let Some(profile) = matches.value_of("profile") {
+            load_config_for_profile(profile)?
+        }else {
         let analysis_type = parse_analysis_type(matches.value_of("type"));
 
         let verification_method = matches
@@ -120,6 +108,13 @@ fn main() -> Result<()> {
     run_analysis(&mut config)?;
 
     Ok(())
+}
+fn load_config_for_profile(profile: &str) -> Result<AnalyzerInput> {
+
+    let config_path = format!("./src/config/{}.toml", profile);
+
+    AnalyzerInput::load_config(Path::new(&config_path))
+        
 }
 fn parse_lookup_method(input: &str) -> LookupMethod {
     match input {

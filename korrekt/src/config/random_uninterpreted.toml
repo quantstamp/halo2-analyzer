@@ -1,0 +1,5 @@
+[analyzer_input]
+analysis_type = "UnderconstrainedCircuit"
+verification_method = "random"
+iterations = "5"
+lookup_method = "uninterpreted"
