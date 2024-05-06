@@ -1,27 +1,25 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
-// #[derive(Debug, PartialEq, Eq)]
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone,Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum VerificationMethod {
     Specific,
     Random,
     None
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct VerificationInput {
     pub instances_string: HashMap<String, i64>,
     pub iterations: u128,
 }
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone,Copy)]
+#[derive(Debug, PartialEq, Eq,Clone,Copy)]
 pub enum LookupMethod {
     Uninterpreted,
     Interpreted,
     InlineConstraints,
     None
 }
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct AnalyzerInput {
     pub analysis_type: AnalyzerType,
     pub verification_method: VerificationMethod,
@@ -50,7 +48,7 @@ pub struct AnalyzerOutput {
     pub output_status: AnalyzerOutputStatus,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub enum AnalyzerType {
     UnusedGates,
     UnconstrainedCells,
