@@ -2,7 +2,7 @@
 #[cfg(feature = "use_axiom_halo2_proofs")]
 mod tests {
     use crate::circuit_analyzer::analyzer::Analyzer;
-    use crate::io::analyzer_io_type::LookupMethod;
+    use crate::io::analyzer_io_type::{AnalyzerType, LookupMethod};
     use crate::io::{
         analyzer_io_type,
         analyzer_io_type::{AnalyzerOutputStatus, VerificationInput, VerificationMethod},
@@ -54,6 +54,7 @@ mod tests {
 
         assert!(analyzer.instace_cells.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells,
@@ -85,6 +86,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -93,7 +95,7 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
@@ -116,6 +118,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -125,7 +128,7 @@ mod tests {
         };
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -148,6 +151,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -157,7 +161,7 @@ mod tests {
         };
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -185,6 +189,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,
@@ -194,7 +199,7 @@ mod tests {
         };
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -222,6 +227,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,
@@ -231,7 +237,7 @@ mod tests {
         };
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -254,6 +260,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -263,7 +270,7 @@ mod tests {
         };
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -287,6 +294,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -296,7 +304,7 @@ mod tests {
         };
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -325,6 +333,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,
@@ -334,7 +343,7 @@ mod tests {
         };
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -363,6 +372,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,
@@ -372,7 +382,7 @@ mod tests {
         };
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -439,6 +449,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -448,7 +459,7 @@ mod tests {
         };
 
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         println!("output_status: {:?}", output_status);
@@ -470,6 +481,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -478,7 +490,7 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -500,6 +512,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -508,7 +521,7 @@ mod tests {
             lookup_method: LookupMethod::Uninterpreted,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups));
@@ -530,6 +543,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -538,7 +552,7 @@ mod tests {
             lookup_method: LookupMethod::Interpreted,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -559,6 +573,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -567,7 +582,7 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -588,6 +603,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -596,7 +612,7 @@ mod tests {
             lookup_method: LookupMethod::Interpreted,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -617,6 +633,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
                 instances_string: analyzer.instace_cells.clone(),
@@ -625,7 +642,7 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -651,6 +668,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,
@@ -659,7 +677,7 @@ mod tests {
             lookup_method: LookupMethod::Uninterpreted,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups));
@@ -685,6 +703,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,
@@ -693,7 +712,7 @@ mod tests {
             lookup_method: LookupMethod::Interpreted,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -719,6 +738,7 @@ mod tests {
             .to_string();
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
             verification_input: VerificationInput {
                 instances_string: specified_instance_cols,
@@ -727,7 +747,7 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input, &prime)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));

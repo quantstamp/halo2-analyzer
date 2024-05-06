@@ -12,80 +12,11 @@ use crate::{
 /// or a random number of public inputs. It then collects the necessary user input based on the chosen
 /// verification type and constructs an `AnalyzerInput` struct to be used in the underconstrained analysis.
 ///
-pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
-    instance_cols_string: &HashMap<String, i64>,
-    cs: &ConstraintSystem<F>,
-) -> Result<AnalyzerInput> {
-    let mut lookup_method = LookupMethod::InlineConstraints;
+pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(input: &AnalyzerInput,instance_cols_string: &HashMap<String, i64>) -> Result<HashMap<String, i64>> {
 
-    let mut has_lookup = false;
-    #[cfg(any(
-        feature = "use_zcash_halo2_proofs",
-        feature = "use_pse_halo2_proofs",
-        feature = "use_axiom_halo2_proofs",
-        feature = "use_pse_v1_halo2_proofs",
-    ))]
-    if !cs.lookups.is_empty() {
-        has_lookup = true;
-    }
 
-    #[cfg(feature = "use_scroll_halo2_proofs")]
-    if !cs.lookups_map.is_empty() {
-        has_lookup = true;
-    }
-
-    if has_lookup {
-        println!("You can use uninterpreted functions for lookup analysis for fast analysis at the cost of potential false positives, or use range check functions instead of inline constraints:");
-        println!("1. Verify the circuit with uninterpreted functions for lookups!");
-        println!("2. Verify the circuit with all lookup constraints!");
-        println!("3. Verify the circuit with interpreted functions (Range Check) for lookups!");
-        let mut menu = String::new();
-        io::stdin()
-            .read_line(&mut menu)
-            .expect("Failed to read line");
-
-        let selection = menu
-            .trim()
-            .parse::<i32>() // Using i32 assuming the options are small integer values
-            .expect("Failed to parse input as integer"); // Simplifying error handling for example
-
-        // Setting lookup_uninterpreted_func based on selected option
-        lookup_method = match selection {
-            1 => LookupMethod::Uninterpreted,
-            2 => LookupMethod::InlineConstraints,
-            3 => LookupMethod::Interpreted,
-            _ => {
-                println!("Invalid selection, defaulting to 'false'");
-                LookupMethod::Invalid
-            }
-        };
-    }
-    println!("You can verify the circuit for a specific public input or a random number of public inputs:");
-    println!("1. verify the circuit for a specific public input!");
-    println!("2. Verify for a random number of public inputs!");
-
-    let mut menu = String::new();
-    const SPECIFIC: i64 = 1;
-    const RANDOM: i64 = 2;
-    io::stdin()
-        .read_line(&mut menu)
-        .expect("Failed to read line");
-    let verification_type = menu
-        .trim()
-        .parse::<i64>()
-        .context("Failed to retrieve verification type!")?;
-
-    let mut analyzer_input: AnalyzerInput = AnalyzerInput {
-        verification_method: VerificationMethod::Random,
-        verification_input: VerificationInput {
-            iterations: 1,
-            instances_string: HashMap::new(),
-        },
-        lookup_method
-    };
-
-    match verification_type {
-        SPECIFIC => {
+    match input.verification_method {
+        VerificationMethod::Specific => {
             let mut specified_instance_cols_string: HashMap<String, i64> = HashMap::new();
 
             for var in instance_cols_string.iter() {
@@ -97,29 +28,9 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
                 specified_instance_cols_string
                     .insert(var.0.clone(), input_var.trim().parse::<i64>()?);
             }
-
-            analyzer_input.verification_method = VerificationMethod::Specific;
-            analyzer_input.verification_input.instances_string = specified_instance_cols_string;
-            Ok(analyzer_input)
+            Ok(specified_instance_cols_string)
         }
-        RANDOM => {
-            let mut input_var = String::new();
-
-            println!("How many random public inputs you want to verify?");
-            io::stdin()
-                .read_line(&mut input_var)
-                .expect("Failed to read line");
-
-            let iterations = input_var
-                .trim()
-                .parse::<u128>()
-                .context("Failed to retrieve number of iterations!")?;
-            analyzer_input.verification_method = VerificationMethod::Random;
-            analyzer_input.verification_input.instances_string = instance_cols_string.clone();
-            analyzer_input.verification_input.iterations = iterations;
-            Ok(analyzer_input)
-        }
-        _ => Err(anyhow!("Option {} Is Invalid", verification_type)),
+        _ => Err(anyhow!("Option Is Invalid")),
     }
 }
 /// Outputs the result of the analysis.
@@ -127,14 +38,27 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
 /// This function takes an `AnalyzerInput` and `AnalyzerOutput` as input and prints the corresponding
 /// result message based on the `AnalyzerOutputStatus` in the `AnalyzerOutput` struct.
 ///
-pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOutput) {
+pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerOutput) {
     match analyzer_output.output_status {
         AnalyzerOutputStatus::Underconstrained => {
             println!("The circuit is under-constrained.");
         }
-        AnalyzerOutputStatus::Overconstrained => {
-            println!("The circuit is over-constrained");
+        AnalyzerOutputStatus::Overconstrained => 
+        {
+            match analyzer_input.verification_method {
+                VerificationMethod::Specific => {
+                    println!("The circuit is over-constrained for this specific input.");
+                }
+                VerificationMethod::Random => {
+                    println!(
+                        "The circuit is over-constrained for {} random input(s).",
+                        analyzer_input.verification_input.iterations
+                    );
+                }
+                VerificationMethod::None => {},
+            }
         }
+        
         AnalyzerOutputStatus::NotUnderconstrained => {
             println!("The circuit is not under-constrained!");
         }
@@ -149,6 +73,7 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
                         analyzer_input.verification_input.iterations
                     );
                 }
+                VerificationMethod::None => {},
             }
         }
         AnalyzerOutputStatus::UnusedCustomGates => {}
@@ -173,6 +98,7 @@ pub fn output_result(analyzer_input: AnalyzerInput, analyzer_output: &AnalyzerOu
                         analyzer_input.verification_input.iterations
                     );
                 }
+                VerificationMethod::None => {},
             }
         },
     }
