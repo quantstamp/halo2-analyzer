@@ -119,10 +119,10 @@ Replace `[OPTIONS]` with the desired options as described below.
 ### Options
 
 - `-p, --profile <PROFILE>`: Select a predefined configuration profile. Available profiles include:
-  - `specific_inline` (`si`)
-  - `random_inline` (`rin`)
-  - `random_uninterpreted` (`ru`)
-  - `random_interpreted` (`ri`)
+  - `specific_inline`
+  - `random_inline`
+  - `random_uninterpreted`
+  - `random_interpreted`
 
 - `-t, --type <TYPE>`: Specify the type of analysis to be performed. Available types include:
   - `unused_gates` (`ug`)

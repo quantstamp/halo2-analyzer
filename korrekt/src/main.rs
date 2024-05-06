@@ -110,11 +110,9 @@ fn main() -> Result<()> {
     Ok(())
 }
 fn load_config_for_profile(profile: &str) -> Result<AnalyzerInput> {
-
     let config_path = format!("./src/config/{}.toml", profile);
-
     AnalyzerInput::load_config(Path::new(&config_path))
-        
+    .with_context(|| format!("Failed to load configuration for profile: {}", profile))
 }
 fn parse_lookup_method(input: &str) -> LookupMethod {
     match input {
