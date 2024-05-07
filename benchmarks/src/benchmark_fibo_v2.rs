@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use korrekt_V2;
 
 use korrekt_V2::circuit_analyzer::analyzer;
-use korrekt_V2::io::analyzer_io_type::{self, VerificationMethod, VerificationInput};
+use korrekt_V2::io::analyzer_io_type::{self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod};
 use korrekt_V2::sample_circuits;
 
 /// `run_underconstrained_benchmarks` macro.
@@ -93,11 +93,13 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() ->
                 instances_string: analyzer.instace_cells.clone(),
                 iterations: 5,
             },
+            analysis_type: AnalyzerType::UnderconstrainedCircuit,
+            lookup_method: LookupMethod::Interpreted,
         };
 
     let start = Instant::now();
     let output_status = analyzer
-    .analyze_underconstrained(analyzer_input, &prime)
+    .analyze_underconstrained(&analyzer_input, &prime)
     .unwrap()
     .output_status;
     let duration = start.elapsed();
