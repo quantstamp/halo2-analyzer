@@ -1061,7 +1061,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         // Extract all gates
         if !self.regions.is_empty() {
             for region in &self.regions {
-                if !region.enabled_selectors.is_empty() {
+                if self.selectors.is_empty() || !region.enabled_selectors.is_empty() {
                     let (region_begin, region_end) = region.rows.unwrap();
                     for row_num in 0..region_end - region_begin + 1 {
                         for gate in self.cs.gates.iter() {
@@ -1112,7 +1112,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     // Extracts the lookup constraints and writes assertions using an SMT printer.
     fn decompose_lookups(&mut self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
         for region in &self.regions {
-            if !region.enabled_selectors.is_empty() {
+            if self.selectors.is_empty() || !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
                 for row_num in 0..region_end - region_begin + 1 {
                     for lookup in self.cs.lookups.iter() {
@@ -1295,7 +1295,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         self.extract_lookups(printer, None)?;
         let mut lookup_func_map = HashMap::new();
         for region in &self.regions {
-            if !region.enabled_selectors.is_empty() {
+            if self.selectors.is_empty() || !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
                 for row_num in 0..region_end - region_begin + 1 {
                     let mut lookup_index = 0;
@@ -1469,7 +1469,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     #[cfg(any(feature = "use_scroll_halo2_proofs"))]
     fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
         for region in &self.regions {
-            if !region.enabled_selectors.is_empty() {
+            if self.selectors.is_empty() || !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
                 for row_num in 0..region_end - region_begin + 1 {
                     for lookup in &self.cs.lookups_map {

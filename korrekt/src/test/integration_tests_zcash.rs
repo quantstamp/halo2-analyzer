@@ -102,6 +102,38 @@ mod tests {
     }
 
     #[test]
+    fn no_selector_test() {
+        let circuit =
+            sample_circuits::simple::no_selector::MulCircuit::<Fr>::default(
+            );
+        let k: u32 = 3;
+
+        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+
+        assert!(analyzer.instace_cells.clone().len().eq(&2));
+
+        let modulus = Fr::MODULUS;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
+
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instances_string: analyzer.instace_cells.clone(),
+                iterations: 5,
+            },
+            lookup_method: LookupMethod::InlineConstraints,
+        };
+        let output_status = analyzer
+            .analyze_underconstrained(analyzer_input, &prime)
+            .unwrap()
+            .output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+    }
+
+    #[test]
     fn not_under_constrained_enough_random_input_test() {
         let circuit =
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
