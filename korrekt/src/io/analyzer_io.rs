@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use log::info;
 use std::{collections::HashMap, io};
 use crate::{
     circuit_analyzer::{analyzable::AnalyzableField,halo2_proofs_libs::*},
@@ -20,7 +21,7 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(input: &Anal
             let mut specified_instance_cols_string: HashMap<String, i64> = HashMap::new();
 
             for var in instance_cols_string.iter() {
-                println!("Enter value for {} : ", var.0);
+                info!("Enter value for {} : ", var.0);
                 let mut input_var = String::new();
                 io::stdin()
                     .read_line(&mut input_var)
@@ -41,16 +42,16 @@ pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(input: &Anal
 pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerOutput) {
     match analyzer_output.output_status {
         AnalyzerOutputStatus::Underconstrained => {
-            println!("The circuit is under-constrained.");
+            info!("The circuit is under-constrained.");
         }
         AnalyzerOutputStatus::Overconstrained => 
         {
             match analyzer_input.verification_method {
                 VerificationMethod::Specific => {
-                    println!("The circuit is over-constrained for this specific input.");
+                    info!("The circuit is over-constrained for this specific input.");
                 }
                 VerificationMethod::Random => {
-                    println!(
+                    info!(
                         "The circuit is over-constrained for {} random input(s).",
                         analyzer_input.verification_input.iterations
                     );
@@ -60,15 +61,15 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
         }
         
         AnalyzerOutputStatus::NotUnderconstrained => {
-            println!("The circuit is not under-constrained!");
+            info!("The circuit is not under-constrained!");
         }
         AnalyzerOutputStatus::NotUnderconstrainedLocal => {
             match analyzer_input.verification_method {
                 VerificationMethod::Specific => {
-                    println!("The circuit is not under-constrained for this specific input.");
+                    info!("The circuit is not under-constrained for this specific input.");
                 }
                 VerificationMethod::Random => {
-                    println!(
+                    info!(
                         "The circuit is not under-constrained for {} random input(s).",
                         analyzer_input.verification_input.iterations
                     );
@@ -80,7 +81,7 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
         AnalyzerOutputStatus::UnconstrainedCells => {}
         AnalyzerOutputStatus::UnusedColumns => {}
         AnalyzerOutputStatus::Invalid => {
-            println!("The analyzer output is invalid.");
+            info!("The analyzer output is invalid.");
         }
         AnalyzerOutputStatus::NoUnusedCustomGates => {}
         AnalyzerOutputStatus::NoUnconstrainedCells => {}
@@ -88,11 +89,11 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
         AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups => {
             match analyzer_input.verification_method {
                 VerificationMethod::Specific => {
-                    println!("\nTwo assignments found to advice columns, making the circuit under-constrained for this specific input. But the assignmets are not valid in lookup table(s)!
+                    info!("\nTwo assignments found to advice columns, making the circuit under-constrained for this specific input. But the assignmets are not valid in lookup table(s)!
                     \nProbably a false positive.\n");
                 }
                 VerificationMethod::Random => {
-                    println!(
+                    info!(
                         "\nTwo assignments found to advice columns, making the circuit under-constrained for {} random input(s). But the assignmets are not valid in lookup table(s)!
                         \nProbably a false positive.\n",
                         analyzer_input.verification_input.iterations
@@ -114,11 +115,11 @@ pub fn retrieve_user_input_for_analyzer_type() -> Result<AnalyzerType> {
     const UNCONSTRAINED_CELLS: i64 = 3;
     const UNDERCONSTRAINED_CIRCUITS: i64 = 4;
 
-    println!("Choose the mode of analysis for your circuit.");
-    println!("1. Unused Gates");
-    println!("2. Unused Columns");
-    println!("3. Unconstrained Cells");
-    println!("4. Underconstrained Circuit");
+    info!("Choose the mode of analysis for your circuit.");
+    info!("1. Unused Gates");
+    info!("2. Unused Columns");
+    info!("3. Unconstrained Cells");
+    info!("4. Underconstrained Circuit");
 
     let mut menu = String::new();
     io::stdin()

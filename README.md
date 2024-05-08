@@ -188,13 +188,13 @@ Part of our benchmarking involves comparing the performance of analyzer version 
 
 To run the benchmarks successfully, follow these steps:
 
-1. **Update Dependency Features:** Open the `Cargo.toml` file in the `benchmarks` directory.
+1. **Update Dependency Features:** Open the `Cargo.toml` file in the `benchmarks` directory, and update the `features` for `korrekt_V2`:
 
     ```bash
     korrekt_V2 = { path = "../korrekt", package = "korrekt", features = ["use_pse_v1_halo2_proofs"] }
     ```
 
-2. **Remove Default Feature:** In the `Cargo.toml` file of the `korrekt` crate, remove the default feature flag for halo2 dependency from the default features.
+2. **Remove Default Feature:** Ensure that there are no default feature flag set for halo2 dependency in the `Cargo.toml` file of the `korrekt`.
 
     ```bash
     [features]
@@ -206,7 +206,7 @@ To run the benchmarks successfully, follow these steps:
     use_pse_v1_halo2_proofs = ["pse_v1_halo2_proofs"]
     ```
 
-3. **Activate Relevant Patch:** In the `Cargo.toml` file of the `korrekt` crate, ensure the relevant patch is active.
+3. **Activate Relevant Patch:** In the `Cargo.toml` file of the `korrekt`, ensure the relevant patch is active.
 
     ```bash
     [patch."https://github.com/privacy-scaling-explorations/halo2.git"]
@@ -218,7 +218,7 @@ To run the benchmarks successfully, follow these steps:
 Once you've made these updates, navigate to the benchmarks directory and run:
 
 ```bash
-cargo run
+cargo bench
 ```
 
 ## How it works

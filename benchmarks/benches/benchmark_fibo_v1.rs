@@ -1,16 +1,14 @@
-use std::time::{Duration, Instant};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::halo2curves::bn256;
 use halo2_proofs::halo2curves::bn256::Fr;
 
-use anyhow::{Context, Ok, Result};
 use korrekt_V1::{
     circuit_analyzer::analyzer::Analyzer,
-    io::{
-        self,
-        analyzer_io_type::{self,AnalyzerInput, VerificationInput, VerificationMethod},
-    },
+    io::
+        analyzer_io_type::{self, VerificationInput, VerificationMethod},
+    
     sample_circuits,
 };
 use num::{BigInt, Num};
@@ -31,11 +29,18 @@ use num::{BigInt, Num};
 /// - `$($size:expr),*`: A comma-separated list of sizes to run the underconstrained benchmarks for.
 ///
 macro_rules! run_underconstrained_benchmarks {
-        ($($size:expr),*) => {
+    ($c:expr, $($size:expr),*) => {
+        {
+            let mut group = $c.benchmark_group("underconstrained_fibo_v1");
+            group.sample_size(20);
             $(
-                run_underconstrained_benchmark_for_specified_size::<$size>();
+                group.bench_function(format!("size_{}", $size), |b| {
+                    b.iter(|| run_underconstrained_benchmark_for_specified_size::<$size>())
+                });
             )*
-        };
+            group.finish();
+        }
+    };
 }
 
 /// Runs benchmark tests for various specified sizes.
@@ -43,25 +48,8 @@ macro_rules! run_underconstrained_benchmarks {
 /// This function executes a series of benchmark tests using the `run_underconstrained_benchmark_for_specified_size` function.
 /// It runs the benchmark for different specified sizes: 2, 4, 8, 16, 32, 64, and 128. The `run_underconstrained_benchmark_for_specified_size`
 /// function is called for each specified size.
-pub fn run_benchmark() -> Vec<(usize, std::time::Duration)> {
-    let sizes = vec![5,8,13,21,34]; // Define your sizes here
-    let mut results = Vec::new();
-
-    for &size in &sizes {
-        let duration = match size {
-            3 => run_underconstrained_benchmark_for_specified_size::<3>(),
-            5 => run_underconstrained_benchmark_for_specified_size::<5>(),
-            8 => run_underconstrained_benchmark_for_specified_size::<8>(),
-            13 => run_underconstrained_benchmark_for_specified_size::<13>(),
-            21 => run_underconstrained_benchmark_for_specified_size::<21>(),
-            34 => run_underconstrained_benchmark_for_specified_size::<34>(),
-            // Add more cases as needed
-            _ => continue, // Skip sizes that aren't explicitly handled
-        };
-        results.push((size, duration));
-    }
-
-    results
+pub fn run_benchmark(c: &mut Criterion) {
+    run_underconstrained_benchmarks!(c, 5, 8, 13, 21, 34);
 }
 
 /// Runs an underconstrained benchmark for a specified size.
@@ -80,7 +68,7 @@ pub fn run_benchmark() -> Vec<(usize, std::time::Duration)> {
 /// // Run underconstrained benchmark for size 2
 /// run_underconstrained_benchmark_for_specified_size::<2>();
 /// ```
-pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() -> Duration {
+pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
     let circuit =
         sample_circuits::copy_constraint::fibonacci_for_bench::FibonacciCircuit::<Fr,ROWS>::default();
         let mut analyzer = Analyzer::from(&circuit);
@@ -104,15 +92,14 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() ->
         let public_input = vec![Fr::from(3)];
 
         let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
-    let start = Instant::now();
-    let output_status = analyzer
+    let _output_status = analyzer
             .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
             .unwrap()
             .output_status;
-    let duration = start.elapsed();
-    duration
-    // println!(
-    //     "{} rows: Time elapsed for analyze_underconstrained() is: {:?}",
-    //     ROWS, duration
-    // );
 }
+
+criterion_group!(name = benches;
+    config = Criterion::default().measurement_time(std::time::Duration::from_secs(20));//
+    //config = Criterion::default();
+    targets = run_benchmark);
+criterion_main!(benches);
