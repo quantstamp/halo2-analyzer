@@ -49,7 +49,6 @@ pub fn run_benchmark(c: &mut Criterion) {
 
 /// Runs an underconstrained benchmark for a specified size.
 pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
-    //println!("Running underconstrained benchmark for {} bits.", BITS);
     let k = 11;
     let circuit = sample_circuits::pse_v1::bit_decomposition::general_bit_decomp::BitDecompositonUnderConstrained::<
         Fr,

@@ -44,7 +44,9 @@ macro_rules! run_underconstrained_benchmarks {
 
 /// Runs benchmark tests for various specified sizes.
 ///
-/// This function executes a series of benchmark tests using the `run_underconstrained_benchmarks` macro.
+/// This function executes a series of benchmark tests using the `run_underconstrained_benchmark_for_specified_size` function.
+/// It runs the benchmark for different specified sizes: 5, 8, 13, 21, and 34. The `run_underconstrained_benchmark_for_specified_size`
+/// function is called for each specified size.
 pub fn run_benchmark(c: &mut Criterion) {
     run_underconstrained_benchmarks!(c, 5, 8, 13, 21, 34);
 }
