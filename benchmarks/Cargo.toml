@@ -10,7 +10,7 @@ korrekt_V2 = { path = "../korrekt", package = "korrekt", features = [] }
 korrekt_V1 = { git = "https://github.com/quantstamp/halo2-analyzer.git", branch = "Benchmark-Compatible-V1", package = "korrekt"}
 num = "0.4.0"
 anyhow = "1.0.71"
-criterion = "0.3"
+
 [dev-dependencies]
 criterion = "0.3"
 clap = "3.0"
