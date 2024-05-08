@@ -215,11 +215,25 @@ To run the benchmarks successfully, follow these steps:
 
 ### Running Benchmarks
 
-Once you've made these updates, navigate to the benchmarks directory and run:
+Once you've made these updates, navigate to the benchmarks directory and for all available benchmarks run:
 
 ```bash
 cargo bench
 ```
+
+Multiple benchmarks are available:
+
+- benchmark_bit_decomp
+- benchmark_fibo_v1
+- benchmark_fibo_v2
+
+For running a specific benchmark run:
+
+```bash
+cargo bench --bench NAME_OF_BENCHMARK
+```
+
+Replace `NAME_OF_BENCHMARK` with one of the available benchmarks.
 
 ## How it works
 
