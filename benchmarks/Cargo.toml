@@ -6,10 +6,14 @@ edition = "2021"
 [dependencies]
 halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v2022_08_19" }
 halo2curves = { git = 'https://github.com/privacy-scaling-explorations/halo2curves', tag = "0.2.1" }
-korrekt_V2 = { path = "../korrekt", package = "korrekt", features = [] }
+korrekt_V2 = { path = "../korrekt", package = "korrekt", features = ["use_pse_v1_halo2_proofs"] }
 korrekt_V1 = { git = "https://github.com/quantstamp/halo2-analyzer.git", branch = "Benchmark-Compatible-V1", package = "korrekt"}
 num = "0.4.0"
 anyhow = "1.0.71"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+walkdir = "2.3"
+regex = "1.5"
 
 [dev-dependencies]
 criterion = "0.3"
@@ -23,8 +27,17 @@ harness = false
 name = "benchmark_fibo_v1"
 harness = false
 
+
 [[bench]]
-name = "benchmark_fibo_v2"
+name = "benchmark_fibo_v2_inline"
+harness = false
+
+[[bench]]
+name = "benchmark_fibo_v2_uninterpreted"
+harness = false
+
+[[bench]]
+name = "benchmark_fibo_v2_interpreted"
 harness = false
 
 [env]

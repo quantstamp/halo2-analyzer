@@ -30,7 +30,7 @@ use korrekt_V2::sample_circuits;
 macro_rules! run_underconstrained_benchmarks {
     ($c:expr, $($size:expr),*) => {
         {
-            let mut group = $c.benchmark_group("underconstrained_fibo_v2");
+            let mut group = $c.benchmark_group("underconstrained__fibo_v2_uninterpreted");
             group.sample_size(20);
             $(
                 group.bench_function(format!("size_{}", $size), |b| {
@@ -89,7 +89,7 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
             iterations: 5,
         },
         analysis_type: AnalyzerType::UnderconstrainedCircuit,
-        lookup_method: LookupMethod::Interpreted,
+        lookup_method: LookupMethod::Uninterpreted,
     };
 
     let _output_status = analyzer
