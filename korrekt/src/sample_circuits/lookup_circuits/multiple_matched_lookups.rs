@@ -1,4 +1,4 @@
-use crate::circuit_analyzer::halo2_proofs_libs::*;
+use halo2_proofs::{arithmetic::FieldExt, circuit::*, plonk::*, poly::Rotation};
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
