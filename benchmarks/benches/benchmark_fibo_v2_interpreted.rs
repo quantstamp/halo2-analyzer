@@ -30,7 +30,7 @@ use korrekt_V2::sample_circuits;
 macro_rules! run_underconstrained_benchmarks {
     ($c:expr, $($size:expr),*) => {
         {
-            let mut group = $c.benchmark_group("underconstrainedfibo_v2_interpreted");
+            let mut group = $c.benchmark_group("underconstrained_fibo_v2_interpreted");
             group.sample_size(20);
             $(
                 group.bench_function(format!("size_{}", $size), |b| {

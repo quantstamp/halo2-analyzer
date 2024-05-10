@@ -40,6 +40,27 @@ harness = false
 name = "benchmark_fibo_v2_interpreted"
 harness = false
 
+[[bench]]
+name = "benchmark_lookup_v1"
+harness = false
+
+
+[[bench]]
+name = "benchmark_lookup_v2_inline"
+harness = false
+
+[[bench]]
+name = "benchmark_lookup_v2_uninterpreted"
+harness = false
+
+[[bench]]
+name = "benchmark_lookup_v2_interpreted"
+harness = false
+
+# [[bench]]
+# name = "benchmark_fibo"
+# harness = false
+
 [env]
 CRITERION_OUTPUT_FORMAT="json"
 

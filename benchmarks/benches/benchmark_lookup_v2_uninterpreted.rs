@@ -30,8 +30,8 @@ use korrekt_V2::sample_circuits;
 macro_rules! run_underconstrained_benchmarks {
     ($c:expr, $($size:expr),*) => {
         {
-            let mut group = $c.benchmark_group("underconstrained_fibo_v2_uninterpreted");
-            group.sample_size(20);
+            let mut group = $c.benchmark_group("underconstrained_lookup_v2_uninterpreted");
+            group.sample_size(10);
             $(
                 group.bench_function(format!("size_{}", $size), |b| {
                     b.iter(|| run_underconstrained_benchmark_for_specified_size::<$size>())
@@ -48,7 +48,7 @@ macro_rules! run_underconstrained_benchmarks {
 /// It runs the benchmark for different specified sizes: 5, 8, 13, 21, and 34. The `run_underconstrained_benchmark_for_specified_size`
 /// function is called for each specified size.
 pub fn run_benchmark(c: &mut Criterion) {
-    run_underconstrained_benchmarks!(c, 5, 8, 13, 21, 34);
+    run_underconstrained_benchmarks!(c, 5, 8, 13, 21);//, 34);
 }
 
 /// Runs an underconstrained benchmark for a specified size.
@@ -68,7 +68,7 @@ pub fn run_benchmark(c: &mut Criterion) {
 /// run_underconstrained_benchmark_for_specified_size::<2>();
 /// ```
 pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
-    let circuit = sample_circuits::pse_v1::copy_constraint::fibonacci_for_bench::FibonacciCircuit::<
+    let circuit = sample_circuits::pse_v1::lookup_circuits::multiple_matched_lookups::MyCircuit::<
         Fr,
         ROWS,
     >(PhantomData);
