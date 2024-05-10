@@ -99,7 +99,6 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
 }
 
 criterion_group!(name = benches;
-    config = Criterion::default().measurement_time(std::time::Duration::from_secs(20));//
-    //config = Criterion::default();
+    config = Criterion::default();
     targets = run_benchmark);
 criterion_main!(benches);
