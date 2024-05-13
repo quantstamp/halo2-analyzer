@@ -1607,7 +1607,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             }
             // If the model is not valid, we ignore it and continue to the next iteration.
             if valid_model_lookeded_up {
-                println!("Model {} is valid!", i);
                 info!("Model {} to be checked:", i);
                 for r in &model.result {
                     info!("{} : {}", r.1.name, r.1.value.element)

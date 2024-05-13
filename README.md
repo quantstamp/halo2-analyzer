@@ -7,19 +7,24 @@ Before you begin, ensure you have Installed CVC5 FOR Finite Field.
 ## Installing CVC5 FOR Finite Field
 
 These are the steps to install CVC5 on MacOS (probably transferable to Linux).
-Instructions taken from: https://github.com/cvc5/cvc5/blob/main/INSTALL.rst 
+Instructions taken from: <https://github.com/cvc5/cvc5/blob/main/INSTALL.rst>
 
 1. Clone CVC5 from official repo
+
 ```
 git clone https://github.com/cvc5/cvc5
 ```
-You can also download the source code from https://github.com/cvc5/cvc5/releases/tag/cvc5-1.0.5 but using the repo is recommended.
-2. Install all dependencies and set proper ENV variables. See [dependencies](#Dependencies) section below
+
+You can also download the source code from <https://github.com/cvc5/cvc5/releases/tag/cvc5-1.0.5> but using the repo is recommended.
+2. Install all dependencies and set proper ENV variables. See [dependencies](#dependencies) section below
 3. Run
+
 ```
 ./configure.sh —cocoa —auto-download
 ```
+
 4. The do:
+
 ```
 cd build
 make -j4
@@ -27,23 +32,28 @@ make check
 sudo make install
 ```
 
-## Dependencies 
-- Python 3.9 (you might need to install pip or update it): 
+## Dependencies
+
+- Python 3.9 (you might need to install pip or update it):
+
 ```
 brew install python@3.9
 python3.9 -m pip install toml 
 python3.9 -m pip install pyparsing
 ```
+
 - Java. Go to the following link and install the latest Java
-https://www.oracle.com/java/technologies/downloads/
+<https://www.oracle.com/java/technologies/downloads/>
 
 - Necessary for cocoa
+
 ```
 brew install gmp
 brew install libpgm
 ```
 
 - Now that you have `gmp` installed you need to tell CVC5 where to find it. The easiest way is through an env variable. If you install gap via homebrew, the path will look something like the following
+
 ```
 export GMP_LIB=/opt/homebrew/Cellar/gmp/6.2.1_1/lib/libgmp.a
 ```
@@ -172,8 +182,58 @@ Replace `[OPTIONS]` with the desired options as described below.
 
 ## For Benchmark
 
-1. Go to "benchmarks"
-2. Run `cargo run`
+Part of our benchmarking involves comparing the performance of analyzer version 2 with version 1. To enable this comparison, version 2 supports the exact version of Halo2 that version 1 supports, activated by the `use_pse_v1_halo2_proofs` feature flag.
+
+### Setup Instructions
+
+To run the benchmarks successfully, follow these steps:
+
+1. **Update Dependency Features:** Open the `Cargo.toml` file in the `benchmarks` directory, and update the `features` for `korrekt_V2`:
+
+    ```bash
+    korrekt_V2 = { path = "../korrekt", package = "korrekt", features = ["use_pse_v1_halo2_proofs"] }
+    ```
+
+2. **Remove Default Feature:** Ensure that there are no default feature flag set for halo2 dependency in the `Cargo.toml` file of the `korrekt`.
+
+    ```bash
+    [features]
+    default = []
+    use_zcash_halo2_proofs = ["zcash_halo2_proofs"]
+    use_pse_halo2_proofs = ["pse_halo2_proofs"]
+    use_axiom_halo2_proofs = ["axiom_halo2_proofs"]
+    use_scroll_halo2_proofs = ["scroll_halo2_proofs"]
+    use_pse_v1_halo2_proofs = ["pse_v1_halo2_proofs"]
+    ```
+
+3. **Activate Relevant Patch:** In the `Cargo.toml` file of the `korrekt`, ensure the relevant patch is active.
+
+    ```bash
+    [patch."https://github.com/privacy-scaling-explorations/halo2.git"]
+    pse_v1_halo2_proofs = { git = "https://github.com/Analyzable-Halo2/v1-halo2.git", package = "halo2_proofs"}
+    ```
+
+### Running Benchmarks
+
+Once you've made these updates, navigate to the benchmarks directory and for all available benchmarks run:
+
+```bash
+cargo bench
+```
+
+Multiple benchmarks are available:
+
+- benchmark_bit_decomp
+- benchmark_fibo_v1
+- benchmark_fibo_v2
+
+For running a specific benchmark run:
+
+```bash
+cargo bench --bench NAME_OF_BENCHMARK
+```
+
+Replace `NAME_OF_BENCHMARK` with one of the available benchmarks.
 
 ## How it works
 
@@ -209,7 +269,7 @@ Which has an assignment for `d` st. `f(a,b,c,d) = 0` iff `a * b * c != 0`.
 Note that the "gate" above has no "output wires".
 Note that `d` is not really "an input": it is part of the witness, but in the example above, it cannot be the output of another gate or part of the statement: it's a "gate hint".
 
-##### The circuit topology is restricted.
+##### The circuit topology is restricted
 
 When describing a "circuit" you can usually wire any output to any input.
 This is also possible in Halo2, indeed, the original PlonK paper describes a "universal gate" and a permutation check which enables this (in Halo2 this corresponds to "enabling equality" on the 3 input/output columns).
@@ -293,7 +353,7 @@ The "gate" "computes" the following relation: `b = C * a` i.e. it is a "multipli
 
 After running synthesis with the `AnalyticalLayouer` we have assignments for `s` and `C` (but not for `a` and `b`),
 as such we cannot fully evaluate `f` but we can determine if it is identically zero, i.e. zero for *every* `a` and `b`.
-We could so so by enumerating assignments for `a` and `b`, which would be slow and accurate, by using a SAT solver, which would be much faster and accurate, or as presently done using abstract interpretation, which is blazingly fast at the cost of accuracy i.e. may yields _false negatives_:
+We could so so by enumerating assignments for `a` and `b`, which would be slow and accurate, by using a SAT solver, which would be much faster and accurate, or as presently done using abstract interpretation, which is blazingly fast at the cost of accuracy i.e. may yields *false negatives*:
 may return that `f` is not identically zero, when in fact it is.
 
 We introduce the following type:
@@ -321,7 +381,6 @@ pub fn eval_abstract<F: FieldExt>(expr: &Expression<F>, selectors: &HashSet<Sele
 ```
 
 The function of the code is pretty self-explanatory. We can do a similar thing for the selectors:
-
 
 ```rust
 Expression::Selector(selector) => {
