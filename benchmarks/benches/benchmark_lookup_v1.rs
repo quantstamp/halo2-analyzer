@@ -31,8 +31,8 @@ use num::{BigInt, Num};
 macro_rules! run_underconstrained_benchmarks {
     ($c:expr, $($size:expr),*) => {
         {
-            let mut group = $c.benchmark_group("underconstrained_fibo_v1");
-            group.sample_size(20);
+            let mut group = $c.benchmark_group("underconstrained_lookup_v1");
+            group.sample_size(10);
             $(
                 group.bench_function(format!("size_{}", $size), |b| {
                     b.iter(|| run_underconstrained_benchmark_for_specified_size::<$size>())
@@ -49,7 +49,7 @@ macro_rules! run_underconstrained_benchmarks {
 /// It runs the benchmark for different specified sizes: 5, 8, 13, 21, and 34. The `run_underconstrained_benchmark_for_specified_size`
 /// function is called for each specified size.
 pub fn run_benchmark(c: &mut Criterion) {
-    run_underconstrained_benchmarks!(c, 5, 8, 13, 21, 34);
+    run_underconstrained_benchmarks!(c, 5, 8, 13, 21);//, 34);
 }
 
 /// Runs an underconstrained benchmark for a specified size.
@@ -70,7 +70,7 @@ pub fn run_benchmark(c: &mut Criterion) {
 /// ```
 pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
     let circuit =
-        sample_circuits::copy_constraint::fibonacci_for_bench::FibonacciCircuit::<Fr,ROWS>::default();
+        sample_circuits::lookup_circuits::multiple_matched_lookups::MyCircuit::<Fr,ROWS>::default();
         let mut analyzer = Analyzer::from(&circuit);
 
         let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
@@ -99,7 +99,6 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
 }
 
 criterion_group!(name = benches;
-    config = Criterion::default().measurement_time(std::time::Duration::from_secs(20));//
-    //config = Criterion::default();
+    config = Criterion::default();
     targets = run_benchmark);
 criterion_main!(benches);

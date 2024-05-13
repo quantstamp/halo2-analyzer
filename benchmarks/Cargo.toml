@@ -10,6 +10,10 @@ korrekt_V2 = { path = "../korrekt", package = "korrekt", features = [] }
 korrekt_V1 = { git = "https://github.com/quantstamp/halo2-analyzer.git", branch = "Benchmark-Compatible-V1", package = "korrekt"}
 num = "0.4.0"
 anyhow = "1.0.71"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+walkdir = "2.3"
+regex = "1.5"
 
 [dev-dependencies]
 criterion = "0.3"
@@ -23,9 +27,39 @@ harness = false
 name = "benchmark_fibo_v1"
 harness = false
 
+
 [[bench]]
-name = "benchmark_fibo_v2"
+name = "benchmark_fibo_v2_inline"
 harness = false
+
+[[bench]]
+name = "benchmark_fibo_v2_uninterpreted"
+harness = false
+
+[[bench]]
+name = "benchmark_fibo_v2_interpreted"
+harness = false
+
+[[bench]]
+name = "benchmark_lookup_v1"
+harness = false
+
+
+[[bench]]
+name = "benchmark_lookup_v2_inline"
+harness = false
+
+[[bench]]
+name = "benchmark_lookup_v2_uninterpreted"
+harness = false
+
+[[bench]]
+name = "benchmark_lookup_v2_interpreted"
+harness = false
+
+# [[bench]]
+# name = "benchmark_fibo"
+# harness = false
 
 [env]
 CRITERION_OUTPUT_FORMAT="json"
