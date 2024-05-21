@@ -5,7 +5,7 @@ mod tests {
     use crate::io::analyzer_io_type::{AnalyzerType, LookupMethod};
     use crate::io::{
         analyzer_io_type,
-        analyzer_io_type::{AnalyzerOutputStatus, VerificationInput, VerificationMethod},
+        analyzer_io_type::{AnalyzerOutputStatus, VerificationMethod},
     };
     use crate::sample_circuits::zcash as sample_circuits;
     use halo2curves::bn256;
@@ -23,10 +23,10 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let analyzer = Analyzer::new(&circuit, k).unwrap();
+        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
 
-        assert!(analyzer.cs.gates.len().eq(&3));
-        assert!(analyzer.cs.degree().eq(&3));
+        assert!(analyzer_setup.analyzer.cs.gates.len().eq(&3));
+        assert!(analyzer_setup.analyzer.cs.degree().eq(&3));
         //assert!(analyzer.cs.num_advice_columns().eq(&3));
         //assert!(analyzer.cs.num_instance_columns().eq(&1));
         //assert!(analyzer.cs.num_selectors.eq(&1) || analyzer.cs.num_fixed_columns().eq(&1));
@@ -39,10 +39,10 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let analyzer = Analyzer::new(&circuit, k).unwrap();
-        assert!(analyzer.instace_cells.len().eq(&1));
-        assert!(analyzer.instace_cells.contains_key("I-0-0"));
-        assert!(analyzer.instace_cells.iter().next().unwrap().1.eq(&0));
+        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
+        assert!(analyzer_setup.analyzer.instace_cells.contains_key("I-0-0"));
+        assert!(analyzer_setup.analyzer.instace_cells.iter().next().unwrap().1.eq(&0));
     }
 
     #[test]
@@ -52,22 +52,18 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let analyzer = Analyzer::new(&circuit, k).unwrap();
+        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
 
-        assert!(analyzer.instace_cells.len().eq(&1));
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells,
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
         assert!(analyzer_input
             .verification_method
             .eq(&VerificationMethod::Random));
-        assert!(analyzer_input.verification_input.iterations.eq(&5));
+        assert!(analyzer_input.iterations.eq(&5));
     }
 
     #[test]
@@ -75,27 +71,24 @@ mod tests {
         let circuit = sample_circuits::simple::mul::MulCircuit::<Fr>::default();
         let k: u32 = 3;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.clone().len().eq(&2));
+        
 
-        let modulus = Fr::MODULUS;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&2));
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -108,27 +101,23 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.clone().len().eq(&1));
+        
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrained));
@@ -141,27 +130,21 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.clone().len().eq(&1));
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 1,
-            },
+            iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -174,27 +157,21 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.clone().len().eq(&1));
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 4,
-            },
+            iterations: 4,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -207,32 +184,28 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.len().eq(&1));
-        let mut specified_instance_cols = HashMap::new();
-        for var in analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 3);
-        }
+        
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
-            verification_input: VerificationInput {
-                instances_string: specified_instance_cols,
-                iterations: 1,
-            },
+            iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
+        let mut specified_instance_cols = HashMap::new();
+        for var in analyzer_setup.analyzer.instace_cells.iter() {
+            specified_instance_cols.insert(var.0.clone(), 3);
+        }
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -245,32 +218,26 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
 
-        assert!(analyzer.instace_cells.len().eq(&1));
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
         let mut specified_instance_cols = HashMap::new();
-        for var in analyzer.instace_cells.iter() {
+        for var in analyzer_setup.analyzer.instace_cells.iter() {
             specified_instance_cols.insert(var.0.clone(), 1);
         }
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
-            verification_input: VerificationInput {
-                instances_string: specified_instance_cols,
-                iterations: 1,
-            },
+            iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -284,26 +251,20 @@ mod tests {
             >::default();
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-        assert!(analyzer.instace_cells.clone().len().eq(&1));
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
+        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -317,27 +278,21 @@ mod tests {
             >::default();
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
 
-        assert!(analyzer.instace_cells.clone().len().eq(&1));
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 1,
-            },
+            iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -351,32 +306,28 @@ mod tests {
             >::default();
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.len().eq(&1));
-        let mut specified_instance_cols = HashMap::new();
-        for var in analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 3);
-        }
+       
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
-            verification_input: VerificationInput {
-                instances_string: specified_instance_cols,
-                iterations: 1,
-            },
+            iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
+        let mut specified_instance_cols = HashMap::new();
+        for var in analyzer_setup.analyzer.instace_cells.iter() {
+            specified_instance_cols.insert(var.0.clone(), 3);
+        }
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -390,32 +341,28 @@ mod tests {
             >::default();
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.len().eq(&1));
-        let mut specified_instance_cols = HashMap::new();
-        for var in analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 1);
-        }
+        
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
-            verification_input: VerificationInput {
-                instances_string: specified_instance_cols,
-                iterations: 1,
-            },
+            iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
+        let mut specified_instance_cols = HashMap::new();
+        for var in analyzer_setup.analyzer.instace_cells.iter() {
+            specified_instance_cols.insert(var.0.clone(), 1);
+        }
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -427,12 +374,10 @@ mod tests {
             sample_circuits::bit_decomposition::add_multiplication::AddMultCircuit::default();
         let k = 5;
 
-        //let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
-
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-        let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
+        let mut analyzer_setup = Analyzer::new(&circuit, k, AnalyzerType::UnusedColumns,None).unwrap();
+        let output_status = analyzer_setup.analyzer.analyze_unused_columns().unwrap().output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::UnusedColumns));
-        assert!(analyzer.log().len().gt(&0))
+        assert!(analyzer_setup.analyzer.log().len().gt(&0))
     }
 
     #[test]
@@ -442,13 +387,13 @@ mod tests {
         let k = 5;
 
         //let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-        let output_status = analyzer
+        let mut analyzer_setup = Analyzer::new(&circuit, k, AnalyzerType::UnusedGates,None).unwrap();
+        let output_status =analyzer_setup.analyzer
             .analyze_unused_custom_gates()
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::UnusedCustomGates));
-        assert!(analyzer.log().len().gt(&0))
+        assert!(analyzer_setup.analyzer.log().len().gt(&0))
     }
 
     #[test]
@@ -458,13 +403,13 @@ mod tests {
         let k = 5;
 
         //let prover = MockProver::<Fr>::run(k, &circuit, vec![]).unwrap();
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-        let output_status = analyzer
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnconstrainedCells,None).unwrap();
+        let output_status = analyzer_setup.analyzer
             .analyze_unconstrained_cells()
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::UnconstrainedCells));
-        assert!(analyzer.log().len().gt(&0))
+        assert!(analyzer_setup.analyzer.log().len().gt(&0))
     }
 
     #[test]
@@ -472,27 +417,17 @@ mod tests {
         let circuit: sample_circuits::copy_constraint::fibonacci::FibonacciCircuit<_> =
             sample_circuits::copy_constraint::fibonacci::FibonacciCircuit::<Fr>(PhantomData);
         let k: u32 = 11;
-
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
-
+        
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         println!("output_status: {:?}", output_status);
@@ -505,26 +440,16 @@ mod tests {
         >(PhantomData);
         let k: u32 = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
-
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         println!("output_status: {:?}", output_status);
@@ -536,25 +461,16 @@ mod tests {
             sample_circuits::lookup_circuits::lookup_underconstrained::MyCircuit::<Fr>(PhantomData);
         let k = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
-
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
@@ -566,26 +482,18 @@ mod tests {
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
 
         let k = 11;
-
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::Uninterpreted,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(
@@ -600,25 +508,16 @@ mod tests {
 
         let k = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
-
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::Interpreted,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -631,25 +530,17 @@ mod tests {
 
         let k = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
-
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -662,25 +553,20 @@ mod tests {
 
         let k = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::Interpreted,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -692,25 +578,20 @@ mod tests {
 
         let k = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
-                iterations: 5,
-            },
+            iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -721,31 +602,27 @@ mod tests {
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
         let k = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.len().eq(&3));
+        
         let mut specified_instance_cols = HashMap::new();
         specified_instance_cols.insert("I-0-2".to_owned(), 6);
         specified_instance_cols.insert("I-0-1".to_owned(), 1);
         specified_instance_cols.insert("I-0-0".to_owned(), 1);
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
-            verification_input: VerificationInput {
-                instances_string: specified_instance_cols,
-                iterations: 1,
-            },
+            iterations: 1,
             lookup_method: LookupMethod::Uninterpreted,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&3));
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(
@@ -758,31 +635,27 @@ mod tests {
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
         let k = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.len().eq(&3));
+        
         let mut specified_instance_cols = HashMap::new();
         specified_instance_cols.insert("I-0-2".to_owned(), 6);
         specified_instance_cols.insert("I-0-1".to_owned(), 1);
         specified_instance_cols.insert("I-0-0".to_owned(), 1);
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
-            verification_input: VerificationInput {
-                instances_string: specified_instance_cols,
-                iterations: 1,
-            },
+            iterations: 1,
             lookup_method: LookupMethod::Interpreted,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&3));
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
@@ -793,31 +666,27 @@ mod tests {
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
         let k = 11;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+        
 
-        assert!(analyzer.instace_cells.len().eq(&3));
+        
         let mut specified_instance_cols = HashMap::new();
         specified_instance_cols.insert("I-0-2".to_owned(), 6);
         specified_instance_cols.insert("I-0-1".to_owned(), 1);
         specified_instance_cols.insert("I-0-0".to_owned(), 1);
 
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            analysis_type: AnalyzerType::UnderconstrainedCircuit,
             verification_method: VerificationMethod::Specific,
-            verification_input: VerificationInput {
-                instances_string: specified_instance_cols,
-                iterations: 1,
-            },
+            iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input, &prime)
+
+        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&3));
+
+        let output_status = analyzer_setup.analyzer
+            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));

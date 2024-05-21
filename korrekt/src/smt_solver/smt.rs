@@ -5,9 +5,9 @@ use std::io::Write;
 
 use crate::circuit_analyzer::analyzer::{self, NodeType};
 
+#[derive(Debug)]
 pub struct Printer<'a, W: 'a> {
     writer: &'a mut W,
-    pub vars: HashMap<String, bool>,
 }
 
 fn get_logic_string() -> String {
@@ -18,7 +18,6 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     pub fn new(writer: &'a mut W) -> Self {
         Self {
             writer,
-            vars: HashMap::new(),
         }
     }
     /// Constructs a term string based on the provided operator and operands.
@@ -61,7 +60,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// This function writes the initial lines at the start of the SMT-LIB file,
     /// including the SMT-LIB version, category, options, logic, and the definition of the finite field.
     ///
-    fn write_start(&mut self, prime: String) {
+    pub fn write_start(&mut self, prime: String) {
         writeln!(&mut self.writer, "(set-info :smt-lib-version 2.6)").unwrap();
         writeln!(&mut self.writer, "(set-info :category \"crafted\")").unwrap();
         writeln!(&mut self.writer, "(set-option :produce-models true)").unwrap();
@@ -79,7 +78,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     ///
     /// This function writes the `(check-sat)` command at the end of the SMT-LIB file.
     ///
-    fn write_end(&mut self) {
+    pub fn write_end(&mut self) {
         writeln!(&mut self.writer, "(check-sat)").unwrap();
     }
     /// Writes a variable declaration in the SMT-LIB file.
@@ -88,11 +87,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// in the SMT-LIB file. The variable is declared to be of sort `F` (finite field).
     /// If a variable with the same name has already been declared, this function does nothing.
     ///
-    fn write_var(&mut self, name: String) {
-        if self.vars.contains_key(&name) {
-            return;
-        }
-        self.vars.insert(name.clone(), true);
+    pub fn write_var(&mut self, name: String) {
         writeln!(&mut self.writer, "(declare-fun {} () F)", name).unwrap();
     }
     /// Declares a function in the SMT-LIB file.
@@ -103,7 +98,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// The `outputs` parameter specifies the type of the function's output.
     ///
     /// 
-    fn write_declare_fn(&mut self, name: String, inputs: String, outputs: String) {
+    pub fn write_declare_fn(&mut self, name: String, inputs: String, outputs: String) {
         writeln!(
             &mut self.writer,
             "(declare-fun {} ( {} ) {})",
@@ -111,7 +106,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         )
         .unwrap();
     }
-    fn write_define_fn(&mut self, name: String, inputs: String, outputs: String, body: String) {
+    pub fn write_define_fn(&mut self, name: String, inputs: String, outputs: String, body: String) {
         writeln!(
             &mut self.writer,
             "(define-fun {} ( {} ) {} {})",
@@ -128,7 +123,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// otherwise, it is wrapped in parentheses. The operation determines whether the assertion
     /// is an equality or inequality.
     ///
-    fn write_assert(
+    pub fn write_assert(
         &mut self,
         poly: String,
         value: String,
@@ -160,14 +155,14 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// and operation. The polynomial represents a boolean expression, and the operation determines
     /// whether it is combined with an OR or an AND operator.
     ///
-    fn write_assert_bool(&mut self, poly: String, op: analyzer::Operation) {
+    pub fn write_assert_bool(&mut self, poly: String, op: analyzer::Operation) {
         if matches!(op, analyzer::Operation::Or) {
             writeln!(&mut self.writer, "(assert (or {}))", poly).unwrap();
         } else if matches!(op, analyzer::Operation::And) {
             writeln!(&mut self.writer, "(assert (and {}))", poly).unwrap();
         }
     }
-    fn write_assert_boolean_func(&mut self, func_name: String, inputs: String) {
+    pub fn write_assert_boolean_func(&mut self, func_name: String, inputs: String) {
         writeln!(&mut self.writer, "(assert ({} {}))", func_name, inputs).unwrap();
     }
     /// Returns a string representing an assertion in the SMT-LIB format.
@@ -177,7 +172,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// the target value for the assertion, the node type specifies the type of the expression, and the
     /// operation determines whether it is an equality or inequality assertion.
     ///
-    fn get_assert(
+    pub fn get_assert(
         &mut self,
         poly: String,
         value: String,
@@ -250,86 +245,4 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     pub fn get_and(&mut self, or_str: String) -> String {
         format!("(and {})", or_str)
     }
-}
-
-pub fn write_start<W: Write>(w: &mut W, prime: String) -> Printer<W> {
-    let mut p = Printer::new(w);
-    p.write_start(prime);
-    p
-}
-
-pub fn write_end<W: Write>(p: &mut Printer<W>) {
-    p.write_end();
-}
-
-pub fn write_var(p: &mut Printer<File>, name: String) {
-    p.write_var(name);
-}
-pub fn write_define_fn(p: &mut Printer<File>, name: String, inputs: String, outputs: String, body: String) {
-    p.write_define_fn(name, inputs, outputs,body);
-}
-pub fn write_declare_fn(p: &mut Printer<File>, name: String, inputs: String, outputs: String) {
-    p.write_declare_fn(name, inputs, outputs);
-}
-pub fn write_term<W: Write>(
-    p: &mut Printer<W>,
-    op: String,
-    left: String,
-    ntl: analyzer::NodeType,
-    right: String,
-    ntr: analyzer::NodeType,
-) -> String {
-    p.write_term(op, left, ntl, right, ntr)
-}
-
-pub fn write_assert(
-    p: &mut Printer<File>,
-    poly: String,
-    value: String,
-    nt: analyzer::NodeType,
-    op: analyzer::Operation,
-) {
-    p.write_assert(poly, value, nt, op);
-}
-
-pub fn write_assert_bool(p: &mut Printer<File>, poly: String, op: analyzer::Operation) {
-    p.write_assert_bool(poly, op);
-}
-
-pub fn write_assert_boolean_func(
-    p: &mut Printer<File>,
-    func_name: String,
-    inputs: String,
-) {
-    p.write_assert_boolean_func(func_name, inputs);
-}
-
-pub fn get_assert(
-    p: &mut Printer<File>,
-    poly: String,
-    value: String,
-    nt: analyzer::NodeType,
-    op: analyzer::Operation,
-) -> Result<String> {
-    p.get_assert(poly, value, nt, op)
-}
-
-pub fn write_get_value(p: &mut Printer<File>, var: String) {
-    p.write_get_value(var);
-}
-
-pub fn write_push(p: &mut Printer<File>, number: u8) {
-    p.write_push(number);
-}
-
-pub fn write_pop(p: &mut Printer<File>, number: u8) {
-    p.write_pop(number);
-}
-
-pub fn get_or(p: &mut Printer<File>, or_str: String) -> String {
-    p.get_or(or_str)
-}
-
-pub fn get_and(p: &mut Printer<File>, and_str: String) -> String {
-    p.get_and(and_str)
 }

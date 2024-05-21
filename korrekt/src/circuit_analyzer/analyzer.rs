@@ -11,6 +11,8 @@ use std::{
     process::Command,
 };
 
+use lazy_static::lazy_static;
+
 use crate::io::analyzer_io::{output_result, retrieve_user_input_for_underconstrained};
 use crate::io::analyzer_io_type::{
     AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, VerificationMethod,
@@ -32,10 +34,8 @@ pub struct Analyzer<F: AnalyzableField> {
     pub cs: ConstraintSystem<F>,
     /// The regions in the circuit.
     pub regions: Vec<Region>,
-
     // The fixed cells in the circuit, arranged as [column][row].
     pub fixed: Vec<Vec<BigInt>>,
-
     pub selectors: Vec<Vec<bool>>,
     pub log: Vec<String>,
     pub permutation: HashMap<String, String>,
@@ -43,9 +43,18 @@ pub struct Analyzer<F: AnalyzableField> {
     pub cell_to_cycle_head: HashMap<String, String>,
     pub counter: u32,
     pub lookup_mappings: Vec<HashMap<String, usize>>,
-
     pub lookup_tables: Vec<LookupTable>,
+    pub analysis_type: AnalyzerType,
+    pub prime: String,
+    pub all_variables: HashSet<String>,
 }
+
+pub struct AnalyzerSetup<F: AnalyzableField> {
+    pub analyzer: Analyzer<F>,
+    pub smt_file: File,
+}
+
+
 #[derive(Debug)]
 pub enum NodeType {
     Constant,
@@ -84,11 +93,22 @@ pub struct LookupTable {
     pub matched_lookup_exists: bool,
 }
 
+lazy_static! {
+    pub static ref SMT_FILE_PATH: &'static str = "src/output/out.smt2";
+}
+
 impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn new<ConcreteCircuit: Circuit<F>>(
         circuit: &ConcreteCircuit,
         k: u32,
-    ) -> Result<Self, Error> {
+        analysis_type: AnalyzerType,
+        analyzer_input: Option<&AnalyzerInput>,
+    ) -> Result<AnalyzerSetup<F>, anyhow::Error> {
+        let modulus = bn256::fr::MODULUS_STR;
+        let without_prefix = modulus.trim_start_matches("0x");
+        let prime = BigInt::from_str_radix(without_prefix, 16)
+            .unwrap()
+            .to_string();
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
         let (permutation, instace_cells, cell_to_cycle_head) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
@@ -124,7 +144,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             fixed.push(new_col);
         }
 
-        Ok(Analyzer {
+        let mut analyzer = Analyzer {
             cs: analyzable.cs,
             regions: analyzable.regions,
             fixed: fixed,
@@ -136,7 +156,77 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             counter: 0,
             lookup_mappings: Vec::new(),
             lookup_tables: Vec::new(),
-        })
+            analysis_type,
+            prime,
+            all_variables: HashSet::new(),
+        };
+
+        fs::create_dir_all("src/output/").unwrap();
+        let mut smt_file =
+            std::fs::File::create(&*SMT_FILE_PATH).context("Failed to create file!")?;
+        let mut printer = Printer::new(&mut smt_file);
+
+        println!("analyzer_input: {:?}", analyzer_input);
+
+        if matches!(
+            analyzer.analysis_type,
+            AnalyzerType::UnderconstrainedCircuit
+        ) {
+            if analyzer_input.unwrap().verification_method == VerificationMethod::Specific {
+                let instance = retrieve_user_input_for_underconstrained::<Fr>(
+                    analyzer_input.unwrap(),
+                    &analyzer.instace_cells,
+                )
+                .context("Failed to retrieve user input!")?;
+                analyzer.instace_cells = instance.clone();
+            }
+
+            printer.write_start(analyzer.prime.to_owned());
+
+            let _ = analyzer.decompose_polynomial(&mut printer, &analyzer_input.unwrap());
+
+            for permutation in &analyzer.permutation {
+                let mut permutation_r = permutation.0.to_owned();
+                let mut permutation_l = permutation.1.to_owned();
+                if analyzer
+                    .cell_to_cycle_head
+                    .contains_key(&permutation.0.to_owned())
+                {
+                    permutation_r = analyzer.cell_to_cycle_head[permutation.0].to_owned();
+                }
+
+                if !analyzer.all_variables.contains(&permutation_r) {
+                    analyzer.all_variables.insert(permutation_r.clone());
+
+                    printer.write_var(permutation_r.to_owned());
+                }
+                if analyzer
+                    .cell_to_cycle_head
+                    .contains_key(&permutation.1.to_owned())
+                {
+                    permutation_l = analyzer.cell_to_cycle_head[permutation.1].to_owned();
+                }
+
+                if !permutation_l.eq(&permutation_l) {
+                    if !analyzer.all_variables.contains(&permutation_l) {
+                        analyzer.all_variables.insert(permutation_l.clone());
+                        printer.write_var(permutation_l.to_owned());
+                    }
+
+                    let neg = format!("(ff.neg {})", permutation_l);
+                    let term = printer.write_term(
+                        "add".to_owned(),
+                        permutation_r.to_owned(),
+                        NodeType::Advice,
+                        neg,
+                        NodeType::Advice,
+                    );
+                    printer.write_assert(term, "0".to_owned(), NodeType::Poly, Operation::Equal);
+                }
+            }
+        }
+
+        Ok(AnalyzerSetup { analyzer, smt_file})
     }
 
     /// Detects unused custom gates
@@ -277,7 +367,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 {
                                     used = true;
                                 }
-
                             }
                         }
                     }
@@ -461,7 +550,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     row_set.clone(),
                 )?;
 
-            let function_body = smt::get_or(printer, big_cons_str);
+            let function_body = printer.get_or(big_cons_str);
 
             if matched_lookup_exists {
                 self.lookup_tables.push(LookupTable {
@@ -497,70 +586,15 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn analyze_underconstrained(
         &mut self,
         analyzer_input: &AnalyzerInput,
-        base_field_prime: &str,
+        file: &mut File,
     ) -> Result<AnalyzerOutput> {
-        fs::create_dir_all("src/output/").unwrap();
-        let smt_file_path = "src/output/out.smt2";
-        let mut smt_file =
-            std::fs::File::create(smt_file_path).context("Failed to create file!")?;
-        let mut printer = smt::write_start(&mut smt_file, base_field_prime.to_owned());
-
-        let _ = Self::decompose_polynomial(self, &mut printer, &analyzer_input);
-
-        let instance_string = analyzer_input.verification_input.instances_string.clone();
-
         let mut analyzer_output: AnalyzerOutput = AnalyzerOutput {
             output_status: AnalyzerOutputStatus::Invalid,
         };
 
-        for permutation in &self.permutation {
-            let mut permutation_r = permutation.0.to_owned();
-            let mut permutation_l = permutation.1.to_owned();
-            if self
-                .cell_to_cycle_head
-                .contains_key(&permutation.0.to_owned())
-            {
-                permutation_r = self.cell_to_cycle_head[permutation.0].to_owned();
-            }
-
-            smt::write_var(&mut printer, permutation_r.to_owned());
-            if self
-                .cell_to_cycle_head
-                .contains_key(&permutation.1.to_owned())
-            {
-                permutation_l = self.cell_to_cycle_head[permutation.1].to_owned();
-            }
-
-            if !permutation_l.eq(&permutation_r) {
-                smt::write_var(&mut printer, permutation_l.to_owned());
-
-                let neg = format!("(ff.neg {})", permutation_l);
-                let term = smt::write_term(
-                    &mut printer,
-                    "add".to_owned(),
-                    permutation_r.to_owned(),
-                    NodeType::Advice,
-                    neg,
-                    NodeType::Advice,
-                );
-                smt::write_assert(
-                    &mut printer,
-                    term,
-                    "0".to_owned(),
-                    NodeType::Poly,
-                    Operation::Equal,
-                );
-            }
-        }
-
-        let output_status: AnalyzerOutputStatus = Self::uniqueness_assertion(
-            self,
-            smt_file_path.to_owned(),
-            &instance_string,
-            &analyzer_input,
-            &mut printer,
-        )
-        .context("Failed to run control uniqueness function!")?;
+        let output_status: AnalyzerOutputStatus =
+            Self::uniqueness_assertion(self, &analyzer_input, file)
+                .context("Failed to run control uniqueness function!")?;
 
         analyzer_output.output_status = output_status;
         output_result(analyzer_input, &analyzer_output);
@@ -604,6 +638,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         es: &HashMap<Selector, Vec<usize>>,
         fixed: &Vec<Vec<BigInt>>,
         cell_to_cycle_head: &HashMap<String, String>,
+        all_variables: &mut HashSet<String>,
     ) -> (String, NodeType, IsZeroExpression) {
         let mut is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
@@ -669,7 +704,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 if cell_to_cycle_head.contains_key(&term) {
                     t = cell_to_cycle_head[&term.clone()].to_string();
                 }
-                smt::write_var(printer, t.to_string());
+
+                if !all_variables.contains(&t) {
+                    all_variables.insert(t.clone());
+                    printer.write_var(t.to_string());
+                }
                 (t.to_string(), NodeType::Advice, is_zero_expression)
             }
             Expression::Instance(_instance_query) => {
@@ -685,6 +724,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
+                    all_variables,
                 );
                 if matches!(is_zero_expression, IsZeroExpression::Zero) {
                     return (
@@ -714,6 +754,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
+                    all_variables,
                 );
                 let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     b,
@@ -724,6 +765,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
+                    all_variables,
                 );
 
                 if matches!(left_is_zero, IsZeroExpression::Zero)
@@ -736,8 +778,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     );
                 }
 
-                let term = smt::write_term(
-                    printer,
+                let term = printer.write_term(
                     "add".to_owned(),
                     node_str_left,
                     node_type_left,
@@ -756,6 +797,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
+                    all_variables,
                 );
                 let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     b,
@@ -766,6 +808,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
+                    all_variables,
                 );
 
                 if matches!(left_is_zero, IsZeroExpression::Zero)
@@ -790,8 +833,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     return (node_str_left, node_type_left, left_is_zero);
                 }
 
-                let term = smt::write_term(
-                    printer,
+                let term = printer.write_term(
                     "mul".to_owned(),
                     node_str_left,
                     node_type_left,
@@ -811,6 +853,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
+                    all_variables,
                 );
                 let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     _poly,
@@ -821,6 +864,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
+                    all_variables,
                 );
                 if matches!(left_is_zero, IsZeroExpression::Zero)
                     || matches!(right_is_zero, IsZeroExpression::Zero)
@@ -843,8 +887,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 } else if matches!(right_is_zero, IsZeroExpression::One) {
                     return (node_str_left, node_type_left, left_is_zero);
                 }
-                let term = smt::write_term(
-                    printer,
+                let term = printer.write_term(
                     "mul".to_owned(),
                     node_str_left,
                     node_type_left,
@@ -871,6 +914,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         es: &HashMap<Selector, Vec<usize>>,
         fixed: &Vec<Vec<BigInt>>,
         cell_to_cycle_head: &HashMap<String, String>,
+        all_variables: &mut HashSet<String>,
     ) -> Result<(String, NodeType, String, IsZeroExpression)> {
         let is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
@@ -928,7 +972,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 if cell_to_cycle_head.contains_key(&term) {
                     t = cell_to_cycle_head[&term.clone()].to_string();
                 }
-                smt::write_var(printer, t.to_string());
+                if !all_variables.contains(&t) {
+                    all_variables.insert(t.clone());
+                    printer.write_var(t.to_string());
+                }
                 Ok((
                     t.to_string(),
                     NodeType::Advice,
@@ -946,7 +993,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 if cell_to_cycle_head.contains_key(&term) {
                     t = cell_to_cycle_head[&term.clone()].to_string();
                 }
-                smt::write_var(printer, t.to_string());
+                if !all_variables.contains(&t) {
+                    all_variables.insert(t.clone());
+                    printer.write_var(t.to_string());
+                }
                 Ok((
                     t.to_string(),
                     NodeType::Advice,
@@ -972,6 +1022,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
+                        all_variables,
                     ).with_context(|| format!("Failed to decompose the left side of the Product expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                 let (node_str_right, node_type_right, variable_right, right_is_zero) =
                     Self::decompose_lookup_expression(
@@ -983,6 +1034,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
+                        all_variables,
                     ).with_context(|| format!("Failed to decompose the right side of the Product expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                 if matches!(node_type_left, NodeType::Invalid) {
                     return Err(anyhow!("Left side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
@@ -1023,8 +1075,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     return Ok((node_str_left, node_type_left, var, left_is_zero));
                 }
 
-                let term = smt::write_term(
-                    printer,
+                let term = printer.write_term(
                     "mul".to_owned(),
                     node_str_left,
                     node_type_left,
@@ -1075,10 +1126,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &region.enabled_selectors,
                                     &self.fixed,
                                     &self.cell_to_cycle_head,
+                                    &mut self.all_variables,
                                 );
 
-                                smt::write_assert(
-                                    printer,
+                                printer.write_assert(
                                     node_str,
                                     "0".to_owned(),
                                     NodeType::Poly,
@@ -1128,6 +1179,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &region.enabled_selectors,
                                 &self.fixed,
                                 &self.cell_to_cycle_head,
+                                &mut self.all_variables,
                             );
                             if !matches!(is_zero, IsZeroExpression::Zero) {
                                 cons_str_vec.push(node_str);
@@ -1153,7 +1205,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         if big_cons_str.is_empty() {
                             continue;
                         }
-                        smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                        printer.write_assert_bool(big_cons_str, Operation::Or);
                     }
                 }
             }
@@ -1185,14 +1237,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 };
 
                 let t = format!("{:?}", self.fixed[col_indices[col]][row]);
-                let sa = smt::get_assert(
-                    printer,
-                    cons_str.clone(),
-                    t,
-                    NodeType::Advice,
-                    Operation::Equal,
-                )
-                .context("Failed to generate assert!")?;
+                let sa = printer
+                    .get_assert(cons_str.clone(), t, NodeType::Advice, Operation::Equal)
+                    .context("Failed to generate assert!")?;
                 equalities.push(sa);
             }
 
@@ -1202,7 +1249,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             if eq_str.is_empty() {
                 continue;
             }
-            let and_eqs = smt::get_and(printer, eq_str);
+            let and_eqs = printer.get_and(eq_str);
             if and_eqs.is_empty() {
                 continue;
             }
@@ -1230,8 +1277,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let mut index = 0;
         let mut matched_lookup_exists = false;
         if self.lookup_tables.len() > 0 {
-            (matched_lookup_exists, index) =
-                self.match_equivalent_lookup_tables(row_set.clone());
+            (matched_lookup_exists, index) = self.match_equivalent_lookup_tables(row_set.clone());
         }
         if matched_lookup_exists {
             Ok((self.lookup_tables[index].function_body.clone(), true, index))
@@ -1248,14 +1294,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     };
 
                     let t = format!("{:?}", row[col]);
-                    let sa = smt::get_assert(
-                        printer,
-                        cons_str.clone(),
-                        t,
-                        NodeType::Advice,
-                        Operation::Equal,
-                    )
-                    .context("Failed to generate assert!")?;
+                    let sa = printer
+                        .get_assert(cons_str.clone(), t, NodeType::Advice, Operation::Equal)
+                        .context("Failed to generate assert!")?;
                     equalities.push(sa);
                 }
 
@@ -1265,7 +1306,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 if eq_str.is_empty() {
                     continue;
                 }
-                let and_eqs = smt::get_and(printer, eq_str);
+                let and_eqs = printer.get_and(eq_str);
                 if and_eqs.is_empty() {
                     continue;
                 }
@@ -1276,7 +1317,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 big_cons_str.push_str(var);
             }
             Ok((big_cons_str, false, 0))
-        } 
+        }
     }
     // Extracts the lookup dependant cells and writes assertions of an uninterpreted function using an SMT printer.
     // Also extract the list of all lookup dependant cells and their corresponding lookup mappings. These data will be used for checking if a under-constrained circuit is false positive.
@@ -1345,6 +1386,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &region.enabled_selectors,
                                 &self.fixed,
                                 &self.cell_to_cycle_head,
+                                &mut self.all_variables,
                             )
                         .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                             if !matches!(is_zero, IsZeroExpression::Zero) {
@@ -1416,8 +1458,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         LookupMethod::Interpreted
                                     ) {
                                         if !self.lookup_tables[lookup_index].matched_lookup_exists {
-                                            smt::write_define_fn(
-                                                printer,
+                                            printer.write_define_fn(
                                                 function_name.clone(),
                                                 function_input,
                                                 "Bool".to_owned(),
@@ -1425,8 +1466,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                             );
                                         }
                                     } else {
-                                        smt::write_declare_fn(
-                                            printer,
+                                        printer.write_declare_fn(
                                             function_name.clone(),
                                             "F".to_owned(),
                                             "Bool".to_owned(),
@@ -1440,15 +1480,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         .iter()
                                         .fold(String::new(), |acc, x| acc + x + " ");
                                     let cons_str = cons_str.trim();
-                                    smt::write_assert_boolean_func(
-                                        printer,
+                                    printer.write_assert_boolean_func(
                                         function_name.clone(),
                                         cons_str.to_owned(),
                                     );
                                 } else {
                                     for cons_str in cons_str_vec.iter() {
-                                        smt::write_assert_boolean_func(
-                                            printer,
+                                        printer.write_assert_boolean_func(
                                             function_name.clone(),
                                             format!("{}", cons_str).to_owned(),
                                         );
@@ -1463,8 +1501,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         }
         Ok(())
     }
-    
-
 
     #[cfg(any(feature = "use_scroll_halo2_proofs"))]
     fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
@@ -1512,7 +1548,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             continue;
                         }
 
-                        smt::write_assert_bool(printer, big_cons_str, Operation::Or);
+                        printer.write_assert_bool(big_cons_str, Operation::Or);
                     }
                 }
             }
@@ -1528,14 +1564,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     ///
     pub fn uniqueness_assertion(
         &mut self,
-        smt_file_path: String,
-        instance_cols_string: &HashMap<String, i64>,
         analyzer_input: &AnalyzerInput,
-        printer: &mut smt::Printer<File>,
+        file: &mut File,
     ) -> Result<AnalyzerOutputStatus> {
+        
+        let mut printer = Printer::new(file);
         let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus::NotUnderconstrainedLocal;
         let mut variables: HashSet<String> = HashSet::new();
-        for variable in printer.vars.keys() {
+        for variable in &self.all_variables {
             variables.insert(variable.clone());
         }
 
@@ -1545,12 +1581,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         match analyzer_input.verification_method {
             // For specific public input, directly write assertions for each variable.
             VerificationMethod::Specific => {
-                for var in instance_cols_string {
+                for var in self.instace_cells.iter() {
                     // Declare the variables in the SMT formula.
-                    smt::write_var(printer, var.0.to_owned());
+                    if !self.all_variables.contains(&var.0.to_owned()) {
+                        self.all_variables.insert(var.0.clone());
+                        printer.write_var(var.0.to_owned());
+                    }
                     // Write an assertion that each veriables equals the given value.
-                    smt::write_assert(
-                        printer,
+                    printer.write_assert(
                         var.0.clone(),
                         (*var.1).to_string(),
                         NodeType::Instance,
@@ -1560,11 +1598,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             }
             // For random verification, set the number of iterations as specified.
             VerificationMethod::Random => {
-                max_iterations = analyzer_input.verification_input.iterations;
+                max_iterations = analyzer_input.iterations;
             }
-            VerificationMethod::None => {},
+            VerificationMethod::None => {}
         }
-        let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
+        let model = Self::solve_and_get_model(SMT_FILE_PATH.to_string(), &variables)
             .context("Failed to solve and get model!")?;
         // With uninterpreted function, the model might be invalid due to the lookup constraints. We will ignore these models.
         let mut valid_model_lookeded_up = false;
@@ -1576,7 +1614,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let mut uc_lookup_dependency: bool = false;
         for i in 1..=max_iterations {
             // Attempt to solve the SMT problem and obtain a model.
-            let model = Self::solve_and_get_model(smt_file_path.clone(), &variables)
+            let model = Self::solve_and_get_model(SMT_FILE_PATH.to_string(), &variables)
                 .context("Failed to solve and get model!")?;
             if matches!(model.sat, Satisfiability::Unsatisfiable) {
                 result = AnalyzerOutputStatus::NotUnderconstrained;
@@ -1612,7 +1650,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     info!("{} : {}", r.1.name, r.1.value.element)
                 }
                 // Imitate the creation of a new solver by utilizing the stack functionality of solver
-                smt::write_push(printer, 1);
+                printer.write_push(1);
 
                 //*** To check the model is under-constrained we need to:
                 //      1. Fix the public input
@@ -1625,7 +1663,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 for var in variables.iter() {
                     // The second condition is needed because the following constraints would've been added already to the solver in the beginning.
                     // It is not strictly necessary, but there is no point in adding redundant constraints to the solver.
-                    if instance_cols_string.contains_key(var)
+                    if self.instace_cells.contains_key(var)
                         && !matches!(
                             analyzer_input.verification_method,
                             VerificationMethod::Specific
@@ -1633,26 +1671,26 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     {
                         // 1. Fix the public input
                         let result_from_model = &model.result[var];
-                        let sa = smt::get_assert(
-                            printer,
-                            result_from_model.name.clone(),
-                            result_from_model.value.element.clone(),
-                            NodeType::Instance,
-                            Operation::Equal,
-                        )
-                        .context("Failled to generate assert!")?;
+                        let sa = printer
+                            .get_assert(
+                                result_from_model.name.clone(),
+                                result_from_model.value.element.clone(),
+                                NodeType::Instance,
+                                Operation::Equal,
+                            )
+                            .context("Failled to generate assert!")?;
                         same_assignments.push(sa);
                     } else {
                         //2. Change the other vars
                         let result_from_model = &model.result[var];
-                        let sa = smt::get_assert(
-                            printer,
-                            result_from_model.name.clone(),
-                            result_from_model.value.element.clone(),
-                            NodeType::Instance,
-                            Operation::NotEqual,
-                        )
-                        .context("Failled to generate assert!")?;
+                        let sa = printer
+                            .get_assert(
+                                result_from_model.name.clone(),
+                                result_from_model.value.element.clone(),
+                                NodeType::Instance,
+                                Operation::NotEqual,
+                            )
+                            .context("Failled to generate assert!")?;
                         diff_assignments.push(sa);
                     }
                 }
@@ -1667,14 +1705,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
 
                 // 3. add these rules to the current solver,
-                let or_diff_assignments = smt::get_or(printer, diff_str);
+                let or_diff_assignments = printer.get_or(diff_str);
                 same_str.push_str(&or_diff_assignments);
-                let and_all = smt::get_and(printer, same_str);
-                smt::write_assert_bool(printer, and_all, Operation::And);
+                let and_all = printer.get_and(same_str);
+                printer.write_assert_bool(and_all, Operation::And);
 
                 // 4. find a model that satisfies these rules
                 let model_with_constraint =
-                    Self::solve_and_get_model(smt_file_path.clone(), &variables)
+                    Self::solve_and_get_model(SMT_FILE_PATH.to_string(), &variables)
                         .context("Failed to solve and get model!")?;
 
                 // If using uninterpreted function, we need to check if the model is valid by performing the lookup.
@@ -1720,21 +1758,21 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 } else {
                     info!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
                 }
-                smt::write_pop(printer, 1);
+                printer.write_pop(1);
             }
 
             // If no model found, add some rules to the initial solver to make sure does not generate the same model again
             let mut negated_model_variable_assignments = vec![];
             for res in &model.result {
-                if instance_cols_string.contains_key(&res.1.name) {
-                    let sa = smt::get_assert(
-                        printer,
-                        res.1.name.clone(),
-                        res.1.value.element.clone(),
-                        NodeType::Instance,
-                        Operation::NotEqual,
-                    )
-                    .context("Failled to generate assert!")?;
+                if self.instace_cells.contains_key(&res.1.name) {
+                    let sa = printer
+                        .get_assert(
+                            res.1.name.clone(),
+                            res.1.value.element.clone(),
+                            NodeType::Instance,
+                            Operation::NotEqual,
+                        )
+                        .context("Failled to generate assert!")?;
                     negated_model_variable_assignments.push(sa);
                 }
             }
@@ -1742,7 +1780,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             for var in negated_model_variable_assignments.iter() {
                 neg_model.push_str(var);
             }
-            smt::write_assert_bool(printer, neg_model, Operation::Or);
+            printer.write_assert_bool(neg_model, Operation::Or);
         }
         if uc_lookup_dependency_fp
             && matches!(result, AnalyzerOutputStatus::NotUnderconstrainedLocal)
@@ -1792,9 +1830,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let mut copy_printer = Printer::new(&mut smt_file_copy);
 
         // Add (check-sat) (get-value var) ... here.
-        smt::write_end(&mut copy_printer);
+        copy_printer.write_end();
         for var in variables.iter() {
-            smt::write_get_value(&mut copy_printer, var.clone());
+            copy_printer.write_get_value(var.clone());
         }
         let output = Command::new("cvc5").arg(smt_file_copy_path).output();
         let term = output.unwrap();
@@ -1918,27 +1956,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn dispatch_analysis(
         &mut self,
         analyzer_input: &mut AnalyzerInput,
-        prime: &str,
+        file: &mut File,
     ) -> Result<AnalyzerOutput> {
-        match analyzer_input.analysis_type {
+        match self.analysis_type {
             AnalyzerType::UnusedGates => self.analyze_unused_custom_gates(),
             AnalyzerType::UnconstrainedCells => self.analyze_unconstrained_cells(),
             AnalyzerType::UnusedColumns => self.analyze_unused_columns(),
-            AnalyzerType::UnderconstrainedCircuit => {
-                if analyzer_input.verification_method == VerificationMethod::Specific {
-                    let instance = retrieve_user_input_for_underconstrained::<Fr>(
-                        analyzer_input,
-                        &self.instace_cells,
-                    )
-                    .context("Failed to retrieve user input!")?;
-                    analyzer_input.verification_input.instances_string = instance.clone();
-                    println!("Instance columns: {:?}", instance);
-                }
-                else {
-                    analyzer_input.verification_input.instances_string = self.instace_cells.clone();
-                }
-                self.analyze_underconstrained(analyzer_input, prime)
-            }
+            AnalyzerType::UnderconstrainedCircuit => self.analyze_underconstrained(analyzer_input,file),
         }
     }
 }

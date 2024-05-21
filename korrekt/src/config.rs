@@ -1,9 +1,8 @@
-use std::collections::HashMap;
 use anyhow::{anyhow, Context, Result};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use crate::io::analyzer_io_type::{AnalyzerInput, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod};
+use crate::io::analyzer_io_type::{AnalyzerInput, AnalyzerType, LookupMethod, VerificationMethod};
 
 impl AnalyzerInput {
     pub fn load_config<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -21,14 +20,13 @@ impl AnalyzerInput {
             .as_str()
             .ok_or_else(|| anyhow!("Analysis type not found in the configuration"))?;
         
-        let verification_input = VerificationInput {
-            instances_string: HashMap::new(),
-            iterations: config["analyzer_input"]["iterations"]
+        
+        let iterations = config["analyzer_input"]["iterations"]
                 .as_str()
                 .ok_or_else(|| anyhow!("Iterations not found in the configuration"))?
                 .parse::<u128>()
-                .context("Failed to parse iterations as u128")?,
-        };
+                .context("Failed to parse iterations as u128")?;
+        
 
         let lookup_method = config["analyzer_input"]["lookup_method"]
             .as_str()
@@ -39,10 +37,9 @@ impl AnalyzerInput {
             .ok_or_else(|| anyhow!("Verification method not found in the configuration"))?;
         
         Ok(AnalyzerInput {
-            analysis_type: Self::parse_analysis_type(analysis_type).unwrap(),
             verification_method: Self::parse_verification_method(verification_method).unwrap(),
-            verification_input,
             lookup_method: Self::parse_lookup_method(lookup_method).unwrap(),
+            iterations
         })
     }
     fn parse_analysis_type(input: &str) -> Result<AnalyzerType> {

@@ -8,16 +8,15 @@ use korrekt::sample_circuits::pse_v1 as sample_circuits;
 use korrekt::sample_circuits::scroll as sample_circuits;
 #[cfg(feature = "use_zcash_halo2_proofs")]
 use korrekt::sample_circuits::zcash as sample_circuits;
-use std::{collections::HashMap, marker::PhantomData, path::Path};
+use std::{marker::PhantomData, path::Path};
 
 use anyhow::{Context, Ok};
 use korrekt::{
     circuit_analyzer::analyzer::Analyzer,
     io::analyzer_io_type::{
-        AnalyzerInput, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
+        AnalyzerInput, AnalyzerType, LookupMethod, VerificationMethod,
     },
 };
-use num::{BigInt, Num};
 extern crate env_logger;
 extern crate log;
 
@@ -189,12 +188,8 @@ fn setup_analyzer(
 ) -> anyhow::Result<AnalyzerInput> {
     info!("Setting up analyzer with LookupMethod: {:?}, Iterations: {}, AnalysisType: {:?}, VerificationMethod: {:?}", lookup_method, iterations, analysis_type, verification_method);
     Ok(AnalyzerInput {
-        analysis_type,
         verification_method,
-        verification_input: VerificationInput {
-            instances_string: HashMap::new(),
-            iterations,
-        },
+        iterations,
         lookup_method,
     })
 }
@@ -203,16 +198,10 @@ fn run_analysis(analyzer_input: &mut AnalyzerInput) -> anyhow::Result<()> {
     let circuit = sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
     let k = 6;
 
-    let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+    let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(analyzer_input)).unwrap();
 
-    let modulus = bn256::fr::MODULUS_STR;
-    let without_prefix = modulus.trim_start_matches("0x");
-    let prime = BigInt::from_str_radix(without_prefix, 16)
-        .unwrap()
-        .to_string();
-
-    analyzer
-        .dispatch_analysis(analyzer_input, &prime)
+    analyzer_setup.analyzer
+        .dispatch_analysis(analyzer_input,&mut analyzer_setup.smt_file)
         .context("Failed to perform analysis!")?;
     Ok(())
 }

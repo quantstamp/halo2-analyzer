@@ -4,7 +4,7 @@ use std::{collections::HashMap, io};
 use crate::{
     circuit_analyzer::{analyzable::AnalyzableField,halo2_proofs_libs::*},
     io::analyzer_io_type::{
-        AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod
+        AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, VerificationMethod
     },
 };
 /// Retrieves user input for underconstrained circuit analysis.
@@ -53,7 +53,7 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
                 VerificationMethod::Random => {
                     info!(
                         "The circuit is over-constrained for {} random input(s).",
-                        analyzer_input.verification_input.iterations
+                        analyzer_input.iterations
                     );
                 }
                 VerificationMethod::None => {},
@@ -71,7 +71,7 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
                 VerificationMethod::Random => {
                     info!(
                         "The circuit is not under-constrained for {} random input(s).",
-                        analyzer_input.verification_input.iterations
+                        analyzer_input.iterations
                     );
                 }
                 VerificationMethod::None => {},
@@ -96,7 +96,7 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
                     info!(
                         "\nTwo assignments found to advice columns, making the circuit under-constrained for {} random input(s). But the assignmets are not valid in lookup table(s)!
                         \nProbably a false positive.\n",
-                        analyzer_input.verification_input.iterations
+                        analyzer_input.iterations
                     );
                 }
                 VerificationMethod::None => {},
