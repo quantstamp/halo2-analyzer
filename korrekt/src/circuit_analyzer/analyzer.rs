@@ -166,8 +166,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             std::fs::File::create(&*SMT_FILE_PATH).context("Failed to create file!")?;
         let mut printer = Printer::new(&mut smt_file);
 
-        println!("analyzer_input: {:?}", analyzer_input);
-
         if matches!(
             analyzer.analysis_type,
             AnalyzerType::UnderconstrainedCircuit
@@ -207,7 +205,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     permutation_l = analyzer.cell_to_cycle_head[permutation.1].to_owned();
                 }
 
-                if !permutation_l.eq(&permutation_l) {
+                if !permutation_l.eq(&permutation_r) {
                     if !analyzer.all_variables.contains(&permutation_l) {
                         analyzer.all_variables.insert(permutation_l.clone());
                         printer.write_var(permutation_l.to_owned());

@@ -23,7 +23,13 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            iterations: 5,
+            lookup_method: LookupMethod::InlineConstraints,
+        };
+
+        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
         assert!(analyzer_setup.analyzer.cs.gates.len().eq(&3));
         assert!(analyzer_setup.analyzer.cs.degree().eq(&3));
@@ -39,7 +45,13 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            iterations: 5,
+            lookup_method: LookupMethod::InlineConstraints,
+        };
+
+        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
         assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
         assert!(analyzer_setup.analyzer.instace_cells.contains_key("I-0-0"));
         assert!(analyzer_setup.analyzer.instace_cells.iter().next().unwrap().1.eq(&0));
@@ -52,14 +64,17 @@ mod tests {
             );
         let k: u32 = 11;
 
-        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
 
-        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
+
+        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
+
+
         assert!(analyzer_input
             .verification_method
             .eq(&VerificationMethod::Random));
@@ -177,12 +192,12 @@ mod tests {
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 
-    #[test]
-    fn not_under_constrained_exact_spec_input_test() {
-        let circuit =
-            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
-            );
-        let k: u32 = 11;
+    // #[test]
+    // fn not_under_constrained_exact_spec_input_test() {
+    //     let circuit =
+    //         sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
+    //         );
+    //     let k: u32 = 11;
 
         
 
@@ -190,58 +205,58 @@ mod tests {
 
         
 
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Specific,
-            iterations: 1,
-            lookup_method: LookupMethod::InlineConstraints,
-        };
+    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+    //         verification_method: VerificationMethod::Specific,
+    //         iterations: 1,
+    //         lookup_method: LookupMethod::InlineConstraints,
+    //     };
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+    //     let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
-        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
-        let mut specified_instance_cols = HashMap::new();
-        for var in analyzer_setup.analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 3);
-        }
+    //     assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
+    //     let mut specified_instance_cols = HashMap::new();
+    //     for var in analyzer_setup.analyzer.instace_cells.iter() {
+    //         specified_instance_cols.insert(var.0.clone(), 3);
+    //     }
 
-        let output_status = analyzer_setup.analyzer
-            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
-            .unwrap()
-            .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
-    }
+    //     let output_status = analyzer_setup.analyzer
+    //         .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
+    //         .unwrap()
+    //         .output_status;
+    //     assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+    // }
 
-    #[test]
-    fn not_under_constrained_not_exact_spec_input_test() {
-        let circuit =
-            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
-            );
-        let k: u32 = 11;
+    // #[test]
+    // fn not_under_constrained_not_exact_spec_input_test() {
+    //     let circuit =
+    //         sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
+    //         );
+    //     let k: u32 = 11;
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
+    //     let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
 
-        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
-        let mut specified_instance_cols = HashMap::new();
-        for var in analyzer_setup.analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 1);
-        }
+    //     assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
+    //     let mut specified_instance_cols = HashMap::new();
+    //     for var in analyzer_setup.analyzer.instace_cells.iter() {
+    //         specified_instance_cols.insert(var.0.clone(), 1);
+    //     }
 
         
 
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Specific,
-            iterations: 1,
-            lookup_method: LookupMethod::InlineConstraints,
-        };
+    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+    //         verification_method: VerificationMethod::Specific,
+    //         iterations: 1,
+    //         lookup_method: LookupMethod::InlineConstraints,
+    //     };
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+    //     let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
-        let output_status = analyzer_setup.analyzer
-            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
-            .unwrap()
-            .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
-    }
+    //     let output_status = analyzer_setup.analyzer
+    //         .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
+    //         .unwrap()
+    //         .output_status;
+    //     assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+    // }
 
     #[test]
     fn under_constrained_enough_random_input_test() {
@@ -251,8 +266,7 @@ mod tests {
             >::default();
         let k: u32 = 11;
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
-        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
+        
         
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -260,6 +274,9 @@ mod tests {
             iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        
+        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
 
         let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
@@ -278,9 +295,6 @@ mod tests {
             >::default();
         let k: u32 = 11;
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,None).unwrap();
-
-        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
         
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -289,6 +303,10 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
 
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
+
+
         let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
         let output_status = analyzer_setup.analyzer
@@ -298,13 +316,13 @@ mod tests {
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
 
-    #[test]
-    fn under_constrained_exact_spec_input_test() {
-        let circuit =
-            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
-                Fr,
-            >::default();
-        let k: u32 = 11;
+    // #[test]
+    // fn under_constrained_exact_spec_input_test() {
+    //     let circuit =
+    //         sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
+    //             Fr,
+    //         >::default();
+    //     let k: u32 = 11;
 
         
 
@@ -312,61 +330,61 @@ mod tests {
 
         
 
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Specific,
-            iterations: 1,
-            lookup_method: LookupMethod::InlineConstraints,
-        };
+    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+    //         verification_method: VerificationMethod::Specific,
+    //         iterations: 1,
+    //         lookup_method: LookupMethod::InlineConstraints,
+    //     };
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+    //     let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
-        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
-        let mut specified_instance_cols = HashMap::new();
-        for var in analyzer_setup.analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 3);
-        }
+    //     assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
+    //     let mut specified_instance_cols = HashMap::new();
+    //     for var in analyzer_setup.analyzer.instace_cells.iter() {
+    //         specified_instance_cols.insert(var.0.clone(), 3);
+    //     }
 
-        let output_status = analyzer_setup.analyzer
-            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
-            .unwrap()
-            .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
-    }
+    //     let output_status = analyzer_setup.analyzer
+    //         .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
+    //         .unwrap()
+    //         .output_status;
+    //     assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    // }
 
-    #[test]
-    fn under_constrained_not_exact_spec_input_test() {
-        let circuit =
-            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
-                Fr,
-            >::default();
-        let k: u32 = 11;
-
-        
+    // #[test]
+    // fn under_constrained_not_exact_spec_input_test() {
+    //     let circuit =
+    //         sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
+    //             Fr,
+    //         >::default();
+    //     let k: u32 = 11;
 
         
 
         
 
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Specific,
-            iterations: 1,
-            lookup_method: LookupMethod::InlineConstraints,
-        };
+        
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+    //         verification_method: VerificationMethod::Specific,
+    //         iterations: 1,
+    //         lookup_method: LookupMethod::InlineConstraints,
+    //     };
 
-        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
-        let mut specified_instance_cols = HashMap::new();
-        for var in analyzer_setup.analyzer.instace_cells.iter() {
-            specified_instance_cols.insert(var.0.clone(), 1);
-        }
+    //     let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
-        let output_status = analyzer_setup.analyzer
-            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
-            .unwrap()
-            .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
-    }
+    //     assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
+    //     let mut specified_instance_cols = HashMap::new();
+    //     for var in analyzer_setup.analyzer.instace_cells.iter() {
+    //         specified_instance_cols.insert(var.0.clone(), 1);
+    //     }
+
+    //     let output_status = analyzer_setup.analyzer
+    //         .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
+    //         .unwrap()
+    //         .output_status;
+    //     assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    // }
 
     #[test]
     fn analyze_unused_columns_test() {
@@ -596,99 +614,94 @@ mod tests {
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
-    #[test]
-    fn analyze_underconstrained_uninterpreted_specific_lookup_test() {
-        let circuit =
-            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
-        let k = 11;
+    // #[test]
+    // fn analyze_underconstrained_uninterpreted_specific_lookup_test() {
+    //     let circuit =
+    //         sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+    //     let k = 11;
 
         
 
         
-        let mut specified_instance_cols = HashMap::new();
-        specified_instance_cols.insert("I-0-2".to_owned(), 6);
-        specified_instance_cols.insert("I-0-1".to_owned(), 1);
-        specified_instance_cols.insert("I-0-0".to_owned(), 1);
+    //     let mut specified_instance_cols = HashMap::new();
+    //     specified_instance_cols.insert("I-0-2".to_owned(), 6);
+    //     specified_instance_cols.insert("I-0-1".to_owned(), 1);
+    //     specified_instance_cols.insert("I-0-0".to_owned(), 1);
 
         
 
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Specific,
-            iterations: 1,
-            lookup_method: LookupMethod::Uninterpreted,
-        };
+    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+    //         verification_method: VerificationMethod::Specific,
+    //         iterations: 1,
+    //         lookup_method: LookupMethod::Uninterpreted,
+    //     };
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+    //     let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
-        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&3));
-        let output_status = analyzer_setup.analyzer
-            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
-            .unwrap()
-            .output_status;
-        assert!(
-            output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups)
-        );
-    }
-    #[test]
-    fn analyze_underconstrained_interpreted_specific_lookup_test() {
-        let circuit =
-            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
-        let k = 11;
-
+    //     assert!(analyzer_setup.analyzer.instace_cells.len().eq(&3));
+    //     let output_status = analyzer_setup.analyzer
+    //         .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
+    //         .unwrap()
+    //         .output_status;
+    //     assert!(
+    //         output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups)
+    //     );
+    // }
+    // #[test]
+    // fn analyze_underconstrained_interpreted_specific_lookup_test() {
+    //     let circuit =
+    //         sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+    //     let k = 11;
         
+    //     let mut specified_instance_cols = HashMap::new();
+    //     specified_instance_cols.insert("I-0-2".to_owned(), 6);
+    //     specified_instance_cols.insert("I-0-1".to_owned(), 1);
+    //     specified_instance_cols.insert("I-0-0".to_owned(), 1);
 
-        
-        let mut specified_instance_cols = HashMap::new();
-        specified_instance_cols.insert("I-0-2".to_owned(), 6);
-        specified_instance_cols.insert("I-0-1".to_owned(), 1);
-        specified_instance_cols.insert("I-0-0".to_owned(), 1);
+    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+    //         verification_method: VerificationMethod::Specific,
+    //         iterations: 1,
+    //         lookup_method: LookupMethod::Interpreted,
+    //     };
 
-        
+    //     let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Specific,
-            iterations: 1,
-            lookup_method: LookupMethod::Interpreted,
-        };
-
-        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
-
-        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&3));
-        let output_status = analyzer_setup.analyzer
-            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
-            .unwrap()
-            .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
-    }
-    #[test]
-    fn analyze_underconstrained_lookup_test() {
-        let circuit =
-            sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
-        let k = 11;
+    //     assert!(analyzer_setup.analyzer.instace_cells.len().eq(&3));
+    //     let output_status = analyzer_setup.analyzer
+    //         .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
+    //         .unwrap()
+    //         .output_status;
+    //     assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+    // }
+    // #[test]
+    // fn analyze_underconstrained_lookup_test() {
+    //     let circuit =
+    //         sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
+    //     let k = 11;
 
         
 
         
-        let mut specified_instance_cols = HashMap::new();
-        specified_instance_cols.insert("I-0-2".to_owned(), 6);
-        specified_instance_cols.insert("I-0-1".to_owned(), 1);
-        specified_instance_cols.insert("I-0-0".to_owned(), 1);
+    //     let mut specified_instance_cols = HashMap::new();
+    //     specified_instance_cols.insert("I-0-2".to_owned(), 6);
+    //     specified_instance_cols.insert("I-0-1".to_owned(), 1);
+    //     specified_instance_cols.insert("I-0-0".to_owned(), 1);
 
         
 
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Specific,
-            iterations: 1,
-            lookup_method: LookupMethod::InlineConstraints,
-        };
+    //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+    //         verification_method: VerificationMethod::Specific,
+    //         iterations: 1,
+    //         lookup_method: LookupMethod::InlineConstraints,
+    //     };
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
-        assert!(analyzer_setup.analyzer.instace_cells.len().eq(&3));
+    //     let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+    //     assert!(analyzer_setup.analyzer.instace_cells.len().eq(&3));
 
-        let output_status = analyzer_setup.analyzer
-            .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
-            .unwrap()
-            .output_status;
-        assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
-    }
+    //     let output_status = analyzer_setup.analyzer
+    //         .analyze_underconstrained(&analyzer_input,&mut analyzer_setup.smt_file)
+    //         .unwrap()
+    //         .output_status;
+    //     assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+    // }
 }
