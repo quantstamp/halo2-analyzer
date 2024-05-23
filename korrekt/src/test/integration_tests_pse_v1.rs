@@ -27,7 +27,7 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
         assert!(analyzer_setup.analyzer.cs.gates.len().eq(&3));
         assert!(analyzer_setup.analyzer.cs.degree().eq(&3));
@@ -46,7 +46,7 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();        
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();        
         assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
         assert!(analyzer_setup.analyzer.instace_cells.contains_key("I-0-0"));
         assert!(analyzer_setup.analyzer.instace_cells.iter().next().unwrap().1.eq(&0));
@@ -66,7 +66,7 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
         assert!(analyzer_setup.analyzer.instace_cells.len().eq(&1));
 
 
@@ -89,6 +89,8 @@ mod tests {
             iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
 
         let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
@@ -113,6 +115,8 @@ mod tests {
             iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
 
         let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
@@ -215,6 +219,8 @@ mod tests {
             iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
 
         let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
@@ -241,6 +247,8 @@ mod tests {
             iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
 
         let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
         assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
@@ -374,6 +382,8 @@ mod tests {
             iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
 
         let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
@@ -399,6 +409,8 @@ mod tests {
             iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
 
         let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
@@ -463,6 +475,8 @@ mod tests {
             iterations: 5,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
 
         let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 

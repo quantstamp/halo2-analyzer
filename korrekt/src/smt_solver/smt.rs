@@ -1,6 +1,4 @@
 use anyhow::{anyhow, Result};
-use std::collections::HashMap;
-use std::fs::File;
 use std::io::Write;
 
 use crate::circuit_analyzer::analyzer::{self, NodeType};

@@ -81,13 +81,7 @@ mod tests {
     fn simple_test() {
         let circuit = sample_circuits::simple::mul::MulCircuit::<Fr>::default();
         let k: u32 = 3;
-
         
-
-        
-
-        
-
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             iterations: 5,
@@ -111,13 +105,7 @@ mod tests {
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
         let k: u32 = 11;
-
         
-
-        
-
-        
-
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             iterations: 5,
@@ -140,9 +128,6 @@ mod tests {
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
         let k: u32 = 11;
-
-        
-
         
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -150,6 +135,7 @@ mod tests {
             iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
         let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
         assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
@@ -167,9 +153,6 @@ mod tests {
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
             );
         let k: u32 = 11;
-
-        
-
         
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -194,13 +177,7 @@ mod tests {
     //         sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
     //         );
     //     let k: u32 = 11;
-
         
-
-        
-
-        
-
     //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
     //         verification_method: VerificationMethod::Specific,
     //         iterations: 1,
@@ -236,9 +213,6 @@ mod tests {
     //     for var in analyzer_setup.analyzer.instace_cells.iter() {
     //         specified_instance_cols.insert(var.0.clone(), 1);
     //     }
-
-        
-
     //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
     //         verification_method: VerificationMethod::Specific,
     //         iterations: 1,
@@ -260,10 +234,7 @@ mod tests {
             sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuitUnderConstrained::<
                 Fr,
             >::default();
-        let k: u32 = 11;
-
-        
-        
+        let k: u32 = 11;        
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
@@ -290,14 +261,12 @@ mod tests {
                 Fr,
             >::default();
         let k: u32 = 11;
-
-        
-
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             iterations: 1,
             lookup_method: LookupMethod::InlineConstraints,
         };
+        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
         let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
         assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
@@ -319,13 +288,7 @@ mod tests {
     //             Fr,
     //         >::default();
     //     let k: u32 = 11;
-
-        
-
        
-
-        
-
     //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
     //         verification_method: VerificationMethod::Specific,
     //         iterations: 1,
@@ -354,13 +317,7 @@ mod tests {
     //             Fr,
     //         >::default();
     //     let k: u32 = 11;
-
         
-
-        
-
-        
-
     //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
     //         verification_method: VerificationMethod::Specific,
     //         iterations: 1,
@@ -566,9 +523,6 @@ mod tests {
         );
 
         let k = 11;
-
-        
-
         
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -591,9 +545,6 @@ mod tests {
             sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
 
         let k = 11;
-
-        
-
         
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -615,17 +566,11 @@ mod tests {
     //     let circuit =
     //         sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
     //     let k = 11;
-
-        
-
         
     //     let mut specified_instance_cols = HashMap::new();
     //     specified_instance_cols.insert("I-0-2".to_owned(), 6);
     //     specified_instance_cols.insert("I-0-1".to_owned(), 1);
     //     specified_instance_cols.insert("I-0-0".to_owned(), 1);
-
-        
-
     //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
     //         verification_method: VerificationMethod::Specific,
     //         iterations: 1,
@@ -674,17 +619,11 @@ mod tests {
     //     let circuit =
     //         sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
     //     let k = 11;
-
-        
-
         
     //     let mut specified_instance_cols = HashMap::new();
     //     specified_instance_cols.insert("I-0-2".to_owned(), 6);
     //     specified_instance_cols.insert("I-0-1".to_owned(), 1);
     //     specified_instance_cols.insert("I-0-0".to_owned(), 1);
-
-        
-
     //     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
     //         verification_method: VerificationMethod::Specific,
     //         iterations: 1,

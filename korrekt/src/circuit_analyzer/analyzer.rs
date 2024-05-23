@@ -1407,6 +1407,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         &region.enabled_selectors,
                                         &self.fixed,
                                         &self.cell_to_cycle_head,
+                                        &mut self.all_variables,
                                     )
                                     .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                                 if !matches!(is_zero, IsZeroExpression::Zero) {
@@ -1501,7 +1502,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     }
 
     #[cfg(any(feature = "use_scroll_halo2_proofs"))]
-    fn decompose_lookups(&self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
+    fn decompose_lookups(&mut self, printer: &mut smt::Printer<File>) -> Result<(), anyhow::Error> {
         for region in &self.regions {
             if !region.enabled_selectors.is_empty() {
                 let (region_begin, region_end) = region.rows.unwrap();
@@ -1520,6 +1521,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &region.enabled_selectors,
                                     &self.fixed,
                                     &self.cell_to_cycle_head,
+                                    &mut self.all_variables,
                                 );
                                 if !matches!(is_zero, IsZeroExpression::Zero) {
                                     cons_str_vec.push(node_str.clone());
