@@ -1,14 +1,12 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use halo2_proofs::halo2curves::bn256::Fr;
-use halo2curves::bn256;
-use num::{BigInt, Num};
 use std::marker::PhantomData;
 
 use korrekt_V2;
 
 use korrekt_V2::circuit_analyzer::analyzer;
 use korrekt_V2::io::analyzer_io_type::{
-    self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
+    self, AnalyzerType, LookupMethod, VerificationMethod,
 };
 use korrekt_V2::sample_circuits;
 
@@ -30,7 +28,7 @@ use korrekt_V2::sample_circuits;
 macro_rules! run_underconstrained_benchmarks {
     ($c:expr, $($size:expr),*) => {
         {
-            let mut group = $c.benchmark_group("underconstrained_fibo_v2");
+            let mut group = $c.benchmark_group("underconstrained_fibo_v2_uninterpreted");
             group.sample_size(20);
             $(
                 group.bench_function(format!("size_{}", $size), |b| {
@@ -73,27 +71,18 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
         ROWS,
     >(PhantomData);
     let k: u32 = 11;
-
-    let mut analyzer = analyzer::Analyzer::new(&circuit, k).unwrap();
-
-    let modulus = bn256::fr::MODULUS_STR;
-    let without_prefix = modulus.trim_start_matches("0x");
-    let prime = BigInt::from_str_radix(without_prefix, 16)
-        .unwrap()
-        .to_string();
+    
 
     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
         verification_method: VerificationMethod::Random,
-        verification_input: VerificationInput {
-            instances_string: analyzer.instace_cells.clone(),
-            iterations: 5,
-        },
-        analysis_type: AnalyzerType::UnderconstrainedCircuit,
-        lookup_method: LookupMethod::Interpreted,
+        iterations: 5,
+        lookup_method: LookupMethod::Uninterpreted,
     };
+    let mut analyzer_setup: analyzer::AnalyzerSetup<Fr> = analyzer::Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
-    let _output_status = analyzer
-        .analyze_underconstrained(&analyzer_input, &prime)
+
+    let _output_status = analyzer_setup.analyzer
+        .analyze_underconstrained(&analyzer_input, &mut analyzer_setup.smt_file)
         .unwrap()
         .output_status;
 }

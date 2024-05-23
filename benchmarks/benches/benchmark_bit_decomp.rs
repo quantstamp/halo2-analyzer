@@ -1,12 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use halo2_proofs::halo2curves::bn256;
 use halo2_proofs::halo2curves::bn256::Fr;
-use num::{BigInt, Num};
-
 use korrekt_V2;
 
 use korrekt_V2::circuit_analyzer::analyzer;
-use korrekt_V2::io::analyzer_io_type::{self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod};
+use korrekt_V2::io::analyzer_io_type::{self, AnalyzerType, LookupMethod, VerificationMethod};
 use korrekt_V2::sample_circuits;
 
 /// `run_underconstrained_benchmarks` macro.
@@ -55,25 +52,18 @@ pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
         BITS,
     >::default();
 
-    let mut analyzer = analyzer::Analyzer::new(&circuit, k).unwrap();
-
-    let modulus = bn256::fr::MODULUS_STR;
-    let without_prefix = modulus.trim_start_matches("0x");
-    let prime = BigInt::from_str_radix(without_prefix, 16)
-        .unwrap()
-        .to_string();
+    
 
     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
         verification_method: VerificationMethod::Random,
-        verification_input: VerificationInput {
-            instances_string: analyzer.instace_cells.clone(),
-            iterations: 5,
-        },
-        analysis_type: AnalyzerType::UnderconstrainedCircuit,
+        iterations: 5,
         lookup_method: LookupMethod::Interpreted,
     };
 
-    let _result = analyzer.analyze_underconstrained(&analyzer_input, &prime);
+        let mut analyzer_setup: analyzer::AnalyzerSetup<Fr> = analyzer::Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+
+
+    let _result = analyzer_setup.analyzer.analyze_underconstrained(&analyzer_input, &mut analyzer_setup.smt_file);
 
 }
 

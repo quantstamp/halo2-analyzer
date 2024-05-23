@@ -58,6 +58,8 @@ fn main() -> Result<()> {
 
     print_lookup_results(&benchmarks);
 
+    print_matched_lookup_results(&benchmarks);
+
     Ok(())
 }
 
@@ -106,6 +108,27 @@ fn print_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
                      results.get("underconstrained_lookup_v2_inline").unwrap_or(&0.0),
                      results.get("underconstrained_lookup_v2_uninterpreted").unwrap_or(&0.0),
                      results.get("underconstrained_lookup_v2_interpreted").unwrap_or(&0.0)
+            );
+        }
+    }
+}
+
+fn print_matched_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
+    // Prepare the output headers
+    println!("{:<10} {:<20} {:<20}", "Size", "Version 2 Inline (ms)", "Version 2 Interpreted (ms)");
+
+    // Iterate through the benchmark data
+    for (size, results) in benchmarks {
+        // Check if the size contains an entry for any of the benchmark categories
+        let has_data = results.get("benchmark_multiple_matched_lookup_v2_inline").is_some()
+            || results.get("benchmark_multiple_matched_lookup_v2_interpreted").is_some();
+
+        // Skip sizes that have no data in any category
+        if has_data {
+            println!("{:<10} {:<20.2} {:<20.2}",
+                     size,
+                     results.get("benchmark_multiple_matched_lookup_v2_inline").unwrap_or(&0.0),
+                     results.get("benchmark_multiple_matched_lookup_v2_interpreted").unwrap_or(&0.0),
             );
         }
     }

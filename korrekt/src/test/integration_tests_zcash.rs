@@ -8,12 +8,8 @@ mod tests {
         analyzer_io_type::{AnalyzerOutputStatus, VerificationMethod},
     };
     use crate::sample_circuits::zcash as sample_circuits;
-    use halo2curves::bn256;
     use zcash_halo2_proofs::pasta::Fp as Fr;
 
-    use ff::PrimeField;
-    use num::{BigInt, Num};
-    use std::collections::HashMap;
     use std::marker::PhantomData;
 
     #[test]
@@ -303,7 +299,7 @@ mod tests {
             lookup_method: LookupMethod::InlineConstraints,
         };
 
-        let mut analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        let analyzer_setup = Analyzer::new(&circuit, k ,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
         assert!(analyzer_setup.analyzer.instace_cells.clone().len().eq(&1));
 
 

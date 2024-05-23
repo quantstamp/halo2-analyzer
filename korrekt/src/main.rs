@@ -8,7 +8,7 @@ use korrekt::sample_circuits::pse_v1 as sample_circuits;
 use korrekt::sample_circuits::scroll as sample_circuits;
 #[cfg(feature = "use_zcash_halo2_proofs")]
 use korrekt::sample_circuits::zcash as sample_circuits;
-use std::{marker::PhantomData, path::Path};
+use std::{marker::PhantomData, path::Path, time::Instant};
 
 use anyhow::{Context, Ok};
 use korrekt::{
@@ -28,7 +28,7 @@ use korrekt::circuit_analyzer::halo2_proofs_libs::*;
 use log::{info, warn};
 
 fn main() -> Result<()> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    //env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let matches = App::new("Halo2 Analyzer")
         .version("2.0")
@@ -195,13 +195,30 @@ fn setup_analyzer(
 }
 
 fn run_analysis(analyzer_input: &mut AnalyzerInput) -> anyhow::Result<()> {
-    let circuit = sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
-    let k = 6;
+    // Your circuit setup remains the same
+    let circuit =
+        sample_circuits::lookup_circuits::two_matched_lookups::MyCircuit::<
+            Fr,
+            34,
+        >(PhantomData);
+    let k = 11;
 
-    let mut analyzer_setup = Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(analyzer_input)).unwrap();
+    // Start timer for Analyzer::new
+    let start_new = Instant::now();
+    let mut analyzer_setup = Analyzer::new(&circuit, k, AnalyzerType::UnderconstrainedCircuit, Some(analyzer_input))
+        .unwrap();
+    // End timer and print elapsed time
+    let duration_new = start_new.elapsed();
+    println!("Time elapsed in Analyzer::new: {:?}", duration_new);
 
+    // Start timer for dispatch_analysis
+    let start_dispatch = Instant::now();
     analyzer_setup.analyzer
-        .dispatch_analysis(analyzer_input,&mut analyzer_setup.smt_file)
+        .dispatch_analysis(analyzer_input, &mut analyzer_setup.smt_file)
         .context("Failed to perform analysis!")?;
+    // End timer and print elapsed time
+    let duration_dispatch = start_dispatch.elapsed();
+    println!("Time elapsed in dispatch_analysis: {:?}", duration_dispatch);
+
     Ok(())
 }
