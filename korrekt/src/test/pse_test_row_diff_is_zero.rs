@@ -1,4 +1,4 @@
-// This is just a sample of how to import an external circuit and analyze it using the Analyzer. 
+// This is just a sample of how to import an external circuit and analyze it using the Analyzer.
 
 #[cfg(test)]
 mod test {
@@ -6,9 +6,7 @@ mod test {
     use crate::circuit_analyzer::halo2_proofs_libs::*;
     use crate::io::{
         analyzer_io_type,
-        analyzer_io_type::{
-            AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
-        },
+        analyzer_io_type::{AnalyzerType, LookupMethod, VerificationInput, VerificationMethod},
     };
     use gadgets::is_zero::{IsZeroChip, IsZeroConfig, IsZeroInstruction};
     use std::collections::HashMap;
