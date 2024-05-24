@@ -25,41 +25,70 @@ harness = false
 
 [[bench]]
 name = "benchmark_fibo_v1"
+path = "benches/benchmark_fibo/benchmark_fibo_v1.rs"
 harness = false
 
 
 [[bench]]
 name = "benchmark_fibo_v2_inline"
+path = "benches/benchmark_fibo/benchmark_fibo_v2_inline.rs"
 harness = false
 
 [[bench]]
 name = "benchmark_fibo_v2_uninterpreted"
+path = "benches/benchmark_fibo/benchmark_fibo_v2_uninterpreted.rs"
 harness = false
 
 [[bench]]
 name = "benchmark_fibo_v2_interpreted"
+path = "benches/benchmark_fibo/benchmark_fibo_v2_interpreted.rs"
 harness = false
+
 
 [[bench]]
 name = "benchmark_lookup_v1"
+path = "benches/benchmark_lookup/benchmark_lookup_v1.rs"
 harness = false
 
+[[bench]]
+name = "benchmark_lookup_v2_inline_SMT"
+path = "benches/benchmark_lookup/benchmark_lookup_v2_inline_SMT.rs"
+harness = false
 
 [[bench]]
 name = "benchmark_lookup_v2_inline"
+path = "benches/benchmark_lookup/benchmark_lookup_v2_inline.rs"
 harness = false
 
 [[bench]]
 name = "benchmark_lookup_v2_uninterpreted"
+path = "benches/benchmark_lookup/benchmark_lookup_v2_uninterpreted.rs"
 harness = false
 
 [[bench]]
 name = "benchmark_lookup_v2_interpreted"
+path = "benches/benchmark_lookup/benchmark_lookup_v2_interpreted.rs"
 harness = false
 
-# [[bench]]
-# name = "benchmark_fibo"
-# harness = false
+[[bench]]
+name = "benchmark_lookup_v2_interpreted_SMT"
+path = "benches/benchmark_lookup/benchmark_lookup_v2_interpreted_SMT.rs"
+harness = false
+
+[[bench]]
+name = "benchmark_5_matched_lookup_v2_inline"
+path = "benches/benchmark_5_matched/benchmark_5_matched_lookup_v2_inline.rs"
+harness = false
+
+[[bench]]
+name = "benchmark_10_matched_lookup_v2_interpreted"
+path = "benches/benchmark_10_matched/benchmark_10_matched_lookup_v2_interpreted.rs"
+harness = false
+
+[[bench]]
+name = "benchmark_15_matched_lookup_v2_interpreted"
+path = "benches/benchmark_15_matched/benchmark_15_matched_lookup_v2_interpreted.rs"
+harness = false
 
 [env]
 CRITERION_OUTPUT_FORMAT="json"

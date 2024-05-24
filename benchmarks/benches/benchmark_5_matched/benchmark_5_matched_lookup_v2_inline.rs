@@ -9,14 +9,14 @@ use korrekt_V2::sample_circuits;
 macro_rules! benchmark_with_size {
     ($c:expr, $size:expr) => {
         {
-            let mut group = $c.benchmark_group(format!("benchmark_multiple_matched_lookup_v2_interpreted"));
+            let mut group = $c.benchmark_group(format!("benchmark_5_matched_lookup_v2_inline"));
             group.sample_size(10);
 
             // Benchmark function
             group.bench_function(format!("size_{}", $size), |b| {
                 b.iter_batched(
                     || {
-                        let circuit = sample_circuits::pse_v1::lookup_circuits::multiple_matched_lookups::MyCircuit::<
+                        let circuit = sample_circuits::pse_v1::lookup_circuits::five_matched_lookups::MyCircuit::<
                             Fr,
                             $size,
                         >(PhantomData);
@@ -24,7 +24,7 @@ macro_rules! benchmark_with_size {
                         let analyzer_input = analyzer_io_type::AnalyzerInput {
                             verification_method: VerificationMethod::Random,
                             iterations: 5,
-                            lookup_method: LookupMethod::Interpreted,
+                            lookup_method: LookupMethod::InlineConstraints,
                         };
                         let analyzer_setup = Analyzer::new(
                             &circuit,

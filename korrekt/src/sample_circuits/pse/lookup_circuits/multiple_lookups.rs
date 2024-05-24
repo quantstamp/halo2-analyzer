@@ -74,14 +74,14 @@ impl<F: PrimeField> FibonacciChip<F> {
         meta.lookup("RC_lookup",|meta| {
             let s = meta.query_selector(s_range);
             let value = meta.query_advice(col_a, Rotation::cur());
-            //(s * out, xor_table[2]),
+            
             vec![(s * value, range_check_table[0])]
         });
 
         meta.lookup("RC1_lookup", |meta| {
             let s1 = meta.query_selector(s_range_1);
             let value = meta.query_advice(col_b, Rotation::cur());
-            //(s * out, xor_table[2]),
+            
             vec![(s1 * value, range_check_table_1[0])]
         });
 

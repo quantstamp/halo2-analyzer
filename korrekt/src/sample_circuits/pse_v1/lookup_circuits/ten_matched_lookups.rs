@@ -10,6 +10,11 @@ pub struct FibonacciConfig<const SIZE: usize> {
     pub s_xor_2: Selector,
     pub s_xor_3: Selector,
     pub s_xor_4: Selector,
+    pub s_xor_5: Selector,
+    pub s_xor_6: Selector,
+    pub s_xor_7: Selector,
+    pub s_xor_8: Selector,
+    pub s_xor_9: Selector,
     pub s_range: Selector,
     pub s_range_1: Selector,
     pub range_check_table: [TableColumn; 1],
@@ -19,6 +24,11 @@ pub struct FibonacciConfig<const SIZE: usize> {
     pub xor_table_2: [TableColumn; 3],
     pub xor_table_3: [TableColumn; 3],
     pub xor_table_4: [TableColumn; 3],
+    pub xor_table_5: [TableColumn; 3],
+    pub xor_table_6: [TableColumn; 3],
+    pub xor_table_7: [TableColumn; 3],
+    pub xor_table_8: [TableColumn; 3],
+    pub xor_table_9: [TableColumn; 3],
     pub instance: Column<Instance>,
 }
 
@@ -46,6 +56,11 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
         let s_xor_2: Selector = meta.complex_selector();
         let s_xor_3: Selector = meta.complex_selector();
         let s_xor_4: Selector = meta.complex_selector();
+        let s_xor_5: Selector = meta.complex_selector();
+        let s_xor_6: Selector = meta.complex_selector();
+        let s_xor_7: Selector = meta.complex_selector();
+        let s_xor_8: Selector = meta.complex_selector();
+        let s_xor_9: Selector = meta.complex_selector();
         let s_range = meta.complex_selector();
         let s_range_1 = meta.complex_selector();
         let instance = meta.instance_column();
@@ -80,6 +95,36 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
             meta.lookup_table_column(),
         ];
 
+        let xor_table_5 = [
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+        ];
+
+        let xor_table_6: [TableColumn; 3] = [
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+        ];
+
+        let xor_table_7 = [
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+        ];
+
+        let xor_table_8 = [
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+        ];
+
+        let xor_table_9 = [
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+            meta.lookup_table_column(),
+        ];
+
         let range_check_table = [meta.lookup_table_column()];
 
         let range_check_table_1 = [meta.lookup_table_column()];
@@ -104,14 +149,12 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
         meta.lookup("RC_lookup", |meta| {
             let s = meta.query_selector(s_range);
             let lhs = meta.query_advice(col_a, Rotation::cur());
-            //(s * out, xor_table[2]),
             vec![(s * lhs, range_check_table[0])]
         });
 
         meta.lookup("RC1_lookup", |meta| {
             let s1 = meta.query_selector(s_range_1);
             let rhs = meta.query_advice(col_b, Rotation::cur());
-            //(s * out, xor_table[2]),
             vec![(s1 * rhs, range_check_table_1[0])]
         });
 
@@ -175,6 +218,66 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
             ]
         });
 
+        meta.lookup("XOR_lookup_5", |meta| {
+            let s = meta.query_selector(s_xor_5);
+            let lhs = meta.query_advice(col_a, Rotation::cur());
+            let rhs = meta.query_advice(col_b, Rotation::cur());
+            let out = meta.query_advice(col_c, Rotation::cur());
+            vec![
+                (s.clone() * lhs, xor_table_5[0]),
+                (s.clone() * rhs, xor_table_5[1]),
+                (s * out, xor_table_5[2]),
+            ]
+        });
+
+        meta.lookup("XOR_lookup_6", |meta| {
+            let s = meta.query_selector(s_xor_6);
+            let lhs = meta.query_advice(col_a, Rotation::cur());
+            let rhs = meta.query_advice(col_b, Rotation::cur());
+            let out = meta.query_advice(col_c, Rotation::cur());
+            vec![
+                (s.clone() * lhs, xor_table_6[0]),
+                (s.clone() * rhs, xor_table_6[1]),
+                (s * out, xor_table_6[2]),
+            ]
+        });
+
+        meta.lookup("XOR_lookup_7", |meta| {
+            let s = meta.query_selector(s_xor_7);
+            let lhs = meta.query_advice(col_a, Rotation::cur());
+            let rhs = meta.query_advice(col_b, Rotation::cur());
+            let out = meta.query_advice(col_c, Rotation::cur());
+            vec![
+                (s.clone() * lhs, xor_table_7[0]),
+                (s.clone() * rhs, xor_table_7[1]),
+                (s * out, xor_table_7[2]),
+            ]
+        });
+
+        meta.lookup("XOR_lookup_8", |meta| {
+            let s = meta.query_selector(s_xor_8);
+            let lhs = meta.query_advice(col_a, Rotation::cur());
+            let rhs = meta.query_advice(col_b, Rotation::cur());
+            let out = meta.query_advice(col_c, Rotation::cur());
+            vec![
+                (s.clone() * lhs, xor_table_8[0]),
+                (s.clone() * rhs, xor_table_8[1]),
+                (s * out, xor_table_8[2]),
+            ]
+        });
+
+        meta.lookup("XOR_lookup_9", |meta| {
+            let s = meta.query_selector(s_xor_9);
+            let lhs = meta.query_advice(col_a, Rotation::cur());
+            let rhs = meta.query_advice(col_b, Rotation::cur());
+            let out = meta.query_advice(col_c, Rotation::cur());
+            vec![
+                (s.clone() * lhs, xor_table_9[0]),
+                (s.clone() * rhs, xor_table_9[1]),
+                (s * out, xor_table_9[2]),
+            ]
+        });
+
 
         FibonacciConfig {
             advice: [col_a, col_b, col_c],
@@ -184,6 +287,11 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
             s_xor_2,
             s_xor_3,
             s_xor_4,
+            s_xor_5,
+            s_xor_6,
+            s_xor_7,
+            s_xor_8,
+            s_xor_9,
             s_range,
             s_range_1,
             range_check_table,
@@ -193,6 +301,11 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
             xor_table_2,
             xor_table_3,
             xor_table_4,
+            xor_table_5,
+            xor_table_6,
+            xor_table_7,
+            xor_table_8,
+            xor_table_9,
             instance,
         }
     }
@@ -396,6 +509,171 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
         )
     }
 
+    fn load_xor_table_5(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+        layouter.assign_table(
+            || "xor_table_5",
+            |mut table| {
+                let mut idx = 0;
+                for lhs in 0..6 {
+                    for rhs in 0..6 {
+                        table.assign_cell(
+                            || "lhs",
+                            self.config.xor_table_5[0],
+                            idx,
+                            || Value::known(F::from(6-lhs-1)),
+                        )?;
+                        table.assign_cell(
+                            || "rhs",
+                            self.config.xor_table_5[1],
+                            idx,
+                            || Value::known(F::from(6-rhs-1)),
+                        )?;
+                        table.assign_cell(
+                            || "lhs ^ rhs",
+                            self.config.xor_table_5[2],
+                            idx,
+                            || Value::known(F::from(6-lhs-1 ^ 6-rhs-1)),
+                        )?;
+                        idx += 1;
+                    }
+                }
+                Ok(())
+            },
+        )
+    }
+
+    fn load_xor_table_6(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+        layouter.assign_table(
+            || "xor_table_6",
+            |mut table| {
+                let mut idx = 0;
+                for lhs in 0..6 {
+                    for rhs in 0..6 {
+                        table.assign_cell(
+                            || "lhs",
+                            self.config.xor_table_6[0],
+                            idx,
+                            || Value::known(F::from(lhs)),
+                        )?;
+                        table.assign_cell(
+                            || "rhs",
+                            self.config.xor_table_6[1],
+                            idx,
+                            || Value::known(F::from(rhs)),
+                        )?;
+                        table.assign_cell(
+                            || "lhs ^ rhs",
+                            self.config.xor_table_6[2],
+                            idx,
+                            || Value::known(F::from(lhs ^ rhs)),
+                        )?;
+                        idx += 1;
+                    }
+                }
+                Ok(())
+            },
+        )
+    }
+
+    fn load_xor_table_7(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+        layouter.assign_table(
+            || "xor_table_7",
+            |mut table| {
+                let mut idx = 0;
+                for lhs in 0..6 {
+                    for rhs in 0..6 {
+                        table.assign_cell(
+                            || "lhs",
+                            self.config.xor_table_7[0],
+                            idx,
+                            || Value::known(F::from(lhs)),
+                        )?;
+                        table.assign_cell(
+                            || "rhs",
+                            self.config.xor_table_7[1],
+                            idx,
+                            || Value::known(F::from(rhs)),
+                        )?;
+                        table.assign_cell(
+                            || "lhs ^ rhs",
+                            self.config.xor_table_7[2],
+                            idx,
+                            || Value::known(F::from(lhs ^ rhs)),
+                        )?;
+                        idx += 1;
+                    }
+                }
+                Ok(())
+            },
+        )
+    }
+
+    fn load_xor_table_8(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+        layouter.assign_table(
+            || "xor_table_8",
+            |mut table| {
+                let mut idx = 0;
+                for lhs in 0..6 {
+                    for rhs in 0..6 {
+                        table.assign_cell(
+                            || "lhs",
+                            self.config.xor_table_8[0],
+                            idx,
+                            || Value::known(F::from(lhs)),
+                        )?;
+                        table.assign_cell(
+                            || "rhs",
+                            self.config.xor_table_8[1],
+                            idx,
+                            || Value::known(F::from(rhs)),
+                        )?;
+                        table.assign_cell(
+                            || "lhs ^ rhs",
+                            self.config.xor_table_8[2],
+                            idx,
+                            || Value::known(F::from(lhs ^ rhs)),
+                        )?;
+                        idx += 1;
+                    }
+                }
+                Ok(())
+            },
+        )
+    }
+
+    fn load_xor_table_9(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
+        layouter.assign_table(
+            || "xor_table_9",
+            |mut table| {
+                let mut idx = 0;
+                for lhs in 0..6 {
+                    for rhs in 0..6 {
+                        table.assign_cell(
+                            || "lhs",
+                            self.config.xor_table_9[0],
+                            idx,
+                            || Value::known(F::from(lhs)),
+                        )?;
+                        table.assign_cell(
+                            || "rhs",
+                            self.config.xor_table_9[1],
+                            idx,
+                            || Value::known(F::from(rhs)),
+                        )?;
+                        table.assign_cell(
+                            || "lhs ^ rhs",
+                            self.config.xor_table_9[2],
+                            idx,
+                            || Value::known(F::from(lhs ^ rhs)),
+                        )?;
+                        idx += 1;
+                    }
+                }
+                Ok(())
+            },
+        )
+    }
+
     #[allow(clippy::type_complexity)]
     pub fn assign(
         &self,
@@ -446,6 +724,11 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
                             || b_cell.value().copied() + c_cell.value(),
                         )?
                     } else {
+                        self.config.s_xor_9.enable(&mut region, row)?;
+                        self.config.s_xor_8.enable(&mut region, row)?;
+                        self.config.s_xor_7.enable(&mut region, row)?;
+                        self.config.s_xor_6.enable(&mut region, row)?;
+                        self.config.s_xor_5.enable(&mut region, row)?;
                         self.config.s_xor_4.enable(&mut region, row)?;
                         self.config.s_xor_3.enable(&mut region, row)?;
                         self.config.s_xor_2.enable(&mut region, row)?;
@@ -514,6 +797,11 @@ impl<F: FieldExt, const SIZE: usize> Circuit<F> for MyCircuit<F, SIZE> {
         chip.load_xor_table_2(layouter.namespace(|| "lookup table"))?;
         chip.load_xor_table_3(layouter.namespace(|| "lookup table"))?;
         chip.load_xor_table_4(layouter.namespace(|| "lookup table"))?;
+        chip.load_xor_table_5(layouter.namespace(|| "lookup table"))?;
+        chip.load_xor_table_6(layouter.namespace(|| "lookup table"))?;
+        chip.load_xor_table_7(layouter.namespace(|| "lookup table"))?;
+        chip.load_xor_table_8(layouter.namespace(|| "lookup table"))?;
+        chip.load_xor_table_9(layouter.namespace(|| "lookup table"))?;
         chip.load_table_range(layouter.namespace(|| "range table"))?;
         chip.load_table_range_1(layouter.namespace(|| "range table 1"))?;
         let out_cell = chip.assign(layouter.namespace(|| "entire table"), SIZE)?;
