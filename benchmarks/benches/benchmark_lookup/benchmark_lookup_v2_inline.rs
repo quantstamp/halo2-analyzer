@@ -1,7 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use halo2_proofs::halo2curves::bn256::Fr;
-use halo2curves::bn256;
-use num::{BigInt, Num};
 use std::marker::PhantomData;
 
 use korrekt_V2;
@@ -11,6 +9,7 @@ use korrekt_V2::io::analyzer_io_type::{
     self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
 };
 use korrekt_V2::sample_circuits;
+use std::collections::HashMap;
 
 /// `run_underconstrained_benchmarks` macro.
 ///
@@ -30,7 +29,7 @@ use korrekt_V2::sample_circuits;
 macro_rules! run_underconstrained_benchmarks {
     ($c:expr, $($size:expr),*) => {
         {
-            let mut group = $c.benchmark_group("underconstrained_lookup_v2_interpreted");
+            let mut group = $c.benchmark_group("underconstrained_lookup_v2_inline");
             group.sample_size(10);
             $(
                 group.bench_function(format!("size_{}", $size), |b| {
@@ -48,7 +47,7 @@ macro_rules! run_underconstrained_benchmarks {
 /// It runs the benchmark for different specified sizes: 5, 8, 13, 21, and 34. The `run_underconstrained_benchmark_for_specified_size`
 /// function is called for each specified size.
 pub fn run_benchmark(c: &mut Criterion) {
-    run_underconstrained_benchmarks!(c, 5, 8, 13, 21);//, 34);
+    run_underconstrained_benchmarks!(c, 5, 8, 13, 21, 34); //, 34);
 }
 
 /// Runs an underconstrained benchmark for a specified size.
@@ -68,37 +67,36 @@ pub fn run_benchmark(c: &mut Criterion) {
 /// run_underconstrained_benchmark_for_specified_size::<2>();
 /// ```
 pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
-    let circuit = sample_circuits::pse_v1::lookup_circuits::multiple_matched_lookups::MyCircuit::<
+    let circuit = sample_circuits::pse_v1::lookup_circuits::two_matched_lookups::MyCircuit::<
         Fr,
         ROWS,
     >(PhantomData);
     let k: u32 = 11;
 
-    let mut analyzer = analyzer::Analyzer::new(&circuit, k).unwrap();
-
-    let modulus = bn256::fr::MODULUS_STR;
-    let without_prefix = modulus.trim_start_matches("0x");
-    let prime = BigInt::from_str_radix(without_prefix, 16)
-        .unwrap()
-        .to_string();
-
     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
         verification_method: VerificationMethod::Random,
         verification_input: VerificationInput {
-            instances_string: analyzer.instace_cells.clone(),
+            instance_cells: HashMap::new(),
             iterations: 5,
         },
-        analysis_type: AnalyzerType::UnderconstrainedCircuit,
-        lookup_method: LookupMethod::Interpreted,
+        lookup_method: LookupMethod::InlineConstraints,
     };
 
+    let mut analyzer = analyzer::Analyzer::new(
+        &circuit,
+        k,
+        AnalyzerType::UnderconstrainedCircuit,
+        Some(&analyzer_input),
+    )
+    .unwrap();
+
     let _output_status = analyzer
-        .analyze_underconstrained(&analyzer_input, &prime)
+        .analyze_underconstrained(&analyzer_input)
         .unwrap()
         .output_status;
 }
 
 criterion_group!(name = benches;
-                config = Criterion::default();                
+                config = Criterion::default();
                 targets = run_benchmark);
 criterion_main!(benches);

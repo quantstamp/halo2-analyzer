@@ -1,8 +1,10 @@
 use group::ff::Field;
-use zcash_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
-use zcash_halo2_proofs::plonk::{Error, Fixed, Advice, Circuit, Column, ConstraintSystem, Instance, Selector};
-use zcash_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
+use zcash_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
+use zcash_halo2_proofs::plonk::{
+    Advice, Circuit, Column, ConstraintSystem, Error, Fixed, Instance, Selector,
+};
+use zcash_halo2_proofs::poly::Rotation;
 
 #[derive(Debug, Clone)]
 pub struct MulConfig {
@@ -81,7 +83,7 @@ impl<F: Field> MulChip<F> {
                     || "-1",
                     self.config.col_fixed,
                     0,
-                    || -> Value<F> { Value::known(-F::ONE) }
+                    || -> Value<F> { Value::known(-F::ONE) },
                 )?;
 
                 let a_cell = region.assign_advice_from_instance(

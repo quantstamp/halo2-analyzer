@@ -1,9 +1,13 @@
 use super::{analyzable::AnalyzableField, halo2_proofs_libs::*};
-use num_bigint::Sign;
-use anyhow::{Context, Result};
-#[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
+#[cfg(any(
+    feature = "use_pse_halo2_proofs",
+    feature = "use_axiom_halo2_proofs",
+    feature = "use_scroll_halo2_proofs"
+))]
 use anyhow::anyhow;
+use anyhow::{Context, Result};
 use num::BigInt;
+use num_bigint::Sign;
 use std::collections::HashSet;
 
 // abstract interpretation of expressions
@@ -36,7 +40,9 @@ pub fn extract_columns<F: Field>(expr: &Expression<F>) -> HashSet<(Column<Any>, 
             Expression::Advice(advice_query) => {
                 let column = Column {
                     index: advice_query.column_index,
-                    column_type: Advice{ phase: advice_query.phase },
+                    column_type: Advice {
+                        phase: advice_query.phase,
+                    },
                 };
                 dst.insert((column.into(), advice_query.rotation));
             }
@@ -82,9 +88,7 @@ pub fn eval_abstract<F: AnalyzableField>(
             true => Ok(AbsResult::NonZero),
             false => Ok(AbsResult::Zero),
         },
-        Expression::Fixed(fixed_query) 
-        => 
-        {
+        Expression::Fixed(fixed_query) => {
             let col = fixed_query.column_index;
             let row = (fixed_query.rotation.0) as usize + region_begin;
             if fixed[col][row].sign() == Sign::NoSign {
@@ -95,7 +99,9 @@ pub fn eval_abstract<F: AnalyzableField>(
         }
         Expression::Advice { .. } => Ok(AbsResult::Variable),
         Expression::Instance { .. } => Ok(AbsResult::Variable),
-        Expression::Negated(expr) => eval_abstract(expr, selectors,region_begin,region_end,fixed),
+        Expression::Negated(expr) => {
+            eval_abstract(expr, selectors, region_begin, region_end, fixed)
+        }
         Expression::Sum(left, right) => {
             let res1 = eval_abstract(left, selectors,region_begin,region_end,fixed).with_context(|| format!(
                                     "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
@@ -134,10 +140,16 @@ pub fn eval_abstract<F: AnalyzableField>(
             if scale.is_zero().into() {
                 Ok(AbsResult::Zero)
             } else {
-                eval_abstract(expr, selectors,region_begin,region_end,fixed)
+                eval_abstract(expr, selectors, region_begin, region_end, fixed)
             }
         }
-        #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_axiom_halo2_proofs",feature = "use_scroll_halo2_proofs"))]
-        Expression::Challenge(_) => Err(anyhow!("Challenge expression in abstract evaluation resulted in Invalid Expression")),
+        #[cfg(any(
+            feature = "use_pse_halo2_proofs",
+            feature = "use_axiom_halo2_proofs",
+            feature = "use_scroll_halo2_proofs"
+        ))]
+        Expression::Challenge(_) => Err(anyhow!(
+            "Challenge expression in abstract evaluation resulted in Invalid Expression"
+        )),
     }
 }

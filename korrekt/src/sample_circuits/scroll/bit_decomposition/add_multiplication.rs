@@ -4,8 +4,6 @@ use scroll_halo2_proofs::plonk::*;
 use scroll_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-
-
 pub struct AddMultCircuit<F: Field> {
     a: F,
     b: F,
@@ -19,7 +17,6 @@ pub struct AddMultCircuitConfig<F: Field> {
     columns: [Column<Advice>; 25],
 }
 
-
 impl<F: Field> Default for AddMultCircuit<F> {
     fn default() -> Self {
         AddMultCircuit {
@@ -28,7 +25,6 @@ impl<F: Field> Default for AddMultCircuit<F> {
         }
     }
 }
-
 
 impl<F: Field> Circuit<F> for AddMultCircuit<F> {
     type Config = AddMultCircuitConfig<F>;

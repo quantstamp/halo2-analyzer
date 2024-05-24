@@ -1,27 +1,26 @@
 use group::ff::PrimeField as Field;
+use std::marker::PhantomData;
 use zcash_halo2_proofs::circuit::*;
 use zcash_halo2_proofs::plonk::*;
 use zcash_halo2_proofs::poly::Rotation;
-use std::marker::PhantomData;
 
-/// `TwoBitDecompCircuit` is a circuit designed to perform binary decomposition 
+/// `TwoBitDecompCircuit` is a circuit designed to perform binary decomposition
 /// on a two-digit binary number.
-/// 
+///
 /// The circuit takes two binary digits, `b0` and `b1`, and forms a two-bit binary number, denoted as x = b0 + 2*b1.
-/// 
-/// It uses custom gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the 
+///
+/// It uses custom gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the
 /// combined binary number, `x`.
-/// 
+///
 /// # Constraints
-/// 
+///
 /// |   Row   |   b0    |   b1    |   x    |  i  |    s     |
 /// |---------|---------|---------|--------|-----|----------|
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |
-/// 
+///
 /// Gate: b0_binary_check: s*b0*(1-b0)
 /// Gate: b1_binary_check: s*b1*(1-b1)
 /// Gate:        equality: s*(2*b1+b0-x)
-
 
 pub struct TwoBitDecompCircuit<F: Field> {
     b0: F,
@@ -38,7 +37,6 @@ pub struct TwoBitDecompCircuitConfig {
     s: Selector,
 }
 
-
 impl<F: Field> Default for TwoBitDecompCircuit<F> {
     fn default() -> Self {
         TwoBitDecompCircuit {
@@ -47,7 +45,6 @@ impl<F: Field> Default for TwoBitDecompCircuit<F> {
         }
     }
 }
-
 
 impl<F: Field> Circuit<F> for TwoBitDecompCircuit<F> {
     type Config = TwoBitDecompCircuitConfig;
@@ -125,20 +122,20 @@ impl<F: Field> Circuit<F> for TwoBitDecompCircuit<F> {
         Ok(())
     }
 }
-/// `TwoBitDecompCircuitUnderConstrained` is a version of the `TwoBitDecompCircuit` that underconstrains 
+/// `TwoBitDecompCircuitUnderConstrained` is a version of the `TwoBitDecompCircuit` that underconstrains
 /// the circuit for the sake of showcasing an example of an underconstrained circuit.
-/// 
+///
 /// The circuit takes two binary digits, `b0` and `b1`, and forms a two-bit binary number, denoted as x = b0 + 2*b1.
-/// 
-/// It uses gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the 
+///
+/// It uses gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the
 /// combined binary number, `x`. But the gate related to `b1` is missing. Which makes this cuircuit underconstrained.
-/// 
+///
 /// # Constraints
-/// 
+///
 /// |   Row   |   b0    |   b1    |   x    |  i  |    s     | Gate: b0_binary_check | Gate: b1_binary_check | Gate: equality |
 /// |---------|---------|---------|--------|-----|----------|-----------------------|-----------------------|----------------|
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |       s*b0*(1-b0)     |       s*b0*(1-b0)     |  s*(2*b1+b0-x) |
-/// 
+///
 
 pub struct TwoBitDecompCircuitUnderConstrained<F: Field> {
     b0: F,
@@ -159,8 +156,6 @@ impl<F: Field> Default for TwoBitDecompCircuitUnderConstrained<F> {
         }
     }
 }
-
-
 
 impl<F: Field> Circuit<F> for TwoBitDecompCircuitUnderConstrained<F> {
     type Config = TwoBitDecompCircuitConfig;

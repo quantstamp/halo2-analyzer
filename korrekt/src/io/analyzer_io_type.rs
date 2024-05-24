@@ -4,27 +4,26 @@ use std::collections::HashMap;
 pub enum VerificationMethod {
     Specific,
     Random,
-    None
+    None,
 }
 
 #[derive(Debug, Clone)]
 pub struct VerificationInput {
-    pub instances_string: HashMap<String, i64>,
+    pub instance_cells: HashMap<String, i64>,
     pub iterations: u128,
 }
-#[derive(Debug, PartialEq, Eq,Clone,Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LookupMethod {
     Uninterpreted,
     Interpreted,
     InlineConstraints,
-    None
+    None,
 }
 #[derive(Debug, Clone)]
 pub struct AnalyzerInput {
-    pub analysis_type: AnalyzerType,
     pub verification_method: VerificationMethod,
     pub verification_input: VerificationInput,
-    pub lookup_method: LookupMethod
+    pub lookup_method: LookupMethod,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -40,7 +39,7 @@ pub enum AnalyzerOutputStatus {
     UnconstrainedCells,
     NoUnconstrainedCells,
     UnusedColumns,
-    NoUnusedColumns
+    NoUnusedColumns,
 }
 
 #[derive(Debug)]

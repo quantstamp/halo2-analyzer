@@ -2,20 +2,20 @@ use crate::circuit_analyzer::halo2_proofs_libs::*;
 // use pse_v1_halo2_proofs::arithmetic::FieldExt;
 use std::marker::PhantomData;
 
-/// `TwoBitDecompCircuit` is a circuit designed to perform binary decomposition 
+/// `TwoBitDecompCircuit` is a circuit designed to perform binary decomposition
 /// on a two-digit binary number.
-/// 
+///
 /// The circuit takes two binary digits, `b0` and `b1`, and forms a two-bit binary number, denoted as x = b0 + 2*b1.
-/// 
-/// It uses custom gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the 
+///
+/// It uses custom gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the
 /// combined binary number, `x`.
-/// 
+///
 /// # Constraints
-/// 
+///
 /// |   Row   |   b0    |   b1    |   x    |  i  |    s     |
 /// |---------|---------|---------|--------|-----|----------|
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |
-/// 
+///
 /// Gate: b0_binary_check: s*b0*(1-b0)
 /// Gate: b1_binary_check: s*b1*(1-b1)
 /// Gate:        equality: s*(2*b1+b0-x)
@@ -119,20 +119,20 @@ impl<F: FieldExt> Circuit<F> for TwoBitDecompCircuit<F> {
         Ok(())
     }
 }
-/// `TwoBitDecompCircuitUnderConstrained` is a version of the `TwoBitDecompCircuit` that underconstrains 
+/// `TwoBitDecompCircuitUnderConstrained` is a version of the `TwoBitDecompCircuit` that underconstrains
 /// the circuit for the sake of showcasing an example of an underconstrained circuit.
-/// 
+///
 /// The circuit takes two binary digits, `b0` and `b1`, and forms a two-bit binary number, denoted as x = b0 + 2*b1.
-/// 
-/// It uses gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the 
+///
+/// It uses gates to ensure the binarity of `b0` and `b1`, and to enforce the correct formation of the
 /// combined binary number, `x`. But the gate related to `b1` is missing. Which makes this cuircuit underconstrained.
-/// 
+///
 /// # Constraints
-/// 
+///
 /// |   Row   |   b0    |   b1    |   x    |  i  |    s     | Gate: b0_binary_check | Gate: b1_binary_check | Gate: equality |
 /// |---------|---------|---------|--------|-----|----------|-----------------------|-----------------------|----------------|
 /// |   0     |   b0    |   b1    |  x     |  i  |    1     |       s*b0*(1-b0)     |       s*b0*(1-b0)     |  s*(2*b1+b0-x) |
-/// 
+///
 pub struct TwoBitDecompCircuitUnderConstrained<F: FieldExt> {
     b0: F,
     b1: F,

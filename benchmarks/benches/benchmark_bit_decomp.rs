@@ -1,12 +1,13 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use halo2_proofs::halo2curves::bn256;
-use halo2_proofs::halo2curves::bn256::Fr;
-use num::{BigInt, Num};
+use std::collections::HashMap;
 
+use criterion::{criterion_group, criterion_main, Criterion};
+use halo2_proofs::halo2curves::bn256::Fr;
 use korrekt_V2;
 
 use korrekt_V2::circuit_analyzer::analyzer;
-use korrekt_V2::io::analyzer_io_type::{self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod};
+use korrekt_V2::io::analyzer_io_type::{
+    self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
+};
 use korrekt_V2::sample_circuits;
 
 /// `run_underconstrained_benchmarks` macro.
@@ -46,7 +47,6 @@ pub fn run_benchmark(c: &mut Criterion) {
     run_underconstrained_benchmarks!(c, 2, 4, 8, 16, 32, 64, 128);
 }
 
-
 /// Runs an underconstrained benchmark for a specified size.
 pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
     let k = 11;
@@ -55,28 +55,25 @@ pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
         BITS,
     >::default();
 
-    let mut analyzer = analyzer::Analyzer::new(&circuit, k).unwrap();
-
-    let modulus = bn256::fr::MODULUS_STR;
-    let without_prefix = modulus.trim_start_matches("0x");
-    let prime = BigInt::from_str_radix(without_prefix, 16)
-        .unwrap()
-        .to_string();
-
     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
         verification_method: VerificationMethod::Random,
         verification_input: VerificationInput {
-            instances_string: analyzer.instace_cells.clone(),
+            instance_cells: HashMap::new(),
             iterations: 5,
         },
-        analysis_type: AnalyzerType::UnderconstrainedCircuit,
         lookup_method: LookupMethod::Interpreted,
     };
 
-    let _result = analyzer.analyze_underconstrained(&analyzer_input, &prime);
+    let mut analyzer = analyzer::Analyzer::new(
+        &circuit,
+        k,
+        AnalyzerType::UnderconstrainedCircuit,
+        Some(&analyzer_input),
+    )
+    .unwrap();
 
+    let _result = analyzer.analyze_underconstrained(&analyzer_input);
 }
-
 
 criterion_group!(benches, run_benchmark);
 criterion_main!(benches);

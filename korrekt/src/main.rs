@@ -8,7 +8,7 @@ use korrekt::sample_circuits::pse_v1 as sample_circuits;
 use korrekt::sample_circuits::scroll as sample_circuits;
 #[cfg(feature = "use_zcash_halo2_proofs")]
 use korrekt::sample_circuits::zcash as sample_circuits;
-use std::{collections::HashMap, marker::PhantomData, path::Path};
+use std::{collections::HashMap, marker::PhantomData, path::Path, time::Instant};
 
 use anyhow::{Context, Ok};
 use korrekt::{
@@ -17,7 +17,6 @@ use korrekt::{
         AnalyzerInput, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
     },
 };
-use num::{BigInt, Num};
 extern crate env_logger;
 extern crate log;
 
@@ -71,9 +70,9 @@ fn main() -> Result<()> {
             .required_if_eq_any(&[("verification", "random"),("verification", "r")]))
         .get_matches();
 
-        let mut config = if let Some(profile) = matches.value_of("profile") {
-            load_config_for_profile(profile)?
-        }else {
+    let mut config = if let Some(profile) = matches.value_of("profile") {
+        load_config_for_profile(profile)?
+    } else {
         let analysis_type = parse_analysis_type(matches.value_of("type"));
 
         let verification_method = matches
@@ -112,7 +111,7 @@ fn main() -> Result<()> {
 fn load_config_for_profile(profile: &str) -> Result<AnalyzerInput> {
     let config_path = format!("./src/config/{}.toml", profile);
     AnalyzerInput::load_config(Path::new(&config_path))
-    .with_context(|| format!("Failed to load configuration for profile: {}", profile))
+        .with_context(|| format!("Failed to load configuration for profile: {}", profile))
 }
 fn parse_lookup_method(input: &str) -> LookupMethod {
     match input {
@@ -189,10 +188,9 @@ fn setup_analyzer(
 ) -> anyhow::Result<AnalyzerInput> {
     info!("Setting up analyzer with LookupMethod: {:?}, Iterations: {}, AnalysisType: {:?}, VerificationMethod: {:?}", lookup_method, iterations, analysis_type, verification_method);
     Ok(AnalyzerInput {
-        analysis_type,
         verification_method,
         verification_input: VerificationInput {
-            instances_string: HashMap::new(),
+            instance_cells: HashMap::new(),
             iterations,
         },
         lookup_method,
@@ -200,19 +198,32 @@ fn setup_analyzer(
 }
 
 fn run_analysis(analyzer_input: &mut AnalyzerInput) -> anyhow::Result<()> {
-    let circuit = sample_circuits::lookup_circuits::multiple_lookups::MyCircuit::<Fr>(PhantomData);
-    let k = 6;
+    let circuit =
+        sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default();
+    let k = 11;
 
-    let mut analyzer = Analyzer::new(&circuit, k).unwrap();
+    // Start timer for Analyzer::new
+    let start_new = Instant::now();
+    let mut analyzer = Analyzer::new(
+        &circuit,
+        k,
+        AnalyzerType::UnderconstrainedCircuit,
+        Some(analyzer_input),
+    )
+    .unwrap();
 
-    let modulus = bn256::fr::MODULUS_STR;
-    let without_prefix = modulus.trim_start_matches("0x");
-    let prime = BigInt::from_str_radix(without_prefix, 16)
-        .unwrap()
-        .to_string();
+    // End timer and print elapsed time
+    let duration_new = start_new.elapsed();
+    println!("Time elapsed in Analyzer::new: {:?}", duration_new);
 
+    // Start timer for dispatch_analysis
+    let start_dispatch = Instant::now();
     analyzer
-        .dispatch_analysis(analyzer_input, &prime)
+        .dispatch_analysis(analyzer_input)
         .context("Failed to perform analysis!")?;
+    // End timer and print elapsed time
+    let duration_dispatch = start_dispatch.elapsed();
+    println!("Time elapsed in dispatch_analysis: {:?}", duration_dispatch);
+
     Ok(())
 }

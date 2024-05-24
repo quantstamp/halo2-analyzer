@@ -1,16 +1,15 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+
+use halo2_proofs::dev::MockProver;
+use halo2_proofs::halo2curves::bn256;
 use halo2_proofs::halo2curves::bn256::Fr;
-use halo2curves::bn256;
-use num::{BigInt, Num};
-use std::marker::PhantomData;
 
-use korrekt_V2;
-
-use korrekt_V2::circuit_analyzer::analyzer;
-use korrekt_V2::io::analyzer_io_type::{
-    self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
+use korrekt_V1::{
+    circuit_analyzer::analyzer::Analyzer,
+    io::analyzer_io_type::{self, VerificationInput, VerificationMethod},
+    sample_circuits,
 };
-use korrekt_V2::sample_circuits;
+use num::{BigInt, Num};
 
 /// `run_underconstrained_benchmarks` macro.
 ///
@@ -30,7 +29,7 @@ use korrekt_V2::sample_circuits;
 macro_rules! run_underconstrained_benchmarks {
     ($c:expr, $($size:expr),*) => {
         {
-            let mut group = $c.benchmark_group("underconstrained_fibo_v2_uninterpreted");
+            let mut group = $c.benchmark_group("underconstrained_fibo_v1");
             group.sample_size(20);
             $(
                 group.bench_function(format!("size_{}", $size), |b| {
@@ -68,14 +67,11 @@ pub fn run_benchmark(c: &mut Criterion) {
 /// run_underconstrained_benchmark_for_specified_size::<2>();
 /// ```
 pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
-    let circuit = sample_circuits::pse_v1::copy_constraint::fibonacci_for_bench::FibonacciCircuit::<
-        Fr,
-        ROWS,
-    >(PhantomData);
-    let k: u32 = 11;
+    let circuit =
+        sample_circuits::copy_constraint::fibonacci_for_bench::FibonacciCircuit::<Fr,ROWS>::default();
+    let mut analyzer = Analyzer::from(&circuit);
 
-    let mut analyzer = analyzer::Analyzer::new(&circuit, k).unwrap();
-
+    let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
     let modulus = bn256::fr::MODULUS_STR;
     let without_prefix = modulus.trim_start_matches("0x");
     let prime = BigInt::from_str_radix(without_prefix, 16)
@@ -85,20 +81,23 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
         verification_method: VerificationMethod::Random,
         verification_input: VerificationInput {
-            instances_string: analyzer.instace_cells.clone(),
+            instances_string: instance_cols,
             iterations: 5,
         },
-        analysis_type: AnalyzerType::UnderconstrainedCircuit,
-        lookup_method: LookupMethod::Uninterpreted,
     };
+    let k: u32 = 11;
 
+    let public_input = vec![Fr::from(3)];
+
+    let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
     let _output_status = analyzer
-        .analyze_underconstrained(&analyzer_input, &prime)
+        .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
         .unwrap()
         .output_status;
 }
 
 criterion_group!(name = benches;
-                config = Criterion::default().measurement_time(std::time::Duration::from_secs(20));
-                targets = run_benchmark);
+    config = Criterion::default().measurement_time(std::time::Duration::from_secs(20));//
+    //config = Criterion::default();
+    targets = run_benchmark);
 criterion_main!(benches);

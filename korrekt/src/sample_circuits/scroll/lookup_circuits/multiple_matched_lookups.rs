@@ -27,7 +27,6 @@ struct FibonacciChip<F: PrimeField> {
     _marker: PhantomData<F>,
 }
 
-
 impl<F: PrimeField> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
         Self {
@@ -80,17 +79,17 @@ impl<F: PrimeField> FibonacciChip<F> {
             vec![s * (a + b - c)]
         });
 
-        meta.lookup("RC_lookup",|meta| {
+        meta.lookup("RC_lookup", |meta| {
             let s = meta.query_selector(s_range);
             let value = meta.query_advice(col_a, Rotation::cur());
-            //(s * out, xor_table[2]),
+
             vec![(s * value, range_check_table[0])]
         });
 
         meta.lookup("RC1_lookup", |meta| {
             let s1 = meta.query_selector(s_range_1);
             let value = meta.query_advice(col_b, Rotation::cur());
-            //(s * out, xor_table[2]),
+
             vec![(s1 * value, range_check_table_1[0])]
         });
 
@@ -159,7 +158,7 @@ impl<F: PrimeField> FibonacciChip<F> {
                         || "value",
                         self.config.range_check_table_1[0],
                         idx,
-                        || Value::known(F::from(6-value-1)),
+                        || Value::known(F::from(6 - value - 1)),
                     )?;
                 }
                 Ok(())
@@ -210,7 +209,7 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || "lhs",
                             self.config.xor_table_1[0],
                             idx,
-                            || Value::known(F::from(6 - lhs -1)),
+                            || Value::known(F::from(6 - lhs - 1)),
                         )?;
                         table.assign_cell(
                             || "rhs",
@@ -222,7 +221,7 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || "lhs ^ rhs",
                             self.config.xor_table_1[2],
                             idx,
-                            || Value::known(F::from(6 - lhs -1 ^ 6 - rhs - 1)),
+                            || Value::known(F::from(6 - lhs - 1 ^ 6 - rhs - 1)),
                         )?;
                         idx += 1;
                     }
@@ -292,8 +291,16 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || {
                                 b_cell.value().and_then(|a| {
                                     c_cell.value().map(|b| {
-                                        let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();//a.get_lower_32() as u64;
-                                        let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();//b.get_lower_32() as u64;
+                                        let a_val = u64::from_str_radix(
+                                            format!("{:?}", a).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
+                                        let b_val = u64::from_str_radix(
+                                            format!("{:?}", b).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
                                         F::from(a_val ^ b_val)
                                     })
                                 })
@@ -323,7 +330,6 @@ impl<F: PrimeField> FibonacciChip<F> {
 #[derive(Default)]
 
 pub struct MyCircuit<F>(pub PhantomData<F>);
-
 
 impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     type Config = FibonacciConfig;

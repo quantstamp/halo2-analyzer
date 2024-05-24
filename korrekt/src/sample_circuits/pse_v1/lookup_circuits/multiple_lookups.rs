@@ -68,14 +68,14 @@ impl<F: FieldExt> FibonacciChip<F> {
         meta.lookup("RC_lookup", |meta| {
             let s = meta.query_selector(s_range);
             let lhs = meta.query_advice(col_a, Rotation::cur());
-            //(s * out, xor_table[2]),
+
             vec![(s * lhs, range_check_table[0])]
         });
 
         meta.lookup("RC1_lookup", |meta| {
             let s1 = meta.query_selector(s_range_1);
             let rhs = meta.query_advice(col_b, Rotation::cur());
-            //(s * out, xor_table[2]),
+
             vec![(s1 * rhs, range_check_table_1[0])]
         });
 
@@ -229,8 +229,16 @@ impl<F: FieldExt> FibonacciChip<F> {
                             || {
                                 b_cell.value().and_then(|a| {
                                     c_cell.value().map(|b| {
-                                        let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();//a.get_lower_32() as u64;
-                                        let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();//b.get_lower_32() as u64;
+                                        let a_val = u64::from_str_radix(
+                                            format!("{:?}", a).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
+                                        let b_val = u64::from_str_radix(
+                                            format!("{:?}", b).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
                                         F::from(a_val ^ b_val)
                                     })
                                 })

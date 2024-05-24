@@ -1,8 +1,8 @@
 use group::ff::PrimeField;
+use std::marker::PhantomData;
 use zcash_halo2_proofs::circuit::*;
 use zcash_halo2_proofs::plonk::*;
 use zcash_halo2_proofs::poly::Rotation;
-use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
 
@@ -24,7 +24,6 @@ struct FibonacciChip<F: PrimeField> {
     config: FibonacciConfig,
     _marker: PhantomData<F>,
 }
-
 
 impl<F: PrimeField> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
@@ -233,8 +232,16 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || {
                                 b_cell.value().and_then(|a| {
                                     c_cell.value().map(|b| {
-                                        let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();//a.get_lower_32() as u64;
-                                        let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();//b.get_lower_32() as u64;
+                                        let a_val = u64::from_str_radix(
+                                            format!("{:?}", a).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
+                                        let b_val = u64::from_str_radix(
+                                            format!("{:?}", b).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
                                         F::from(a_val ^ b_val)
                                     })
                                 })
@@ -264,7 +271,6 @@ impl<F: PrimeField> FibonacciChip<F> {
 #[derive(Default)]
 
 pub struct MyCircuit<F>(pub PhantomData<F>);
-
 
 impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     type Config = FibonacciConfig;

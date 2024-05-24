@@ -1,6 +1,8 @@
 use scroll_halo2_proofs::arithmetic::Field;
 use scroll_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
-use scroll_halo2_proofs::plonk::{Error,Advice, Circuit, Column, ConstraintSystem, Instance, Selector};
+use scroll_halo2_proofs::plonk::{
+    Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector,
+};
 use scroll_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
