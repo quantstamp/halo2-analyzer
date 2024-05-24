@@ -1,6 +1,8 @@
 use criterion::Criterion;
 use halo2_proofs::halo2curves::bn256::Fr;
 use std::marker::PhantomData;
+use std::collections::HashMap;
+
 
 use korrekt_V2::circuit_analyzer::analyzer::Analyzer;
 use korrekt_V2::io::analyzer_io_type::{self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod};
@@ -23,7 +25,10 @@ macro_rules! benchmark_with_size {
                         let k: u32 = 11;
                         let analyzer_input = analyzer_io_type::AnalyzerInput {
                             verification_method: VerificationMethod::Random,
-                            iterations: 5,
+                            verification_input: VerificationInput {
+                                instance_cells: HashMap::new(),
+                                iterations: 5,
+                            },
                             lookup_method: LookupMethod::InlineConstraints,
                         };
                         let analyzer = Analyzer::new(
