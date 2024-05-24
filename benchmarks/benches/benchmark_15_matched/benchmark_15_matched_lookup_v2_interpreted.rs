@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::Criterion;
 use halo2_proofs::halo2curves::bn256::Fr;
 use std::marker::PhantomData;
 
@@ -53,8 +53,8 @@ macro_rules! benchmark_with_size {
 fn main() {
     let mut criterion = Criterion::default();
     benchmark_with_size!(criterion, 5);
-    // benchmark_with_size!(criterion, 8);
-    // benchmark_with_size!(criterion, 13);
-    // benchmark_with_size!(criterion, 21);
-    // benchmark_with_size!(criterion, 34);
+    benchmark_with_size!(criterion, 8);
+    benchmark_with_size!(criterion, 13);
+    benchmark_with_size!(criterion, 21);
+    benchmark_with_size!(criterion, 34);
 }

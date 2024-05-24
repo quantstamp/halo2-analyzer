@@ -49,7 +49,7 @@ macro_rules! run_underconstrained_benchmarks {
 /// It runs the benchmark for different specified sizes: 5, 8, 13, 21, and 34. The `run_underconstrained_benchmark_for_specified_size`
 /// function is called for each specified size.
 pub fn run_benchmark(c: &mut Criterion) {
-    run_underconstrained_benchmarks!(c, 5);//, 8, 13, 21, 34);
+    run_underconstrained_benchmarks!(c, 5, 8, 13, 21, 34);
 }
 
 /// Runs an underconstrained benchmark for a specified size.
