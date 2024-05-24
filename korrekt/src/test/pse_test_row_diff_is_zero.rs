@@ -44,7 +44,7 @@
 //             let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
 //                 verification_method: VerificationMethod::Random,
 //                 verification_input: VerificationInput {
-//                     instances_string: instance_cols,
+//                     instance_cells: instance_cols,
 //                     iterations: 5,
 //                 },
 //             };

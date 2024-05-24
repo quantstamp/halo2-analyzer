@@ -39,7 +39,7 @@ pub struct Analyzer<F: AnalyzableField> {
     pub selectors: Vec<Vec<bool>>,
     pub log: Vec<String>,
     pub permutation: HashMap<String, String>,
-    pub instace_cells: HashMap<String, i64>,
+    pub instance_cells: HashMap<String, i64>,
     pub cell_to_cycle_head: HashMap<String, String>,
     pub counter: u32,
     pub lookup_mappings: Vec<HashMap<String, usize>>,
@@ -105,7 +105,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             .unwrap()
             .to_string();
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
-        let (permutation, instace_cells, cell_to_cycle_head) =
+        let (permutation, instance_cells, cell_to_cycle_head) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation);
         // Convert fixed to an equivalent matrix with BigInt type instead of CellValue
         let mut fixed = Vec::new();
@@ -146,7 +146,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             selectors: analyzable.selectors,
             log: Vec::new(),
             permutation,
-            instace_cells,
+            instance_cells,
             cell_to_cycle_head,
             counter: 0,
             lookup_mappings: Vec::new(),
@@ -166,13 +166,22 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             analyzer.analysis_type,
             AnalyzerType::UnderconstrainedCircuit
         ) {
-            if analyzer_input.unwrap().verification_method == VerificationMethod::Specific {
+            let input = analyzer_input.unwrap();
+            if input.verification_method == VerificationMethod::Specific
+                && input.verification_input.instance_cells.len() == 0
+            {
                 let instance = retrieve_user_input_for_underconstrained::<Fr>(
-                    analyzer_input.unwrap(),
-                    &analyzer.instace_cells,
+                    input,
+                    &analyzer.instance_cells,
                 )
                 .context("Failed to retrieve user input!")?;
-                analyzer.instace_cells = instance.clone();
+                analyzer.instance_cells = instance.clone();
+            } else if input.verification_method == VerificationMethod::Specific {
+                analyzer.instance_cells = analyzer_input
+                    .unwrap()
+                    .verification_input
+                    .instance_cells
+                    .clone();
             }
 
             printer.write_start(analyzer.prime.to_owned());
@@ -1576,7 +1585,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             match analyzer_input.verification_method {
                 // For specific public input, directly write assertions for each variable.
                 VerificationMethod::Specific => {
-                    for var in self.instace_cells.iter() {
+                    for var in self.instance_cells.iter() {
                         // Declare the variables in the SMT formula.
                         if !self.all_variables.contains(&var.0.to_owned()) {
                             self.all_variables.insert(var.0.clone());
@@ -1593,7 +1602,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
                 // For random verification, set the number of iterations as specified.
                 VerificationMethod::Random => {
-                    max_iterations = analyzer_input.iterations;
+                    max_iterations = analyzer_input.verification_input.iterations;
                 }
                 VerificationMethod::None => {}
             }
@@ -1630,8 +1639,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     let num_of_lookup_mappings = self.lookup_mappings.clone().len();
                     for index in 0..num_of_lookup_mappings {
                         // Perform the lookup
-                        let lookup_sucessful = Self::
-                            lookup(&model, &self.lookup_mappings[index],self.fixed.clone());
+                        let lookup_sucessful =
+                            Self::lookup(&model, &self.lookup_mappings[index], self.fixed.clone());
 
                         if lookup_sucessful {
                             valid_model_lookeded_up = true;
@@ -1658,7 +1667,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     for var in variables.iter() {
                         // The second condition is needed because the following constraints would've been added already to the solver in the beginning.
                         // It is not strictly necessary, but there is no point in adding redundant constraints to the solver.
-                        if self.instace_cells.contains_key(var)
+                        if self.instance_cells.contains_key(var)
                             && !matches!(
                                 analyzer_input.verification_method,
                                 VerificationMethod::Specific
@@ -1720,8 +1729,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let num_of_lookup_mappings = self.lookup_mappings.clone().len();
                         for index in 0..num_of_lookup_mappings {
                             // Lookup search to make sure all values in the model are valid.
-                            let lookup_sucessful = Self::
-                                lookup(&model_with_constraint, &self.lookup_mappings[index],self.fixed.clone());
+                            let lookup_sucessful = Self::lookup(
+                                &model_with_constraint,
+                                &self.lookup_mappings[index],
+                                self.fixed.clone(),
+                            );
                             // if the lookup is not successful, the model found is not valid and the under-constrained flag is a false positive, still we can't say if the circuit is under-constrained or not.
                             if !lookup_sucessful {
                                 uc_lookup_dependency = true;
@@ -1759,7 +1771,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 // If no model found, add some rules to the initial solver to make sure does not generate the same model again
                 let mut negated_model_variable_assignments = vec![];
                 for res in &model.result {
-                    if self.instace_cells.contains_key(&res.1.name) {
+                    if self.instance_cells.contains_key(&res.1.name) {
                         let sa = printer
                             .get_assert(
                                 res.1.name.clone(),
@@ -1840,8 +1852,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             .context("Failed to parse smt result!")
     }
 
-    fn lookup(model_with_constraint: &ModelResult, lookup_mapping: &HashMap<String, usize>,fixed: Vec<Vec<BigInt>>,) -> bool {
-
+    fn lookup(
+        model_with_constraint: &ModelResult,
+        lookup_mapping: &HashMap<String, usize>,
+        fixed: Vec<Vec<BigInt>>,
+    ) -> bool {
         let variables: Vec<_> = model_with_constraint
             .result
             .iter()
@@ -1958,9 +1973,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             AnalyzerType::UnusedGates => self.analyze_unused_custom_gates(),
             AnalyzerType::UnconstrainedCells => self.analyze_unconstrained_cells(),
             AnalyzerType::UnusedColumns => self.analyze_unused_columns(),
-            AnalyzerType::UnderconstrainedCircuit => {
-                self.analyze_underconstrained(analyzer_input)
-            }
+            AnalyzerType::UnderconstrainedCircuit => self.analyze_underconstrained(analyzer_input),
         }
     }
 }

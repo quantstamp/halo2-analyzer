@@ -3,7 +3,7 @@ use halo2_proofs::halo2curves::bn256::Fr;
 use std::marker::PhantomData;
 
 use korrekt_V2::circuit_analyzer::analyzer::Analyzer;
-use korrekt_V2::io::analyzer_io_type::{self, AnalyzerType, LookupMethod, VerificationMethod};
+use korrekt_V2::io::analyzer_io_type::{self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod};
 use korrekt_V2::sample_circuits;
 
 macro_rules! benchmark_with_size {

@@ -8,13 +8,13 @@ use korrekt::sample_circuits::pse_v1 as sample_circuits;
 use korrekt::sample_circuits::scroll as sample_circuits;
 #[cfg(feature = "use_zcash_halo2_proofs")]
 use korrekt::sample_circuits::zcash as sample_circuits;
-use std::{marker::PhantomData, path::Path, time::Instant};
+use std::{collections::HashMap, marker::PhantomData, path::Path, time::Instant};
 
 use anyhow::{Context, Ok};
 use korrekt::{
     circuit_analyzer::analyzer::Analyzer,
     io::analyzer_io_type::{
-        AnalyzerInput, AnalyzerType, LookupMethod, VerificationMethod,
+        AnalyzerInput, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod
     },
 };
 extern crate env_logger;
@@ -28,7 +28,7 @@ use korrekt::circuit_analyzer::halo2_proofs_libs::*;
 use log::{info, warn};
 
 fn main() -> Result<()> {
-    //env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let matches = App::new("Halo2 Analyzer")
         .version("2.0")
@@ -189,18 +189,18 @@ fn setup_analyzer(
     info!("Setting up analyzer with LookupMethod: {:?}, Iterations: {}, AnalysisType: {:?}, VerificationMethod: {:?}", lookup_method, iterations, analysis_type, verification_method);
     Ok(AnalyzerInput {
         verification_method,
-        iterations,
+        verification_input: VerificationInput {
+            instance_cells: HashMap::new(),
+            iterations,
+        },
         lookup_method,
     })
 }
 
 fn run_analysis(analyzer_input: &mut AnalyzerInput) -> anyhow::Result<()> {
-    // Your circuit setup remains the same
     let circuit =
-        sample_circuits::lookup_circuits::fifteen_matched_lookups::MyCircuit::<
-            Fr,
-            34,
-        >(PhantomData);
+            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
+            );
     let k = 11;
 
 

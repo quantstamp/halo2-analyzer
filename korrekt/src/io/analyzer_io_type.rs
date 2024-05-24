@@ -7,6 +7,11 @@ pub enum VerificationMethod {
     None
 }
 
+#[derive(Debug, Clone)]
+pub struct VerificationInput {
+    pub instance_cells: HashMap<String, i64>,
+    pub iterations: u128,
+}
 #[derive(Debug, PartialEq, Eq,Clone,Copy)]
 pub enum LookupMethod {
     Uninterpreted,
@@ -17,7 +22,7 @@ pub enum LookupMethod {
 #[derive(Debug, Clone)]
 pub struct AnalyzerInput {
     pub verification_method: VerificationMethod,
-    pub iterations: u128,
+    pub verification_input: VerificationInput,
     pub lookup_method: LookupMethod
 }
 

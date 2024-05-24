@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use anyhow::{anyhow, Context, Result};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use crate::io::analyzer_io_type::{AnalyzerInput, AnalyzerType, LookupMethod, VerificationMethod};
+use crate::io::analyzer_io_type::{AnalyzerInput, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod};
 
 impl AnalyzerInput {
     pub fn load_config<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -20,13 +21,14 @@ impl AnalyzerInput {
             .as_str()
             .ok_or_else(|| anyhow!("Analysis type not found in the configuration"))?;
         
-        
-        let iterations = config["analyzer_input"]["iterations"]
+        let verification_input = VerificationInput {
+            instance_cells: HashMap::new(),
+            iterations: config["analyzer_input"]["iterations"]
                 .as_str()
                 .ok_or_else(|| anyhow!("Iterations not found in the configuration"))?
                 .parse::<u128>()
-                .context("Failed to parse iterations as u128")?;
-        
+                .context("Failed to parse iterations as u128")?,
+        };
 
         let lookup_method = config["analyzer_input"]["lookup_method"]
             .as_str()
@@ -38,18 +40,9 @@ impl AnalyzerInput {
         
         Ok(AnalyzerInput {
             verification_method: Self::parse_verification_method(verification_method).unwrap(),
+            verification_input,
             lookup_method: Self::parse_lookup_method(lookup_method).unwrap(),
-            iterations
         })
-    }
-    fn parse_analysis_type(input: &str) -> Result<AnalyzerType> {
-        match input {
-            "unused_gates" => Ok(AnalyzerType::UnusedGates),
-            "unused_columns" => Ok(AnalyzerType::UnusedColumns),
-            "unconstrained_cells" => Ok(AnalyzerType::UnconstrainedCells),
-            "UnderconstrainedCircuit" => Ok(AnalyzerType::UnderconstrainedCircuit),
-            _ => Err(anyhow::anyhow!("Invalid analysis type")),
-        }
     }
     
     fn parse_verification_method(input: &str) -> Result<VerificationMethod> {

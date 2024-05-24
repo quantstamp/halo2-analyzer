@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use std::collections::HashMap;
 use halo2_proofs::halo2curves::bn256::Fr;
 use std::marker::PhantomData;
 
@@ -6,7 +7,7 @@ use korrekt_V2;
 
 use korrekt_V2::circuit_analyzer::analyzer;
 use korrekt_V2::io::analyzer_io_type::{
-    self, AnalyzerType, LookupMethod, VerificationMethod,
+    self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
 };
 use korrekt_V2::sample_circuits;
 
@@ -76,7 +77,10 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
 
     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
         verification_method: VerificationMethod::Random,
-        iterations: 5,
+        verification_input: VerificationInput {
+            instance_cells: HashMap::new(),
+            iterations: 5,
+        },
         lookup_method: LookupMethod::InlineConstraints,
     };
     let mut analyzer = analyzer::Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
