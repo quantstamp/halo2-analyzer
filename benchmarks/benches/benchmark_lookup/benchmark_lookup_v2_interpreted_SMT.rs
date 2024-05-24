@@ -9,7 +9,7 @@ use korrekt_V2::sample_circuits;
 macro_rules! benchmark_with_size {
     ($c:expr, $size:expr) => {
         {
-            let mut group = $c.benchmark_group(format!("benchmark_multiple_matched_lookup_v2_interpreted"));
+            let mut group = $c.benchmark_group(format!("underconstrained_lookup_v2_interpreted_SMT"));
             group.sample_size(10);
 
             // Benchmark function
@@ -26,19 +26,18 @@ macro_rules! benchmark_with_size {
                             iterations: 5,
                             lookup_method: LookupMethod::Interpreted,
                         };
-                        let analyzer_setup = Analyzer::new(
+                        let analyzer = Analyzer::new(
                             &circuit,
                             k,
                             AnalyzerType::UnderconstrainedCircuit,
                             Some(&analyzer_input),
                         )
                         .unwrap();
-                        (analyzer_setup, analyzer_input)
+                        (analyzer, analyzer_input)
                     },
-                    |(mut analyzer_setup, mut analyzer_input)| {
-                        analyzer_setup
-                            .analyzer
-                            .dispatch_analysis(&mut analyzer_input, &mut analyzer_setup.smt_file)
+                    |(mut analyzer, mut analyzer_input)| {
+                        analyzer
+                            .dispatch_analysis(&mut analyzer_input)
                             .unwrap();
                     },
                     criterion::BatchSize::SmallInput,
@@ -54,8 +53,8 @@ macro_rules! benchmark_with_size {
 fn main() {
     let mut criterion = Criterion::default();
     benchmark_with_size!(criterion, 5);
-    benchmark_with_size!(criterion, 8);
-    benchmark_with_size!(criterion, 13);
-    benchmark_with_size!(criterion, 21);
-    benchmark_with_size!(criterion, 34);
+    // benchmark_with_size!(criterion, 8);
+    // benchmark_with_size!(criterion, 13);
+    // benchmark_with_size!(criterion, 21);
+    // benchmark_with_size!(criterion, 34);
 }

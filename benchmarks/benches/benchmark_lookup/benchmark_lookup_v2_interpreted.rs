@@ -28,7 +28,7 @@ use korrekt_V2::sample_circuits;
 macro_rules! run_underconstrained_benchmarks {
     ($c:expr, $($size:expr),*) => {
         {
-            let mut group = $c.benchmark_group("benchmark_lookup_v2_interpreted");
+            let mut group = $c.benchmark_group("underconstrained_lookup_v2_interpreted");
             group.sample_size(10);
             $(
                 group.bench_function(format!("size_{}", $size), |b| {
@@ -46,7 +46,7 @@ macro_rules! run_underconstrained_benchmarks {
 /// It runs the benchmark for different specified sizes: 5, 8, 13, 21, and 34. The `run_underconstrained_benchmark_for_specified_size`
 /// function is called for each specified size.
 pub fn run_benchmark(c: &mut Criterion) {
-    run_underconstrained_benchmarks!(c, 5, 8, 13, 21, 34);
+    run_underconstrained_benchmarks!(c, 5);//, 8, 13, 21, 34);
 }
 
 /// Runs an underconstrained benchmark for a specified size.
@@ -81,11 +81,11 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
         lookup_method: LookupMethod::Interpreted,
     };
 
-    let mut analyzer_setup: analyzer::AnalyzerSetup<Fr> = analyzer::Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+    let mut analyzer = analyzer::Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
 
-    let _output_status = analyzer_setup.analyzer
-        .analyze_underconstrained(&analyzer_input, &mut analyzer_setup.smt_file)
+    let _output_status = analyzer
+        .analyze_underconstrained(&analyzer_input)
         .unwrap()
         .output_status;
 }

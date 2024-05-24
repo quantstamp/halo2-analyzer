@@ -197,24 +197,26 @@ fn setup_analyzer(
 fn run_analysis(analyzer_input: &mut AnalyzerInput) -> anyhow::Result<()> {
     // Your circuit setup remains the same
     let circuit =
-        sample_circuits::lookup_circuits::two_matched_lookups::MyCircuit::<
+        sample_circuits::lookup_circuits::fifteen_matched_lookups::MyCircuit::<
             Fr,
             34,
         >(PhantomData);
     let k = 11;
 
+
     // Start timer for Analyzer::new
     let start_new = Instant::now();
-    let mut analyzer_setup = Analyzer::new(&circuit, k, AnalyzerType::UnderconstrainedCircuit, Some(analyzer_input))
+    let mut analyzer = Analyzer::new(&circuit, k, AnalyzerType::UnderconstrainedCircuit, Some(analyzer_input))
         .unwrap();
+
     // End timer and print elapsed time
     let duration_new = start_new.elapsed();
     println!("Time elapsed in Analyzer::new: {:?}", duration_new);
 
     // Start timer for dispatch_analysis
     let start_dispatch = Instant::now();
-    analyzer_setup.analyzer
-        .dispatch_analysis(analyzer_input, &mut analyzer_setup.smt_file)
+    analyzer
+        .dispatch_analysis(analyzer_input)
         .context("Failed to perform analysis!")?;
     // End timer and print elapsed time
     let duration_dispatch = start_dispatch.elapsed();

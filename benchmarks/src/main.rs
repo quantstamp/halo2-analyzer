@@ -1,7 +1,7 @@
-use serde::{Deserialize};
+use serde::Deserialize;
 use serde_json::Result;
 use std::collections::{BTreeMap, HashMap};
-use std::{env, fs};
+use std::fs;
 use walkdir::WalkDir;
 
 #[derive(Deserialize, Debug)]
@@ -49,7 +49,7 @@ fn main() -> Result<()> {
                 benchmarks
                     .entry(size.to_string())
                     .or_insert_with(HashMap::new)
-                    .insert(benchmark_name.to_string(), estimates.mean.point_estimate / 1000000.0);
+                    .insert(benchmark_name.to_string(), estimates.mean.point_estimate);
             }
         }
     }
@@ -65,6 +65,7 @@ fn main() -> Result<()> {
 
 fn print_fibo_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
     // Prepare the output headers
+    print!("Fibonacci Benchmark Results\n");
     println!("{:<10} {:<20} {:<20} {:<20} {:<20}", "Size", "Version 1 Time (ms)", "Version 2 Inline (ms)", "Version 2 Uninterpreted (ms)", "Version 2 Interpreted (ms)");
 
     // Iterate through the benchmark data
@@ -89,6 +90,7 @@ fn print_fibo_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
 }
 
 fn print_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
+    println!("Lookup Benchmark Results");
     // Prepare the output headers
     println!("{:<10} {:<20} {:<20} {:<20} {:<20}", "Size", "Version 1 Time (ms)", "Version 2 Inline (ms)", "Version 2 Uninterpreted (ms)", "Version 2 Interpreted (ms)");
 
@@ -114,21 +116,22 @@ fn print_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
 }
 
 fn print_matched_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
+    println!("Matched Lookup Benchmark Results");
     // Prepare the output headers
     println!("{:<10} {:<20} {:<20}", "Size", "Version 2 Inline (ms)", "Version 2 Interpreted (ms)");
 
     // Iterate through the benchmark data
     for (size, results) in benchmarks {
         // Check if the size contains an entry for any of the benchmark categories
-        let has_data = results.get("benchmark_multiple_matched_lookup_v2_inline").is_some()
-            || results.get("benchmark_multiple_matched_lookup_v2_interpreted").is_some();
+        let has_data = results.get("underconstrained_multiple_matched_lookup_v2_inline").is_some()
+            || results.get("underconstrained_multiple_matched_lookup_v2_interpreted").is_some();
 
         // Skip sizes that have no data in any category
         if has_data {
             println!("{:<10} {:<20.2} {:<20.2}",
                      size,
-                     results.get("benchmark_multiple_matched_lookup_v2_inline").unwrap_or(&0.0),
-                     results.get("benchmark_multiple_matched_lookup_v2_interpreted").unwrap_or(&0.0),
+                     results.get("underconstrained_multiple_matched_lookup_v2_inline").unwrap_or(&0.0),
+                     results.get("underconstrained_multiple_matched_lookup_v2_interpreted").unwrap_or(&0.0),
             );
         }
     }

@@ -47,13 +47,8 @@ pub struct Analyzer<F: AnalyzableField> {
     pub analysis_type: AnalyzerType,
     pub prime: String,
     pub all_variables: HashSet<String>,
+    pub smt_file: Option<File>,
 }
-
-pub struct AnalyzerSetup<F: AnalyzableField> {
-    pub analyzer: Analyzer<F>,
-    pub smt_file: File,
-}
-
 
 #[derive(Debug)]
 pub enum NodeType {
@@ -103,7 +98,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         k: u32,
         analysis_type: AnalyzerType,
         analyzer_input: Option<&AnalyzerInput>,
-    ) -> Result<AnalyzerSetup<F>, anyhow::Error> {
+    ) -> Result<Self, anyhow::Error> {
         let modulus = bn256::fr::MODULUS_STR;
         let without_prefix = modulus.trim_start_matches("0x");
         let prime = BigInt::from_str_radix(without_prefix, 16)
@@ -159,6 +154,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             analysis_type,
             prime,
             all_variables: HashSet::new(),
+            smt_file: None,
         };
 
         fs::create_dir_all("src/output/").unwrap();
@@ -224,7 +220,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             }
         }
 
-        Ok(AnalyzerSetup { analyzer, smt_file})
+        analyzer.smt_file = Some(smt_file);
+
+        Ok(analyzer)
     }
 
     /// Detects unused custom gates
@@ -584,15 +582,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn analyze_underconstrained(
         &mut self,
         analyzer_input: &AnalyzerInput,
-        file: &mut File,
     ) -> Result<AnalyzerOutput> {
         let mut analyzer_output: AnalyzerOutput = AnalyzerOutput {
             output_status: AnalyzerOutputStatus::Invalid,
         };
 
-        let output_status: AnalyzerOutputStatus =
-            Self::uniqueness_assertion(self, &analyzer_input, file)
-                .context("Failed to run control uniqueness function!")?;
+        let output_status: AnalyzerOutputStatus = Self::uniqueness_assertion(self, &analyzer_input)
+            .context("Failed to run control uniqueness function!")?;
 
         analyzer_output.output_status = output_status;
         output_result(analyzer_input, &analyzer_output);
@@ -1565,229 +1561,231 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn uniqueness_assertion(
         &mut self,
         analyzer_input: &AnalyzerInput,
-        file: &mut File,
     ) -> Result<AnalyzerOutputStatus> {
-        
-        let mut printer = Printer::new(file);
-        let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus::NotUnderconstrainedLocal;
-        let mut variables: HashSet<String> = HashSet::new();
-        for variable in &self.all_variables {
-            variables.insert(variable.clone());
-        }
+        if let Some(smt_file) = self.smt_file.as_mut() {
+            let mut printer = Printer::new(smt_file);
+            let mut result: AnalyzerOutputStatus = AnalyzerOutputStatus::NotUnderconstrainedLocal;
+            let mut variables: HashSet<String> = HashSet::new();
+            for variable in &self.all_variables {
+                variables.insert(variable.clone());
+            }
 
-        let mut max_iterations: u128 = 1;
+            let mut max_iterations: u128 = 1;
 
-        // Determine the verification method and configure the analysis accordingly.
-        match analyzer_input.verification_method {
-            // For specific public input, directly write assertions for each variable.
-            VerificationMethod::Specific => {
-                for var in self.instace_cells.iter() {
-                    // Declare the variables in the SMT formula.
-                    if !self.all_variables.contains(&var.0.to_owned()) {
-                        self.all_variables.insert(var.0.clone());
-                        printer.write_var(var.0.to_owned());
+            // Determine the verification method and configure the analysis accordingly.
+            match analyzer_input.verification_method {
+                // For specific public input, directly write assertions for each variable.
+                VerificationMethod::Specific => {
+                    for var in self.instace_cells.iter() {
+                        // Declare the variables in the SMT formula.
+                        if !self.all_variables.contains(&var.0.to_owned()) {
+                            self.all_variables.insert(var.0.clone());
+                            printer.write_var(var.0.to_owned());
+                        }
+                        // Write an assertion that each veriables equals the given value.
+                        printer.write_assert(
+                            var.0.clone(),
+                            (*var.1).to_string(),
+                            NodeType::Instance,
+                            Operation::Equal,
+                        );
                     }
-                    // Write an assertion that each veriables equals the given value.
-                    printer.write_assert(
-                        var.0.clone(),
-                        (*var.1).to_string(),
-                        NodeType::Instance,
-                        Operation::Equal,
-                    );
                 }
+                // For random verification, set the number of iterations as specified.
+                VerificationMethod::Random => {
+                    max_iterations = analyzer_input.iterations;
+                }
+                VerificationMethod::None => {}
             }
-            // For random verification, set the number of iterations as specified.
-            VerificationMethod::Random => {
-                max_iterations = analyzer_input.iterations;
-            }
-            VerificationMethod::None => {}
-        }
-        let model = Self::solve_and_get_model(SMT_FILE_PATH.to_string(), &variables)
-            .context("Failed to solve and get model!")?;
-        // With uninterpreted function, the model might be invalid due to the lookup constraints. We will ignore these models.
-        let mut valid_model_lookeded_up = false;
-        if matches!(model.sat, Satisfiability::Unsatisfiable) {
-            result = AnalyzerOutputStatus::Overconstrained;
-            return Ok(result); // We can just break here.
-        }
-        let mut uc_lookup_dependency_fp = false;
-        let mut uc_lookup_dependency: bool = false;
-        for i in 1..=max_iterations {
-            // Attempt to solve the SMT problem and obtain a model.
             let model = Self::solve_and_get_model(SMT_FILE_PATH.to_string(), &variables)
                 .context("Failed to solve and get model!")?;
+            // With uninterpreted function, the model might be invalid due to the lookup constraints. We will ignore these models.
+            let mut valid_model_lookeded_up = false;
             if matches!(model.sat, Satisfiability::Unsatisfiable) {
-                result = AnalyzerOutputStatus::NotUnderconstrained;
+                result = AnalyzerOutputStatus::Overconstrained;
                 return Ok(result); // We can just break here.
             }
-            // No need to do the lookup as they are already constrained in SMT solver where uninterpreted functions are not used for lookups.
-            if !matches!(analyzer_input.lookup_method, LookupMethod::Uninterpreted) {
-                info!("Model {} to be checked:", i);
-                for r in &model.result {
-                    info!("{} : {}", r.1.name, r.1.value.element)
+            let mut uc_lookup_dependency_fp = false;
+            let mut uc_lookup_dependency: bool = false;
+            for i in 1..=max_iterations {
+                // Attempt to solve the SMT problem and obtain a model.
+                let model = Self::solve_and_get_model(SMT_FILE_PATH.to_string(), &variables)
+                    .context("Failed to solve and get model!")?;
+                if matches!(model.sat, Satisfiability::Unsatisfiable) {
+                    result = AnalyzerOutputStatus::NotUnderconstrained;
+                    return Ok(result); // We can just break here.
                 }
-                valid_model_lookeded_up = true;
-            }
-            // if using uninterpreted function, we need to check if the model is valid by performing the lookup.
-            else {
-                uc_lookup_dependency = false;
-                // Lookup search to make sure all values in the model are valid.
-                for index in 0..self.lookup_mappings.len() {
-                    // Perform the lookup
-                    let lookup_sucessful = self
-                        .lookup(&model, index)
-                        .context("Failed to perform lookup")?;
+                // No need to do the lookup as they are already constrained in SMT solver where uninterpreted functions are not used for lookups.
+                if !matches!(analyzer_input.lookup_method, LookupMethod::Uninterpreted) {
+                    info!("Model {} to be checked:", i);
+                    for r in &model.result {
+                        info!("{} : {}", r.1.name, r.1.value.element)
+                    }
+                    valid_model_lookeded_up = true;
+                }
+                // if using uninterpreted function, we need to check if the model is valid by performing the lookup.
+                else {
+                    uc_lookup_dependency = false;
+                    // Lookup search to make sure all values in the model are valid.
+                    let num_of_lookup_mappings = self.lookup_mappings.clone().len();
+                    for index in 0..num_of_lookup_mappings {
+                        // Perform the lookup
+                        let lookup_sucessful = Self::
+                            lookup(&model, &self.lookup_mappings[index],self.fixed.clone());
 
-                    if lookup_sucessful {
-                        valid_model_lookeded_up = true;
+                        if lookup_sucessful {
+                            valid_model_lookeded_up = true;
+                        }
                     }
                 }
-            }
-            // If the model is not valid, we ignore it and continue to the next iteration.
-            if valid_model_lookeded_up {
-                info!("Model {} to be checked:", i);
-                for r in &model.result {
-                    info!("{} : {}", r.1.name, r.1.value.element)
-                }
-                // Imitate the creation of a new solver by utilizing the stack functionality of solver
-                printer.write_push(1);
+                // If the model is not valid, we ignore it and continue to the next iteration.
+                if valid_model_lookeded_up {
+                    info!("Model {} to be checked:", i);
+                    for r in &model.result {
+                        info!("{} : {}", r.1.name, r.1.value.element)
+                    }
+                    // Imitate the creation of a new solver by utilizing the stack functionality of solver
+                    printer.write_push(1);
 
-                //*** To check the model is under-constrained we need to:
-                //      1. Fix the public input
-                //      2. Change the other vars
-                //      3. add these rules to the current solver and,
-                //      4. find a model that satisfies these rules
+                    //*** To check the model is under-constrained we need to:
+                    //      1. Fix the public input
+                    //      2. Change the other vars
+                    //      3. add these rules to the current solver and,
+                    //      4. find a model that satisfies these rules
 
-                let mut same_assignments = vec![];
-                let mut diff_assignments = vec![];
-                for var in variables.iter() {
-                    // The second condition is needed because the following constraints would've been added already to the solver in the beginning.
-                    // It is not strictly necessary, but there is no point in adding redundant constraints to the solver.
-                    if self.instace_cells.contains_key(var)
-                        && !matches!(
-                            analyzer_input.verification_method,
-                            VerificationMethod::Specific
-                        )
-                    {
-                        // 1. Fix the public input
-                        let result_from_model = &model.result[var];
-                        let sa = printer
-                            .get_assert(
-                                result_from_model.name.clone(),
-                                result_from_model.value.element.clone(),
-                                NodeType::Instance,
-                                Operation::Equal,
+                    let mut same_assignments = vec![];
+                    let mut diff_assignments = vec![];
+                    for var in variables.iter() {
+                        // The second condition is needed because the following constraints would've been added already to the solver in the beginning.
+                        // It is not strictly necessary, but there is no point in adding redundant constraints to the solver.
+                        if self.instace_cells.contains_key(var)
+                            && !matches!(
+                                analyzer_input.verification_method,
+                                VerificationMethod::Specific
                             )
-                            .context("Failled to generate assert!")?;
-                        same_assignments.push(sa);
+                        {
+                            // 1. Fix the public input
+                            let result_from_model = &model.result[var];
+                            let sa = printer
+                                .get_assert(
+                                    result_from_model.name.clone(),
+                                    result_from_model.value.element.clone(),
+                                    NodeType::Instance,
+                                    Operation::Equal,
+                                )
+                                .context("Failled to generate assert!")?;
+                            same_assignments.push(sa);
+                        } else {
+                            //2. Change the other vars
+                            let result_from_model = &model.result[var];
+                            let sa = printer
+                                .get_assert(
+                                    result_from_model.name.clone(),
+                                    result_from_model.value.element.clone(),
+                                    NodeType::Instance,
+                                    Operation::NotEqual,
+                                )
+                                .context("Failled to generate assert!")?;
+                            diff_assignments.push(sa);
+                        }
+                    }
+
+                    let mut same_str = "".to_owned();
+                    for var in same_assignments.iter() {
+                        same_str.push_str(var);
+                    }
+                    let mut diff_str = "".to_owned();
+                    for var in diff_assignments.iter() {
+                        diff_str.push_str(var);
+                    }
+
+                    // 3. add these rules to the current solver,
+                    let or_diff_assignments = printer.get_or(diff_str);
+                    same_str.push_str(&or_diff_assignments);
+                    let and_all = printer.get_and(same_str);
+                    printer.write_assert_bool(and_all, Operation::And);
+
+                    // 4. find a model that satisfies these rules
+                    let model_with_constraint =
+                        Self::solve_and_get_model(SMT_FILE_PATH.to_string(), &variables)
+                            .context("Failed to solve and get model!")?;
+
+                    // If using uninterpreted function, we need to check if the model is valid by performing the lookup.
+                    if matches!(analyzer_input.lookup_method, LookupMethod::Uninterpreted) {
+                        info!("Equivalent model for the same public input!(No Lookup Constraint):");
+                        for r in &model_with_constraint.result {
+                            info!("{} : {}", r.1.name, r.1.value.element)
+                        }
+                        uc_lookup_dependency = false;
+                        let num_of_lookup_mappings = self.lookup_mappings.clone().len();
+                        for index in 0..num_of_lookup_mappings {
+                            // Lookup search to make sure all values in the model are valid.
+                            let lookup_sucessful = Self::
+                                lookup(&model_with_constraint, &self.lookup_mappings[index],self.fixed.clone());
+                            // if the lookup is not successful, the model found is not valid and the under-constrained flag is a false positive, still we can't say if the circuit is under-constrained or not.
+                            if !lookup_sucessful {
+                                uc_lookup_dependency = true;
+                                uc_lookup_dependency_fp = true;
+                                if (matches!(
+                                    analyzer_input.verification_method,
+                                    VerificationMethod::Specific
+                                ) || (matches!(
+                                    analyzer_input.verification_method,
+                                    VerificationMethod::Random
+                                ) && i == max_iterations))
+                                {
+                                    info!("Lookup unsuccessful! Probably a false positive!");
+                                    result = AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups;
+                                    return Ok(result);
+                                }
+                            }
+                        }
+                    }
+                    if (matches!(model_with_constraint.sat, Satisfiability::Satisfiable)
+                        && !uc_lookup_dependency)
+                    {
+                        info!("Equivalent model for the same public input:");
+                        for r in &model_with_constraint.result {
+                            info!("{} : {}", r.1.name, r.1.value.element)
+                        }
+                        result = AnalyzerOutputStatus::Underconstrained;
+                        return Ok(result);
                     } else {
-                        //2. Change the other vars
-                        let result_from_model = &model.result[var];
+                        info!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
+                    }
+                    printer.write_pop(1);
+                }
+
+                // If no model found, add some rules to the initial solver to make sure does not generate the same model again
+                let mut negated_model_variable_assignments = vec![];
+                for res in &model.result {
+                    if self.instace_cells.contains_key(&res.1.name) {
                         let sa = printer
                             .get_assert(
-                                result_from_model.name.clone(),
-                                result_from_model.value.element.clone(),
+                                res.1.name.clone(),
+                                res.1.value.element.clone(),
                                 NodeType::Instance,
                                 Operation::NotEqual,
                             )
                             .context("Failled to generate assert!")?;
-                        diff_assignments.push(sa);
+                        negated_model_variable_assignments.push(sa);
                     }
                 }
-
-                let mut same_str = "".to_owned();
-                for var in same_assignments.iter() {
-                    same_str.push_str(var);
+                let mut neg_model = "".to_owned();
+                for var in negated_model_variable_assignments.iter() {
+                    neg_model.push_str(var);
                 }
-                let mut diff_str = "".to_owned();
-                for var in diff_assignments.iter() {
-                    diff_str.push_str(var);
-                }
-
-                // 3. add these rules to the current solver,
-                let or_diff_assignments = printer.get_or(diff_str);
-                same_str.push_str(&or_diff_assignments);
-                let and_all = printer.get_and(same_str);
-                printer.write_assert_bool(and_all, Operation::And);
-
-                // 4. find a model that satisfies these rules
-                let model_with_constraint =
-                    Self::solve_and_get_model(SMT_FILE_PATH.to_string(), &variables)
-                        .context("Failed to solve and get model!")?;
-
-                // If using uninterpreted function, we need to check if the model is valid by performing the lookup.
-                if matches!(analyzer_input.lookup_method, LookupMethod::Uninterpreted) {
-                    info!("Equivalent model for the same public input!(No Lookup Constraint):");
-                    for r in &model_with_constraint.result {
-                        info!("{} : {}", r.1.name, r.1.value.element)
-                    }
-                    uc_lookup_dependency = false;
-                    for index in 0..self.lookup_mappings.len() {
-                        // Lookup search to make sure all values in the model are valid.
-                        let lookup_sucessful = self
-                            .lookup(&model_with_constraint, index)
-                            .context("Failed to perform lookup")?;
-                        // if the lookup is not successful, the model found is not valid and the under-constrained flag is a false positive, still we can't say if the circuit is under-constrained or not.
-                        if !lookup_sucessful {
-                            uc_lookup_dependency = true;
-                            uc_lookup_dependency_fp = true;
-                            if (matches!(
-                                analyzer_input.verification_method,
-                                VerificationMethod::Specific
-                            ) || (matches!(
-                                analyzer_input.verification_method,
-                                VerificationMethod::Random
-                            ) && i == max_iterations))
-                            {
-                                info!("Lookup unsuccessful! Probably a false positive!");
-                                result = AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups;
-                                return Ok(result);
-                            }
-                        }
-                    }
-                }
-                if (matches!(model_with_constraint.sat, Satisfiability::Satisfiable)
-                    && !uc_lookup_dependency)
-                {
-                    info!("Equivalent model for the same public input:");
-                    for r in &model_with_constraint.result {
-                        info!("{} : {}", r.1.name, r.1.value.element)
-                    }
-                    result = AnalyzerOutputStatus::Underconstrained;
-                    return Ok(result);
-                } else {
-                    info!("There is no equivalent model with the same public input to prove model {} is under-constrained!", i);
-                }
-                printer.write_pop(1);
+                printer.write_assert_bool(neg_model, Operation::Or);
             }
-
-            // If no model found, add some rules to the initial solver to make sure does not generate the same model again
-            let mut negated_model_variable_assignments = vec![];
-            for res in &model.result {
-                if self.instace_cells.contains_key(&res.1.name) {
-                    let sa = printer
-                        .get_assert(
-                            res.1.name.clone(),
-                            res.1.value.element.clone(),
-                            NodeType::Instance,
-                            Operation::NotEqual,
-                        )
-                        .context("Failled to generate assert!")?;
-                    negated_model_variable_assignments.push(sa);
-                }
+            if uc_lookup_dependency_fp
+                && matches!(result, AnalyzerOutputStatus::NotUnderconstrainedLocal)
+            {
+                result = AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups;
             }
-            let mut neg_model = "".to_owned();
-            for var in negated_model_variable_assignments.iter() {
-                neg_model.push_str(var);
-            }
-            printer.write_assert_bool(neg_model, Operation::Or);
+            Ok(result)
+        } else {
+            Err(anyhow!("Failed to open SMT file!"))
         }
-        if uc_lookup_dependency_fp
-            && matches!(result, AnalyzerOutputStatus::NotUnderconstrainedLocal)
-        {
-            result = AnalyzerOutputStatus::NotUnderconstrainedLocalUninterpretedLookups;
-        }
-        Ok(result)
     }
     /// Generates a copy path for the SMT file.
     ///
@@ -1842,8 +1840,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             .context("Failed to parse smt result!")
     }
 
-    fn lookup(&self, model_with_constraint: &ModelResult, index: usize) -> Option<bool> {
-        let lookup_mapping = &self.lookup_mappings[index];
+    fn lookup(model_with_constraint: &ModelResult, lookup_mapping: &HashMap<String, usize>,fixed: Vec<Vec<BigInt>>,) -> bool {
 
         let variables: Vec<_> = model_with_constraint
             .result
@@ -1857,7 +1854,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             })
             .collect();
 
-        'outer: for (_, row) in self.fixed.iter().enumerate() {
+        'outer: for (_, row) in fixed.iter().enumerate() {
             for &(column_index, variable) in &variables {
                 if let Some(cell) = row.get(column_index) {
                     let t = format!("{:?}", cell);
@@ -1869,10 +1866,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     continue 'outer; // Either Unassigned, Poison, or column_index out of bounds
                 }
             }
-            return Some(true);
+            return true;
         }
         // No row matched all conditions
-        Some(false)
+        false
     }
 
     fn have_same_rows(matrix1: Vec<Vec<BigInt>>, matrix2: Vec<Vec<BigInt>>) -> bool {
@@ -1956,13 +1953,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     pub fn dispatch_analysis(
         &mut self,
         analyzer_input: &mut AnalyzerInput,
-        file: &mut File,
     ) -> Result<AnalyzerOutput> {
         match self.analysis_type {
             AnalyzerType::UnusedGates => self.analyze_unused_custom_gates(),
             AnalyzerType::UnconstrainedCells => self.analyze_unconstrained_cells(),
             AnalyzerType::UnusedColumns => self.analyze_unused_columns(),
-            AnalyzerType::UnderconstrainedCircuit => self.analyze_underconstrained(analyzer_input,file),
+            AnalyzerType::UnderconstrainedCircuit => {
+                self.analyze_underconstrained(analyzer_input)
+            }
         }
     }
 }

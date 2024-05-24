@@ -60,10 +60,10 @@ pub fn run_underconstrained_benchmark_for_specified_size<const BITS: usize>() {
         lookup_method: LookupMethod::Interpreted,
     };
 
-        let mut analyzer_setup: analyzer::AnalyzerSetup<Fr> = analyzer::Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
+        let mut analyzer = analyzer::Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
 
 
-    let _result = analyzer_setup.analyzer.analyze_underconstrained(&analyzer_input, &mut analyzer_setup.smt_file);
+    let _result = analyzer.analyze_underconstrained(&analyzer_input);
 
 }
 
