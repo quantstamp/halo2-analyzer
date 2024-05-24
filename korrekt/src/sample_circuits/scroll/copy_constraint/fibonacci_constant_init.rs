@@ -1,6 +1,8 @@
 use scroll_halo2_proofs::arithmetic::Field;
 use scroll_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
-use scroll_halo2_proofs::plonk::{Error,Advice, Circuit, Column, ConstraintSystem, Instance, Selector};
+use scroll_halo2_proofs::plonk::{
+    Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector,
+};
 use scroll_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
@@ -71,16 +73,16 @@ impl<F: Field> FibonacciChip<F> {
             |mut region| {
                 self.config.selector.enable(&mut region, 0)?;
                 let a_cell = region.assign_advice(
-                    ||"test",
+                    || "test",
                     self.config.col_a,
                     0,
-                    ||Value::known(F::ONE),
+                    || Value::known(F::ONE),
                 )?;
                 let b_cell = region.assign_advice(
-                    ||"test",
+                    || "test",
                     self.config.col_b,
                     0,
-                    ||Value::known(F::ONE),
+                    || Value::known(F::ONE),
                 )?;
                 let c_cell = region.assign_advice(
                     || "a + b",
@@ -106,7 +108,7 @@ impl<F: Field> FibonacciChip<F> {
                 self.config.selector.enable(&mut region, 0)?;
 
                 // Copy the value from b & c in previous row to a & b in current row
-                
+
                 prev_b.copy_advice(|| "a", &mut region, self.config.col_a, 0)?;
                 prev_c.copy_advice(|| "b", &mut region, self.config.col_b, 0)?;
                 let c_cell = region.assign_advice(

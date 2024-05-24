@@ -16,7 +16,7 @@ struct FibonacciChip<F: Field, const SIZE: usize> {
     _marker: PhantomData<F>,
 }
 
-impl<F: Field, const SIZE: usize> FibonacciChip<F,SIZE> {
+impl<F: Field, const SIZE: usize> FibonacciChip<F, SIZE> {
     pub fn construct(config: FibonacciConfig<SIZE>) -> Self {
         Self {
             config,
@@ -62,33 +62,26 @@ impl<F: Field, const SIZE: usize> FibonacciChip<F,SIZE> {
     pub fn assign_first_row(
         &self,
         mut layouter: impl Layouter<F>,
-    ) -> Result<(AssignedCell<&Assigned<F>, F>, AssignedCell<&Assigned<F>, F>, AssignedCell<&Assigned<F>, F>), Error> {
+    ) -> Result<
+        (
+            AssignedCell<&Assigned<F>, F>,
+            AssignedCell<&Assigned<F>, F>,
+            AssignedCell<&Assigned<F>, F>,
+        ),
+        Error,
+    > {
         layouter.assign_region(
             || "first row",
             |mut region| {
                 self.config.selector.enable(&mut region, 0)?;
-    
-                let a_cell = region.assign_advice(
-                    self.config.col_a,
-                    0,
-                    Value::known(F::ONE),
-                );
 
-    
-                let b_cell = region.assign_advice(
-                    self.config.col_b,
-                    0,
-                    Value::known(F::ONE),
-                );
-    
-                //let c_value = Value::zip(a_cell.value(), b_cell.value()).map(|(a, b)| *a + *b);
+                let a_cell = region.assign_advice(self.config.col_a, 0, Value::known(F::ONE));
+
+                let b_cell = region.assign_advice(self.config.col_b, 0, Value::known(F::ONE));
+
                 let c_value = a_cell.value().copied() + b_cell.value().copied();
-                let c_cell = region.assign_advice(
-                    self.config.col_c,
-                    0,
-                    c_value
-                );
-    
+                let c_cell = region.assign_advice(self.config.col_c, 0, c_value);
+
                 Ok((a_cell, b_cell, c_cell))
             },
         )
@@ -98,9 +91,9 @@ impl<F: Field, const SIZE: usize> FibonacciChip<F,SIZE> {
         &self,
         i: usize, // loop index
         mut layouter: impl Layouter<F>,
-        prev_b: &AssignedCell<&Assigned<F>,F>,
-        prev_c: &AssignedCell<&Assigned<F>,F>,
-    ) -> Result<AssignedCell<&Assigned<F>,F>, Error> {
+        prev_b: &AssignedCell<&Assigned<F>, F>,
+        prev_c: &AssignedCell<&Assigned<F>, F>,
+    ) -> Result<AssignedCell<&Assigned<F>, F>, Error> {
         layouter.assign_region(
             || "next row",
             |mut region| {
@@ -110,30 +103,24 @@ impl<F: Field, const SIZE: usize> FibonacciChip<F,SIZE> {
                 // Copy the value from b & c in the previous row to a & b in the current row
                 prev_b.copy_advice(&mut region, self.config.col_a, row_offset);
                 prev_c.copy_advice(&mut region, self.config.col_b, row_offset);
-    
+
                 // Calculate the value for c_cell
-                let c_value = Value::zip(prev_b.value(), prev_c.value())
-                              .map(|(b, c)| *b + *c);
-    
+                let c_value = Value::zip(prev_b.value(), prev_c.value()).map(|(b, c)| *b + *c);
+
                 // Assign the value to c_cell
-                let c_cell = region.assign_advice(
-                    self.config.col_c,
-                    row_offset,
-                    c_value,
-                );
-    
+                let c_cell = region.assign_advice(self.config.col_c, row_offset, c_value);
+
                 Ok(c_cell)
             },
         )
     }
-    
 
     pub fn expose_public(
         &self,
         mut layouter: impl Layouter<F>,
-        cell: &AssignedCell<&Assigned<F>,F>,
+        cell: &AssignedCell<&Assigned<F>, F>,
         row: usize,
-    ){
+    ) {
         layouter.constrain_instance(cell.cell(), self.config.instance, row)
     }
 }
@@ -164,7 +151,8 @@ impl<F: Field, const SIZE: usize> Circuit<F> for FibonacciCircuit<F, SIZE> {
             chip.assign_first_row(layouter.namespace(|| "first row"))?;
 
         for _i in 3..SIZE {
-            let c_cell = chip.assign_row(_i,layouter.namespace(|| "next row"), &prev_b, &prev_c)?;
+            let c_cell =
+                chip.assign_row(_i, layouter.namespace(|| "next row"), &prev_b, &prev_c)?;
             prev_b = prev_c;
             prev_c = c_cell;
         }

@@ -4,8 +4,6 @@ use axiom_halo2_proofs::plonk::*;
 use axiom_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 
-
-
 pub struct AddMultCircuit<F: Field> {
     a: F,
     b: F,
@@ -19,7 +17,6 @@ pub struct AddMultCircuitConfig<F: Field> {
     columns: [Column<Advice>; 25],
 }
 
-
 impl<F: Field> Default for AddMultCircuit<F> {
     fn default() -> Self {
         AddMultCircuit {
@@ -28,7 +25,6 @@ impl<F: Field> Default for AddMultCircuit<F> {
         }
     }
 }
-
 
 impl<F: Field> Circuit<F> for AddMultCircuit<F> {
     type Config = AddMultCircuitConfig<F>;
@@ -107,7 +103,7 @@ impl<F: Field> Circuit<F> for AddMultCircuit<F> {
                 || "test 2",
                 |mut region| {
                     // do mul (into next)
-                    // TODO: Investigate axiom region rows handling: ZKR-3636 
+                    // TODO: Investigate axiom region rows handling: ZKR-3636
                     region.assign_advice(config.columns[0], 2, Value::known(self.a));
                     region.assign_advice(config.columns[1], 2, Value::known(self.b));
                     let c = self.a * self.b;

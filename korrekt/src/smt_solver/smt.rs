@@ -14,9 +14,7 @@ fn get_logic_string() -> String {
 
 impl<'a, W: 'a + Write> Printer<'a, W> {
     pub fn new(writer: &'a mut W) -> Self {
-        Self {
-            writer,
-        }
+        Self { writer }
     }
     /// Constructs a term string based on the provided operator and operands.
     ///
@@ -95,7 +93,7 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// The `inputs` parameter is a space-separated list of types representing the function's input parameters.
     /// The `outputs` parameter specifies the type of the function's output.
     ///
-    /// 
+    ///
     pub fn write_declare_fn(&mut self, name: String, inputs: String, outputs: String) {
         writeln!(
             &mut self.writer,

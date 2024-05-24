@@ -1,8 +1,10 @@
 use group::ff::Field;
-use zcash_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
-use zcash_halo2_proofs::plonk::{Error,Advice, Circuit, Column, ConstraintSystem, Instance, Selector};
-use zcash_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
+use zcash_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
+use zcash_halo2_proofs::plonk::{
+    Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector,
+};
+use zcash_halo2_proofs::poly::Rotation;
 
 #[derive(Debug, Clone)]
 pub struct FibonacciConfig {

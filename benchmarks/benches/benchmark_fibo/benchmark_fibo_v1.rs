@@ -6,9 +6,7 @@ use halo2_proofs::halo2curves::bn256::Fr;
 
 use korrekt_V1::{
     circuit_analyzer::analyzer::Analyzer,
-    io::
-        analyzer_io_type::{self, VerificationInput, VerificationMethod},
-    
+    io::analyzer_io_type::{self, VerificationInput, VerificationMethod},
     sample_circuits,
 };
 use num::{BigInt, Num};
@@ -71,31 +69,31 @@ pub fn run_benchmark(c: &mut Criterion) {
 pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
     let circuit =
         sample_circuits::copy_constraint::fibonacci_for_bench::FibonacciCircuit::<Fr,ROWS>::default();
-        let mut analyzer = Analyzer::from(&circuit);
+    let mut analyzer = Analyzer::from(&circuit);
 
-        let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
-        let modulus = bn256::fr::MODULUS_STR;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
+    let instance_cols = analyzer.extract_instance_cols(analyzer.layouter.eq_table.clone());
+    let modulus = bn256::fr::MODULUS_STR;
+    let without_prefix = modulus.trim_start_matches("0x");
+    let prime = BigInt::from_str_radix(without_prefix, 16)
+        .unwrap()
+        .to_string();
 
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instances_string: instance_cols,
-                iterations: 5,
-            },
-        };
-        let k: u32 = 11;
+    let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+        verification_method: VerificationMethod::Random,
+        verification_input: VerificationInput {
+            instances_string: instance_cols,
+            iterations: 5,
+        },
+    };
+    let k: u32 = 11;
 
-        let public_input = vec![Fr::from(3)];
+    let public_input = vec![Fr::from(3)];
 
-        let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
+    let prover: MockProver<Fr> = MockProver::run(k, &circuit, vec![public_input]).unwrap();
     let _output_status = analyzer
-            .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
-            .unwrap()
-            .output_status;
+        .analyze_underconstrained(analyzer_input, prover.fixed, &prime)
+        .unwrap()
+        .output_status;
 }
 
 criterion_group!(name = benches;

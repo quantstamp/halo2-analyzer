@@ -18,7 +18,7 @@ pub struct TwoBitDecompCircuitConfig {
     s: Selector,
     s_binary_b0: Selector,
     s_binary_b1: Selector,
-    binary_check_table: [TableColumn; 1]
+    binary_check_table: [TableColumn; 1],
 }
 
 impl<F: Field> Default for TwoBitDecompCircuitUnderConstrained<F> {
@@ -57,7 +57,6 @@ impl<F: Field> TwoBitDecopmChip<F> {
         meta.enable_equality(i);
 
         let binary_check_table = [meta.lookup_table_column()];
-        
 
         meta.lookup("BINARY_lookup", |meta| {
             let s = meta.query_selector(s);
@@ -65,7 +64,7 @@ impl<F: Field> TwoBitDecopmChip<F> {
             vec![(s * lhs, binary_check_table[0])]
         });
 
-        meta.lookup("BINARY_lookup",|meta: &mut VirtualCells<'_, F>| {
+        meta.lookup("BINARY_lookup", |meta: &mut VirtualCells<'_, F>| {
             let s = meta.query_selector(s);
             let lhs = meta.query_advice(b1, Rotation::cur());
             vec![(s * lhs, binary_check_table[0])]
@@ -83,7 +82,16 @@ impl<F: Field> TwoBitDecopmChip<F> {
             vec![dummy * (a + Expression::Constant(F::from(2)) * b - c)]
         });
 
-        TwoBitDecompCircuitConfig { b0, b1, x, i, s, s_binary_b0, s_binary_b1, binary_check_table }
+        TwoBitDecompCircuitConfig {
+            b0,
+            b1,
+            x,
+            i,
+            s,
+            s_binary_b0,
+            s_binary_b1,
+            binary_check_table,
+        }
     }
     fn load_table_binary(&self, mut layouter: impl Layouter<F>) -> Result<(), Error> {
         layouter.assign_table(
@@ -101,17 +109,14 @@ impl<F: Field> TwoBitDecopmChip<F> {
             },
         )
     }
-
-    
 }
 
 #[derive(Default)]
 
-pub struct TwoBitDecompCircuit<F>{
+pub struct TwoBitDecompCircuit<F> {
     b0: F,
     b1: F,
 }
-
 
 impl<F: Field> Circuit<F> for TwoBitDecompCircuit<F> {
     type Config = TwoBitDecompCircuitConfig;

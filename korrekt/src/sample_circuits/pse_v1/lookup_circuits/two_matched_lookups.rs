@@ -77,14 +77,14 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
         meta.lookup("RC_lookup", |meta| {
             let s = meta.query_selector(s_range);
             let lhs = meta.query_advice(col_a, Rotation::cur());
-            
+
             vec![(s * lhs, range_check_table[0])]
         });
 
         meta.lookup("RC1_lookup", |meta| {
             let s1 = meta.query_selector(s_range_1);
             let rhs = meta.query_advice(col_b, Rotation::cur());
-            
+
             vec![(s1 * rhs, range_check_table_1[0])]
         });
 
@@ -153,7 +153,7 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
                         || "value",
                         self.config.range_check_table_1[0],
                         idx,
-                        || Value::known(F::from(6-value-1)),
+                        || Value::known(F::from(6 - value - 1)),
                     )?;
                 }
                 Ok(())
@@ -172,19 +172,19 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
                             || "lhs",
                             self.config.xor_table[0],
                             idx,
-                            || Value::known(F::from(6-lhs-1)),
+                            || Value::known(F::from(6 - lhs - 1)),
                         )?;
                         table.assign_cell(
                             || "rhs",
                             self.config.xor_table[1],
                             idx,
-                            || Value::known(F::from(6-rhs-1)),
+                            || Value::known(F::from(6 - rhs - 1)),
                         )?;
                         table.assign_cell(
                             || "lhs ^ rhs",
                             self.config.xor_table[2],
                             idx,
-                            || Value::known(F::from(6-lhs-1 ^ 6-rhs-1)),
+                            || Value::known(F::from(6 - lhs - 1 ^ 6 - rhs - 1)),
                         )?;
                         idx += 1;
                     }
@@ -287,8 +287,16 @@ impl<F: FieldExt, const SIZE: usize> FibonacciChip<F, SIZE> {
                             || {
                                 b_cell.value().and_then(|a| {
                                     c_cell.value().map(|b| {
-                                        let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();
-                                        let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();
+                                        let a_val = u64::from_str_radix(
+                                            format!("{:?}", a).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
+                                        let b_val = u64::from_str_radix(
+                                            format!("{:?}", b).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
                                         F::from(a_val ^ b_val)
                                     })
                                 })

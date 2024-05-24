@@ -14,7 +14,7 @@ use anyhow::{Context, Ok};
 use korrekt::{
     circuit_analyzer::analyzer::Analyzer,
     io::analyzer_io_type::{
-        AnalyzerInput, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod
+        AnalyzerInput, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
     },
 };
 extern crate env_logger;
@@ -70,9 +70,9 @@ fn main() -> Result<()> {
             .required_if_eq_any(&[("verification", "random"),("verification", "r")]))
         .get_matches();
 
-        let mut config = if let Some(profile) = matches.value_of("profile") {
-            load_config_for_profile(profile)?
-        }else {
+    let mut config = if let Some(profile) = matches.value_of("profile") {
+        load_config_for_profile(profile)?
+    } else {
         let analysis_type = parse_analysis_type(matches.value_of("type"));
 
         let verification_method = matches
@@ -111,7 +111,7 @@ fn main() -> Result<()> {
 fn load_config_for_profile(profile: &str) -> Result<AnalyzerInput> {
     let config_path = format!("./src/config/{}.toml", profile);
     AnalyzerInput::load_config(Path::new(&config_path))
-    .with_context(|| format!("Failed to load configuration for profile: {}", profile))
+        .with_context(|| format!("Failed to load configuration for profile: {}", profile))
 }
 fn parse_lookup_method(input: &str) -> LookupMethod {
     match input {
@@ -199,15 +199,18 @@ fn setup_analyzer(
 
 fn run_analysis(analyzer_input: &mut AnalyzerInput) -> anyhow::Result<()> {
     let circuit =
-            sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default(
-            );
+        sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default();
     let k = 11;
-
 
     // Start timer for Analyzer::new
     let start_new = Instant::now();
-    let mut analyzer = Analyzer::new(&circuit, k, AnalyzerType::UnderconstrainedCircuit, Some(analyzer_input))
-        .unwrap();
+    let mut analyzer = Analyzer::new(
+        &circuit,
+        k,
+        AnalyzerType::UnderconstrainedCircuit,
+        Some(analyzer_input),
+    )
+    .unwrap();
 
     // End timer and print elapsed time
     let duration_new = start_new.elapsed();

@@ -1,6 +1,8 @@
 use pse_halo2_proofs::arithmetic::Field;
 use pse_halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
-use pse_halo2_proofs::plonk::{Error,Advice, Circuit, Column, ConstraintSystem, Instance, Selector};
+use pse_halo2_proofs::plonk::{
+    Advice, Circuit, Column, ConstraintSystem, Error, Instance, Selector,
+};
 use pse_halo2_proofs::poly::Rotation;
 use std::marker::PhantomData;
 

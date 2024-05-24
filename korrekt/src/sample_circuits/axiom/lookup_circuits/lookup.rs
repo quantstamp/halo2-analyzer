@@ -1,7 +1,7 @@
-use group::ff::PrimeField;
 use axiom_halo2_proofs::circuit::*;
 use axiom_halo2_proofs::plonk::*;
 use axiom_halo2_proofs::poly::Rotation;
+use group::ff::PrimeField;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,6 @@ struct FibonacciChip<F: PrimeField> {
     config: FibonacciConfig,
     _marker: PhantomData<F>,
 }
-
 
 impl<F: PrimeField> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
@@ -120,25 +119,17 @@ impl<F: PrimeField> FibonacciChip<F> {
         &self,
         mut layouter: impl Layouter<F>,
         nrows: usize,
-    ) -> Result<AssignedCell<&Assigned<F>,F>, Error> {
+    ) -> Result<AssignedCell<&Assigned<F>, F>, Error> {
         layouter.assign_region(
             || "entire circuit",
             |mut region| {
                 self.config.s_add.enable(&mut region, 0)?;
 
                 // assign first row
-                let a_cell = region.assign_advice(
-                    self.config.advice[0],
-                    0,
-                    Value::known(F::ONE),
-                );
+                let a_cell = region.assign_advice(self.config.advice[0], 0, Value::known(F::ONE));
 
-    
-                let mut b_cell = region.assign_advice(
-                    self.config.advice[1],
-                    0,
-                    Value::known(F::ONE),
-                );
+                let mut b_cell =
+                    region.assign_advice(self.config.advice[1], 0, Value::known(F::ONE));
                 let mut c_cell = region.assign_advice(
                     self.config.advice[2],
                     0,
@@ -147,7 +138,7 @@ impl<F: PrimeField> FibonacciChip<F> {
 
                 // assign the rest of rows
                 for row in 1..nrows {
-                    b_cell.copy_advice( &mut region, self.config.advice[0], row);
+                    b_cell.copy_advice(&mut region, self.config.advice[0], row);
                     c_cell.copy_advice(&mut region, self.config.advice[1], row);
 
                     let new_c_cell = if row % 2 == 0 {
@@ -162,19 +153,21 @@ impl<F: PrimeField> FibonacciChip<F> {
                         let t = (|| {
                             b_cell.value().and_then(|a| {
                                 c_cell.value().map(|b| {
-                                    let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();
-                                    let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();
-                                    //let a_val = a.get_lower_32() as u64;
-                                    //let b_val = b.get_lower_32() as u64;
+                                    let a_val = u64::from_str_radix(
+                                        format!("{:?}", a).strip_prefix("0x").unwrap(),
+                                        16,
+                                    )
+                                    .unwrap();
+                                    let b_val = u64::from_str_radix(
+                                        format!("{:?}", b).strip_prefix("0x").unwrap(),
+                                        16,
+                                    )
+                                    .unwrap();
                                     F::from(a_val ^ b_val)
                                 })
                             })
                         })();
-                        region.assign_advice(
-                            self.config.advice[2],
-                            row,
-                            t
-                        )
+                        region.assign_advice(self.config.advice[2], row, t)
                     };
 
                     b_cell = c_cell;
@@ -189,9 +182,9 @@ impl<F: PrimeField> FibonacciChip<F> {
     pub fn expose_public(
         &self,
         mut layouter: impl Layouter<F>,
-        cell: &AssignedCell<&Assigned<F>,F>,
+        cell: &AssignedCell<&Assigned<F>, F>,
         row: usize,
-    ){
+    ) {
         layouter.constrain_instance(cell.cell(), self.config.instance, row)
     }
 }
@@ -199,7 +192,6 @@ impl<F: PrimeField> FibonacciChip<F> {
 #[derive(Default)]
 
 pub struct MyCircuit<F>(pub PhantomData<F>);
-
 
 impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     type Config = FibonacciConfig;
@@ -221,10 +213,8 @@ impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
         let chip = FibonacciChip::construct(config);
         chip.load_table(layouter.namespace(|| "lookup table"))?;
         let out_cell = chip.assign(layouter.namespace(|| "entire table"), 8)?;
-        //chip.expose_public(layouter.namespace(|| "out"), out_cell, 2)?;
         chip.expose_public(layouter.namespace(|| "out"), &out_cell, 2);
 
         Ok(())
     }
 }
-

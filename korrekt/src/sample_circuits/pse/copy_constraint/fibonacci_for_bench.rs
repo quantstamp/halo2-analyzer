@@ -16,7 +16,7 @@ struct FibonacciChip<F: Field, const SIZE: usize> {
     _marker: PhantomData<F>,
 }
 
-impl<F: Field, const SIZE: usize> FibonacciChip<F,SIZE> {
+impl<F: Field, const SIZE: usize> FibonacciChip<F, SIZE> {
     pub fn construct(config: FibonacciConfig<SIZE>) -> Self {
         Self {
             config,

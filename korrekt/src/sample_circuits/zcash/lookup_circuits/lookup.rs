@@ -1,8 +1,8 @@
 use ff::PrimeField;
-use zcash_halo2_proofs::poly::Rotation;
+use std::marker::PhantomData;
 use zcash_halo2_proofs::circuit::*;
 use zcash_halo2_proofs::plonk::*;
-use std::marker::PhantomData;
+use zcash_halo2_proofs::poly::Rotation;
 #[derive(Debug, Clone)]
 pub struct FibonacciConfig {
     pub advice: [Column<Advice>; 3],
@@ -56,7 +56,7 @@ impl<F: PrimeField> FibonacciChip<F> {
             let c = meta.query_advice(col_c, Rotation::cur());
             vec![s * (a + b - c)]
         });
-        
+
         meta.lookup(|meta| {
             let s = meta.query_selector(s_xor);
             let lhs = meta.query_advice(col_a, Rotation::cur());
@@ -68,7 +68,7 @@ impl<F: PrimeField> FibonacciChip<F> {
                 (s * out, xor_table[2]),
             ]
         });
-        
+
         meta.lookup(|meta| {
             let s = meta.query_selector(s_xor);
             let lhs = meta.query_advice(col_a, Rotation::cur());
@@ -178,8 +178,16 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || {
                                 b_cell.value().and_then(|a| {
                                     c_cell.value().map(|b| {
-                                        let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();//a.get_lower_32() as u64;
-                                        let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();//b.get_lower_32() as u64;
+                                        let a_val = u64::from_str_radix(
+                                            format!("{:?}", a).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
+                                        let b_val = u64::from_str_radix(
+                                            format!("{:?}", b).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
                                         F::from(a_val ^ b_val)
                                     })
                                 })

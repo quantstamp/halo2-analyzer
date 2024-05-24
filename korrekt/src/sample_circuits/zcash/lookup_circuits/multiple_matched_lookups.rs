@@ -156,7 +156,7 @@ impl<F: PrimeField> FibonacciChip<F> {
                         || "value",
                         self.config.range_check_table_1[0],
                         idx,
-                        || Value::known(F::from(6-value-1)),
+                        || Value::known(F::from(6 - value - 1)),
                     )?;
                 }
                 Ok(())
@@ -175,19 +175,19 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || "lhs",
                             self.config.xor_table[0],
                             idx,
-                            || Value::known(F::from(6-lhs-1)),
+                            || Value::known(F::from(6 - lhs - 1)),
                         )?;
                         table.assign_cell(
                             || "rhs",
                             self.config.xor_table[1],
                             idx,
-                            || Value::known(F::from(6-rhs-1)),
+                            || Value::known(F::from(6 - rhs - 1)),
                         )?;
                         table.assign_cell(
                             || "lhs ^ rhs",
                             self.config.xor_table[2],
                             idx,
-                            || Value::known(F::from(6-lhs-1 ^ 6-rhs-1)),
+                            || Value::known(F::from(6 - lhs - 1 ^ 6 - rhs - 1)),
                         )?;
                         idx += 1;
                     }
@@ -294,12 +294,12 @@ impl<F: PrimeField> FibonacciChip<F> {
                                             format!("{:?}", a).strip_prefix("0x").unwrap(),
                                             16,
                                         )
-                                        .unwrap(); //a.get_lower_32() as u64;
+                                        .unwrap();
                                         let b_val = u64::from_str_radix(
                                             format!("{:?}", b).strip_prefix("0x").unwrap(),
                                             16,
                                         )
-                                        .unwrap(); //b.get_lower_32() as u64;
+                                        .unwrap();
                                         F::from(a_val ^ b_val)
                                     })
                                 })

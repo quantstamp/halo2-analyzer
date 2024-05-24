@@ -11,7 +11,6 @@ use korrekt_V2::io::analyzer_io_type::{
 use korrekt_V2::sample_circuits;
 use std::collections::HashMap;
 
-
 /// `run_underconstrained_benchmarks` macro.
 ///
 /// This macro runs the underconstrained benchmarks for all provided sizes.
@@ -48,7 +47,7 @@ macro_rules! run_underconstrained_benchmarks {
 /// It runs the benchmark for different specified sizes: 5, 8, 13, 21, and 34. The `run_underconstrained_benchmark_for_specified_size`
 /// function is called for each specified size.
 pub fn run_benchmark(c: &mut Criterion) {
-    run_underconstrained_benchmarks!(c, 5, 8, 13, 21, 34);//, 34);
+    run_underconstrained_benchmarks!(c, 5, 8, 13, 21, 34); //, 34);
 }
 
 /// Runs an underconstrained benchmark for a specified size.
@@ -74,9 +73,6 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
     >(PhantomData);
     let k: u32 = 11;
 
-
-    
-
     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
         verification_method: VerificationMethod::Random,
         verification_input: VerificationInput {
@@ -86,8 +82,13 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
         lookup_method: LookupMethod::InlineConstraints,
     };
 
-    let mut analyzer = analyzer::Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
-
+    let mut analyzer = analyzer::Analyzer::new(
+        &circuit,
+        k,
+        AnalyzerType::UnderconstrainedCircuit,
+        Some(&analyzer_input),
+    )
+    .unwrap();
 
     let _output_status = analyzer
         .analyze_underconstrained(&analyzer_input)

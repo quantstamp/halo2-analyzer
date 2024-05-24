@@ -19,7 +19,7 @@ use crate::circuit_analyzer::halo2_proofs_libs::*;
 /// |   i     |   b[i]   |        |     |          |
 /// |  ...    |   ...    |        |     |          |
 /// |   n     |   b[n]   |        |     |          |
-/// 
+///
 /// Gate: b0_binary_check: s*b[0]*(1-b[0])
 /// Gate: b1_binary_check: s*b[1]*(1-b[1])
 /// Gate: b2_binary_check: s*b[2]*(1-b[2])
@@ -28,7 +28,6 @@ use crate::circuit_analyzer::halo2_proofs_libs::*;
 /// .....
 /// Gate: bn_binary_check: s*b[n]*(1-b[n])
 /// Gate:        equality: s*((2**n)*b[2]+...+(2**i)*b[i]+...+2*b[1]+b[0]-x)
-
 
 pub struct BitDecompositon<F: FieldExt, const COUNT: usize> {
     b: [F; COUNT],

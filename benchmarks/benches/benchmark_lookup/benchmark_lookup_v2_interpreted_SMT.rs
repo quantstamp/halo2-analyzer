@@ -3,56 +3,54 @@ use halo2_proofs::halo2curves::bn256::Fr;
 use std::marker::PhantomData;
 
 use korrekt_V2::circuit_analyzer::analyzer::Analyzer;
-use std::collections::HashMap;
-use korrekt_V2::io::analyzer_io_type::{self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod};
+use korrekt_V2::io::analyzer_io_type::{
+    self, AnalyzerType, LookupMethod, VerificationInput, VerificationMethod,
+};
 use korrekt_V2::sample_circuits;
+use std::collections::HashMap;
 
 macro_rules! benchmark_with_size {
-    ($c:expr, $size:expr) => {
-        {
-            let mut group = $c.benchmark_group(format!("underconstrained_lookup_v2_interpreted_SMT"));
-            group.sample_size(10);
+    ($c:expr, $size:expr) => {{
+        let mut group = $c.benchmark_group(format!("underconstrained_lookup_v2_interpreted_SMT"));
+        group.sample_size(10);
 
-            // Benchmark function
-            group.bench_function(format!("size_{}", $size), |b| {
-                b.iter_batched(
-                    || {
-                        let circuit = sample_circuits::pse_v1::lookup_circuits::two_matched_lookups::MyCircuit::<
+        // Benchmark function
+        group.bench_function(format!("size_{}", $size), |b| {
+            b.iter_batched(
+                || {
+                    let circuit =
+                        sample_circuits::pse_v1::lookup_circuits::two_matched_lookups::MyCircuit::<
                             Fr,
                             $size,
                         >(PhantomData);
-                        let k: u32 = 11;
-                        let analyzer_input = analyzer_io_type::AnalyzerInput {
-                            verification_method: VerificationMethod::Random,
-                            verification_input: VerificationInput {
-                                instance_cells: HashMap::new(),
-                                iterations: 5,
-                            },
-                            lookup_method: LookupMethod::Interpreted,
-                        };
-                        let analyzer = Analyzer::new(
-                            &circuit,
-                            k,
-                            AnalyzerType::UnderconstrainedCircuit,
-                            Some(&analyzer_input),
-                        )
-                        .unwrap();
-                        (analyzer, analyzer_input)
-                    },
-                    |(mut analyzer, mut analyzer_input)| {
-                        analyzer
-                            .dispatch_analysis(&mut analyzer_input)
-                            .unwrap();
-                    },
-                    criterion::BatchSize::SmallInput,
-                );
-            });
+                    let k: u32 = 11;
+                    let analyzer_input = analyzer_io_type::AnalyzerInput {
+                        verification_method: VerificationMethod::Random,
+                        verification_input: VerificationInput {
+                            instance_cells: HashMap::new(),
+                            iterations: 5,
+                        },
+                        lookup_method: LookupMethod::Interpreted,
+                    };
+                    let analyzer = Analyzer::new(
+                        &circuit,
+                        k,
+                        AnalyzerType::UnderconstrainedCircuit,
+                        Some(&analyzer_input),
+                    )
+                    .unwrap();
+                    (analyzer, analyzer_input)
+                },
+                |(mut analyzer, mut analyzer_input)| {
+                    analyzer.dispatch_analysis(&mut analyzer_input).unwrap();
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
 
-            group.finish();
-        }
-    };
+        group.finish();
+    }};
 }
-
 
 fn main() {
     let mut criterion = Criterion::default();

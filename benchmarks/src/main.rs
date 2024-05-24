@@ -28,7 +28,6 @@ fn read_and_parse_estimates(file_path: &str) -> Result<Estimates> {
     }
 }
 
-
 fn main() -> Result<()> {
     let root_dir = "../target"; // Hardcoded to the directory where benchmarks are placed
     let mut benchmarks = BTreeMap::new();
@@ -66,24 +65,42 @@ fn main() -> Result<()> {
 fn print_fibo_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
     // Prepare the output headers
     print!("Fibonacci Benchmark Results\n");
-    println!("{:<10} {:<20} {:<20} {:<20} {:<20}", "Size", "Version 1 Time (ns)", "Version 2 Inline (ns)", "Version 2 Uninterpreted (ns)", "Version 2 Interpreted (ns)");
+    println!(
+        "{:<10} {:<20} {:<20} {:<20} {:<20}",
+        "Size",
+        "Version 1 Time (ns)",
+        "Version 2 Inline (ns)",
+        "Version 2 Uninterpreted (ns)",
+        "Version 2 Interpreted (ns)"
+    );
 
     // Iterate through the benchmark data
     for (size, results) in benchmarks {
         // Check if the size contains an entry for any of the benchmark categories
         let has_data = results.get("underconstrained_fibo_v1").is_some()
             || results.get("underconstrained_fibo_v2_inline").is_some()
-            || results.get("underconstrained_fibo_v2_uninterpreted").is_some()
-            || results.get("underconstrained_fibo_v2_interpreted").is_some();
+            || results
+                .get("underconstrained_fibo_v2_uninterpreted")
+                .is_some()
+            || results
+                .get("underconstrained_fibo_v2_interpreted")
+                .is_some();
 
         // Skip sizes that have no data in any category
         if has_data {
-            println!("{:<10} {:<20.2} {:<20.2} {:<20.2} {:<20.2}",
-                     size,
-                     results.get("underconstrained_fibo_v1").unwrap_or(&0.0),
-                     results.get("underconstrained_fibo_v2_inline").unwrap_or(&0.0),
-                     results.get("underconstrained_fibo_v2_uninterpreted").unwrap_or(&0.0),
-                     results.get("underconstrained_fibo_v2_interpreted").unwrap_or(&0.0)
+            println!(
+                "{:<10} {:<20.2} {:<20.2} {:<20.2} {:<20.2}",
+                size,
+                results.get("underconstrained_fibo_v1").unwrap_or(&0.0),
+                results
+                    .get("underconstrained_fibo_v2_inline")
+                    .unwrap_or(&0.0),
+                results
+                    .get("underconstrained_fibo_v2_uninterpreted")
+                    .unwrap_or(&0.0),
+                results
+                    .get("underconstrained_fibo_v2_interpreted")
+                    .unwrap_or(&0.0)
             );
         }
     }
@@ -92,28 +109,56 @@ fn print_fibo_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
 fn print_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
     println!("Lookup Benchmark Results");
     // Prepare the output headers
-    println!("{:<10} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20}", "Size", "Version 1 Time (ns)", "Version 2 Inline (ns)", "Version 2 Inline SMT time (ns)", "Version 2 Uninterpreted (ns)", "Version 2 Interpreted (ns)", "Version 2 Interpreted (ns) SMT time (ns)");
+    println!(
+        "{:<10} {:<20} {:<20} {:<20} {:<20} {:<20} {:<20}",
+        "Size",
+        "Version 1 Time (ns)",
+        "Version 2 Inline (ns)",
+        "Version 2 Inline SMT time (ns)",
+        "Version 2 Uninterpreted (ns)",
+        "Version 2 Interpreted (ns)",
+        "Version 2 Interpreted (ns) SMT time (ns)"
+    );
 
     // Iterate through the benchmark data
     for (size, results) in benchmarks {
         // Check if the size contains an entry for any of the benchmark categories
         let has_data = results.get("underconstrained_lookup_v1").is_some()
             || results.get("underconstrained_lookup_v2_inline").is_some()
-            || results.get("underconstrained_lookup_v2_inline_SMT").is_some()
-            || results.get("underconstrained_lookup_v2_uninterpreted").is_some()
-            || results.get("underconstrained_lookup_v2_interpreted").is_some()
-            || results.get("underconstrained_lookup_v2_interpreted_SMT").is_some();
+            || results
+                .get("underconstrained_lookup_v2_inline_SMT")
+                .is_some()
+            || results
+                .get("underconstrained_lookup_v2_uninterpreted")
+                .is_some()
+            || results
+                .get("underconstrained_lookup_v2_interpreted")
+                .is_some()
+            || results
+                .get("underconstrained_lookup_v2_interpreted_SMT")
+                .is_some();
 
         // Skip sizes that have no data in any category
         if has_data {
-            println!("{:<10} {:<20.2} {:<20.2} {:<20.2} {:<20.2} {:<20.2} {:<20.2}",
-                     size,
-                     results.get("underconstrained_lookup_v1").unwrap_or(&0.0),
-                     results.get("underconstrained_lookup_v2_inline").unwrap_or(&0.0),
-                     results.get("underconstrained_lookup_v2_inline_SMT").unwrap_or(&0.0),
-                     results.get("underconstrained_lookup_v2_uninterpreted").unwrap_or(&0.0),
-                     results.get("underconstrained_lookup_v2_interpreted").unwrap_or(&0.0),
-                     results.get("underconstrained_lookup_v2_interpreted_SMT").unwrap_or(&0.0)
+            println!(
+                "{:<10} {:<20.2} {:<20.2} {:<20.2} {:<20.2} {:<20.2} {:<20.2}",
+                size,
+                results.get("underconstrained_lookup_v1").unwrap_or(&0.0),
+                results
+                    .get("underconstrained_lookup_v2_inline")
+                    .unwrap_or(&0.0),
+                results
+                    .get("underconstrained_lookup_v2_inline_SMT")
+                    .unwrap_or(&0.0),
+                results
+                    .get("underconstrained_lookup_v2_uninterpreted")
+                    .unwrap_or(&0.0),
+                results
+                    .get("underconstrained_lookup_v2_interpreted")
+                    .unwrap_or(&0.0),
+                results
+                    .get("underconstrained_lookup_v2_interpreted_SMT")
+                    .unwrap_or(&0.0)
             );
         }
     }
@@ -122,20 +167,32 @@ fn print_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
 fn print_5_matched_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
     println!("Five Matched Lookup Benchmark Results");
     // Prepare the output headers
-    println!("{:<10} {:<20} {:<20}", "Size", "Version 2 Inline (ns)", "Version 2 Interpreted (ns)");
+    println!(
+        "{:<10} {:<20} {:<20}",
+        "Size", "Version 2 Inline (ns)", "Version 2 Interpreted (ns)"
+    );
 
     // Iterate through the benchmark data
     for (size, results) in benchmarks {
         // Check if the size contains an entry for any of the benchmark categories
-        let has_data = results.get("underconstrained_5_matched_lookup_v2_inline").is_some()
-            || results.get("underconstrained_5_matched_lookup_v2_interpreted").is_some();
+        let has_data = results
+            .get("underconstrained_5_matched_lookup_v2_inline")
+            .is_some()
+            || results
+                .get("underconstrained_5_matched_lookup_v2_interpreted")
+                .is_some();
 
         // Skip sizes that have no data in any category
         if has_data {
-            println!("{:<10} {:<20.2} {:<20.2}",
-                     size,
-                     results.get("underconstrained_5_matched_lookup_v2_inline").unwrap_or(&0.0),
-                     results.get("underconstrained_5_matched_lookup_v2_interpreted").unwrap_or(&0.0),
+            println!(
+                "{:<10} {:<20.2} {:<20.2}",
+                size,
+                results
+                    .get("underconstrained_5_matched_lookup_v2_inline")
+                    .unwrap_or(&0.0),
+                results
+                    .get("underconstrained_5_matched_lookup_v2_interpreted")
+                    .unwrap_or(&0.0),
             );
         }
     }
@@ -144,20 +201,32 @@ fn print_5_matched_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, 
 fn print_10_matched_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
     println!("Ten Matched Lookup Benchmark Results");
     // Prepare the output headers
-    println!("{:<10} {:<20} {:<20}", "Size", "Version 2 Inline (ns)", "Version 2 Interpreted (ns)");
+    println!(
+        "{:<10} {:<20} {:<20}",
+        "Size", "Version 2 Inline (ns)", "Version 2 Interpreted (ns)"
+    );
 
     // Iterate through the benchmark data
     for (size, results) in benchmarks {
         // Check if the size contains an entry for any of the benchmark categories
-        let has_data = results.get("underconstrained_10_matched_lookup_v2_inline").is_some()
-            || results.get("underconstrained_10_lookup_v2_interpreted").is_some();
+        let has_data = results
+            .get("underconstrained_10_matched_lookup_v2_inline")
+            .is_some()
+            || results
+                .get("underconstrained_10_lookup_v2_interpreted")
+                .is_some();
 
         // Skip sizes that have no data in any category
         if has_data {
-            println!("{:<10} {:<20.2} {:<20.2}",
-                     size,
-                     results.get("underconstrained_10_matched_lookup_v2_inline").unwrap_or(&0.0),
-                     results.get("underconstrained_10_matched_lookup_v2_interpreted").unwrap_or(&0.0),
+            println!(
+                "{:<10} {:<20.2} {:<20.2}",
+                size,
+                results
+                    .get("underconstrained_10_matched_lookup_v2_inline")
+                    .unwrap_or(&0.0),
+                results
+                    .get("underconstrained_10_matched_lookup_v2_interpreted")
+                    .unwrap_or(&0.0),
             );
         }
     }
@@ -166,20 +235,32 @@ fn print_10_matched_lookup_results(benchmarks: &BTreeMap<String, HashMap<String,
 fn print_15_matched_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
     println!("Fifteen Matched Lookup Benchmark Results");
     // Prepare the output headers
-    println!("{:<10} {:<20} {:<20}", "Size", "Version 2 Inline (ns)", "Version 2 Interpreted (ns)");
+    println!(
+        "{:<10} {:<20} {:<20}",
+        "Size", "Version 2 Inline (ns)", "Version 2 Interpreted (ns)"
+    );
 
     // Iterate through the benchmark data
     for (size, results) in benchmarks {
         // Check if the size contains an entry for any of the benchmark categories
-        let has_data = results.get("underconstrained_15_matched_lookup_v2_inline").is_some()
-            || results.get("underconstrained_15_lookup_v2_interpreted").is_some();
+        let has_data = results
+            .get("underconstrained_15_matched_lookup_v2_inline")
+            .is_some()
+            || results
+                .get("underconstrained_15_lookup_v2_interpreted")
+                .is_some();
 
         // Skip sizes that have no data in any category
         if has_data {
-            println!("{:<10} {:<20.2} {:<20.2}",
-                     size,
-                     results.get("underconstrained_15_matched_lookup_v2_inline").unwrap_or(&0.0),
-                     results.get("underconstrained_15_matched_lookup_v2_interpreted").unwrap_or(&0.0),
+            println!(
+                "{:<10} {:<20.2} {:<20.2}",
+                size,
+                results
+                    .get("underconstrained_15_matched_lookup_v2_inline")
+                    .unwrap_or(&0.0),
+                results
+                    .get("underconstrained_15_matched_lookup_v2_interpreted")
+                    .unwrap_or(&0.0),
             );
         }
     }

@@ -73,8 +73,6 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
     >(PhantomData);
     let k: u32 = 11;
 
-    
-
     let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
         verification_method: VerificationMethod::Random,
         verification_input: VerificationInput {
@@ -83,8 +81,13 @@ pub fn run_underconstrained_benchmark_for_specified_size<const ROWS: usize>() {
         },
         lookup_method: LookupMethod::Interpreted,
     };
-    let mut analyzer = analyzer::Analyzer::new(&circuit, k,AnalyzerType::UnderconstrainedCircuit,Some(&analyzer_input)).unwrap();
-
+    let mut analyzer = analyzer::Analyzer::new(
+        &circuit,
+        k,
+        AnalyzerType::UnderconstrainedCircuit,
+        Some(&analyzer_input),
+    )
+    .unwrap();
 
     let _output_status = analyzer
         .analyze_underconstrained(&analyzer_input)

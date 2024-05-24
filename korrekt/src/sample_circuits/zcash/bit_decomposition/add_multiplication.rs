@@ -1,9 +1,8 @@
 use group::ff::Field;
+use std::marker::PhantomData;
 use zcash_halo2_proofs::circuit::*;
 use zcash_halo2_proofs::plonk::*;
 use zcash_halo2_proofs::poly::Rotation;
-use std::marker::PhantomData;
-
 
 pub struct AddMultCircuit<F: Field> {
     a: F,
@@ -18,7 +17,6 @@ pub struct AddMultCircuitConfig<F: Field> {
     columns: [Column<Advice>; 25],
 }
 
-
 impl<F: Field> Default for AddMultCircuit<F> {
     fn default() -> Self {
         AddMultCircuit {
@@ -27,7 +25,6 @@ impl<F: Field> Default for AddMultCircuit<F> {
         }
     }
 }
-
 
 impl<F: Field> Circuit<F> for AddMultCircuit<F> {
     type Config = AddMultCircuitConfig<F>;

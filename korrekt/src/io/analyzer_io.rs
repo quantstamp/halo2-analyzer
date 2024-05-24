@@ -1,21 +1,22 @@
+use crate::{
+    circuit_analyzer::{analyzable::AnalyzableField, halo2_proofs_libs::*},
+    io::analyzer_io_type::{
+        AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, VerificationMethod,
+    },
+};
 use anyhow::{anyhow, Context, Result};
 use log::info;
 use std::{collections::HashMap, io};
-use crate::{
-    circuit_analyzer::{analyzable::AnalyzableField,halo2_proofs_libs::*},
-    io::analyzer_io_type::{
-        AnalyzerInput, AnalyzerOutput, AnalyzerOutputStatus, VerificationMethod
-    },
-};
 /// Retrieves user input for underconstrained circuit analysis.
 ///
 /// This function prompts the user to choose between verifying the circuit for a specific public input
 /// or a random number of public inputs. It then collects the necessary user input based on the chosen
 /// verification type and constructs an `AnalyzerInput` struct to be used in the underconstrained analysis.
 ///
-pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(input: &AnalyzerInput,instance_cols_string: &HashMap<String, i64>) -> Result<HashMap<String, i64>> {
-
-
+pub fn retrieve_user_input_for_underconstrained<F: AnalyzableField>(
+    input: &AnalyzerInput,
+    instance_cols_string: &HashMap<String, i64>,
+) -> Result<HashMap<String, i64>> {
     match input.verification_method {
         VerificationMethod::Specific => {
             let mut specified_instance_cols_string: HashMap<String, i64> = HashMap::new();
@@ -44,22 +45,19 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
         AnalyzerOutputStatus::Underconstrained => {
             info!("The circuit is under-constrained.");
         }
-        AnalyzerOutputStatus::Overconstrained => 
-        {
-            match analyzer_input.verification_method {
-                VerificationMethod::Specific => {
-                    info!("The circuit is over-constrained for this specific input.");
-                }
-                VerificationMethod::Random => {
-                    info!(
-                        "The circuit is over-constrained for {} random input(s).",
-                        analyzer_input.verification_input.iterations
-                    );
-                }
-                VerificationMethod::None => {},
+        AnalyzerOutputStatus::Overconstrained => match analyzer_input.verification_method {
+            VerificationMethod::Specific => {
+                info!("The circuit is over-constrained for this specific input.");
             }
-        }
-        
+            VerificationMethod::Random => {
+                info!(
+                    "The circuit is over-constrained for {} random input(s).",
+                    analyzer_input.verification_input.iterations
+                );
+            }
+            VerificationMethod::None => {}
+        },
+
         AnalyzerOutputStatus::NotUnderconstrained => {
             info!("The circuit is not under-constrained!");
         }
@@ -74,7 +72,7 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
                         analyzer_input.verification_input.iterations
                     );
                 }
-                VerificationMethod::None => {},
+                VerificationMethod::None => {}
             }
         }
         AnalyzerOutputStatus::UnusedCustomGates => {}
@@ -99,8 +97,8 @@ pub fn output_result(analyzer_input: &AnalyzerInput, analyzer_output: &AnalyzerO
                         analyzer_input.verification_input.iterations
                     );
                 }
-                VerificationMethod::None => {},
+                VerificationMethod::None => {}
             }
-        },
+        }
     }
 }

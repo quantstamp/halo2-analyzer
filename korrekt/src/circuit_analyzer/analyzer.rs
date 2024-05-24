@@ -170,11 +170,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             if input.verification_method == VerificationMethod::Specific
                 && input.verification_input.instance_cells.len() == 0
             {
-                let instance = retrieve_user_input_for_underconstrained::<Fr>(
-                    input,
-                    &analyzer.instance_cells,
-                )
-                .context("Failed to retrieve user input!")?;
+                let instance =
+                    retrieve_user_input_for_underconstrained::<Fr>(input, &analyzer.instance_cells)
+                        .context("Failed to retrieve user input!")?;
                 analyzer.instance_cells = instance.clone();
             } else if input.verification_method == VerificationMethod::Specific {
                 analyzer.instance_cells = analyzer_input

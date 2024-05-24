@@ -21,7 +21,6 @@ struct FibonacciChip<F: PrimeField> {
     _marker: PhantomData<F>,
 }
 
-
 impl<F: PrimeField> FibonacciChip<F> {
     pub fn construct(config: FibonacciConfig) -> Self {
         Self {
@@ -170,10 +169,17 @@ impl<F: PrimeField> FibonacciChip<F> {
                             || {
                                 b_cell.value().and_then(|a| {
                                     c_cell.value().map(|b| {
-                                        let a_val = u64::from_str_radix(format!("{:?}",a).strip_prefix("0x").unwrap(), 16).unwrap();
-                                        let b_val = u64::from_str_radix(format!("{:?}",b).strip_prefix("0x").unwrap(), 16).unwrap();
-                                        //let a_val = a.get_lower_32() as u64;
-                                        //let b_val = b.get_lower_32() as u64;
+                                        let a_val = u64::from_str_radix(
+                                            format!("{:?}", a).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
+                                        let b_val = u64::from_str_radix(
+                                            format!("{:?}", b).strip_prefix("0x").unwrap(),
+                                            16,
+                                        )
+                                        .unwrap();
+
                                         F::from(a_val ^ b_val)
                                     })
                                 })
@@ -204,7 +210,6 @@ impl<F: PrimeField> FibonacciChip<F> {
 
 pub struct MyCircuit<F>(pub PhantomData<F>);
 
-
 impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
     type Config = FibonacciConfig;
     type FloorPlanner = SimpleFloorPlanner;
@@ -230,4 +235,3 @@ impl<F: PrimeField> Circuit<F> for MyCircuit<F> {
         Ok(())
     }
 }
-
