@@ -58,7 +58,7 @@ fn main() -> Result<()> {
     print_5_matched_lookup_results(&benchmarks);
     print_10_matched_lookup_results(&benchmarks);
     print_15_matched_lookup_results(&benchmarks);
-    
+
     Ok(())
 }
 
@@ -260,40 +260,6 @@ fn print_15_matched_lookup_results(benchmarks: &BTreeMap<String, HashMap<String,
                     .unwrap_or(&0.0),
                 results
                     .get("underconstrained_15_matched_lookup_v2_interpreted")
-                    .unwrap_or(&0.0),
-            );
-        }
-    }
-}
-
-fn print_30_matched_lookup_results(benchmarks: &BTreeMap<String, HashMap<String, f64>>) {
-    println!("Thirty Matched Lookup Benchmark Results");
-    // Prepare the output headers
-    println!(
-        "{:<10} {:<20} {:<20}",
-        "Size", "Version 2 Inline (ns)", "Version 2 Interpreted (ns)"
-    );
-
-    // Iterate through the benchmark data
-    for (size, results) in benchmarks {
-        // Check if the size contains an entry for any of the benchmark categories
-        let has_data = results
-            .get("underconstrained_30_matched_lookup_v2_inline")
-            .is_some()
-            || results
-                .get("underconstrained_30_lookup_v2_interpreted")
-                .is_some();
-
-        // Skip sizes that have no data in any category
-        if has_data {
-            println!(
-                "{:<10} {:<20.2} {:<20.2}",
-                size,
-                results
-                    .get("underconstrained_30_matched_lookup_v2_inline")
-                    .unwrap_or(&0.0),
-                results
-                    .get("underconstrained_30_matched_lookup_v2_interpreted")
                     .unwrap_or(&0.0),
             );
         }
