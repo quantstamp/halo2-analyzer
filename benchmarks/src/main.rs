@@ -58,8 +58,7 @@ fn main() -> Result<()> {
     print_5_matched_lookup_results(&benchmarks);
     print_10_matched_lookup_results(&benchmarks);
     print_15_matched_lookup_results(&benchmarks);
-    print_30_matched_lookup_results(&benchmarks);
-
+    
     Ok(())
 }
 
