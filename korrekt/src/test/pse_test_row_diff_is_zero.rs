@@ -1,6 +1,7 @@
 // This is just a sample of how to import an external circuit and analyze it using the Analyzer.
 
 #[cfg(test)]
+#[cfg(feature = "use_pse_v1_halo2_proofs")]
 mod test {
     use crate::circuit_analyzer::analyzer::Analyzer;
     use crate::circuit_analyzer::halo2_proofs_libs::*;
