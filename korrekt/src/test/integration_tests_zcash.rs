@@ -138,29 +138,32 @@ mod tests {
             );
         let k: u32 = 3;
 
-        let mut analyzer = Analyzer::new(&circuit, k).unwrap();
-
-        assert!(analyzer.instace_cells.clone().len().eq(&2));
-
-        let modulus = Fr::MODULUS;
-        let without_prefix = modulus.trim_start_matches("0x");
-        let prime = BigInt::from_str_radix(without_prefix, 16)
-            .unwrap()
-            .to_string();
-
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
-                instances_string: analyzer.instace_cells.clone(),
+                instance_cells: HashMap::new(),
                 iterations: 5,
             },
             lookup_method: LookupMethod::InlineConstraints,
         };
+
+        let mut analyzer = Analyzer::new(
+            &circuit,
+            k,
+            AnalyzerType::UnderconstrainedCircuit,
+            Some(&analyzer_input),
+        )
+        .unwrap();
+
+        assert!(analyzer.instance_cells.clone().len().eq(&2));
+
+        
         let output_status = analyzer
-            .analyze_underconstrained(analyzer_input, &prime)
+            .analyze_underconstrained(&analyzer_input)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
+        
     }
 
     #[test]
