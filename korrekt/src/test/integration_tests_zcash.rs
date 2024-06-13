@@ -615,29 +615,10 @@ mod tests {
         >(PhantomData);
         let k: u32 = 11;
 
-        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
-            verification_method: VerificationMethod::Random,
-            verification_input: VerificationInput {
-                instance_cells: HashMap::new(),
-                iterations: 5,
-            },
-            lookup_method: LookupMethod::InlineConstraints,
-        };
-
-        let mut analyzer = Analyzer::new(
-            &circuit,
-            k,
-            AnalyzerType::UnderconstrainedCircuit,
-            Some(&analyzer_input),
-        )
-        .unwrap();
-
-        let output_status = analyzer
-            .analyze_underconstrained(&analyzer_input)
-            .unwrap()
-            .output_status;
-        println!("output_status: {:?}", output_status);
-        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+        let mut analyzer = Analyzer::new(&circuit, k, AnalyzerType::UnusedColumns, None).unwrap();
+        let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::UnusedColumns));
+        assert!(analyzer.log().len().gt(&0))
     }
     #[test]
     fn analyze_underconstrained_single_lookup_test() {

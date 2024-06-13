@@ -479,6 +479,20 @@ mod tests {
         println!("output_status: {:?}", output_status);
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
+
+    #[test]
+    fn analyze_underconstrained_fibonacci_fixed_init_test() {
+        let circuit = sample_circuits::copy_constraint::copy_constraint_from_fixed::SampleCircuit::<
+            Fr,
+        >(PhantomData);
+        let k: u32 = 11;
+
+        let mut analyzer = Analyzer::new(&circuit, k, AnalyzerType::UnusedColumns, None).unwrap();
+        let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::UnusedColumns));
+        assert!(analyzer.log().len().gt(&0))
+    }
+
     #[test]
     fn analyze_underconstrained_single_lookup_test() {
         let circuit =

@@ -201,9 +201,8 @@ fn run_analysis(
     analyzer_input: &mut AnalyzerInput,
     analysis_type: AnalyzerType,
 ) -> anyhow::Result<()> {
-    let circuit = sample_circuits::copy_constraint::copy_constraint_from_fixed::SampleCircuit::<Fr>(
-        PhantomData,
-    );
+    let circuit =
+        sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default();
     let k = 11;
 
     // Start timer for Analyzer::new
