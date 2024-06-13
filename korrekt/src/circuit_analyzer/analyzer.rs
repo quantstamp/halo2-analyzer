@@ -364,7 +364,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         for row_num in 0..region_end - region_begin + 1 {
                             for gate in self.cs.gates.iter() {
                                 for poly in gate.polynomials() {
-                                    println!("poly: {:?}", poly);
                                     let advices = abstract_expr::extract_columns(poly);
                                     let eval = abstract_expr::eval_abstract(
                                     poly,
@@ -380,17 +379,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
                                     region_begin, region_end
                                 ))?;
-                                    println!("eval: {:?}", eval);
-
                                     if eval != AbsResult::Zero
                                         && advices
                                             .contains(&(reg_column, Rotation(rotation as i32)))
                                     {
                                         used = true;
-                                    } else {
-                                        println!("advices: {:?}", advices);
-                                        println!("reg_column: {:?}", reg_column);
-                                        println!("rotation: {:?}", Rotation(rotation as i32));
                                     }
                                 }
                             }
