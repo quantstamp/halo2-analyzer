@@ -69,12 +69,12 @@ fn main() -> Result<()> {
             .help("Number of iterations for random input verification (only needed if verification is 'random')")
             .required_if_eq_any(&[("verification", "random"),("verification", "r")]))
         .get_matches();
+    let analysis_type = parse_analysis_type(matches.value_of("type"));
+    info!("Analysis Type: {:?}", analysis_type);
 
     let mut config = if let Some(profile) = matches.value_of("profile") {
         load_config_for_profile(profile)?
     } else {
-        let analysis_type = parse_analysis_type(matches.value_of("type"));
-
         let verification_method = matches
             .value_of("verification")
             .map(parse_verification_method);
@@ -84,7 +84,6 @@ fn main() -> Result<()> {
             .value_of("iterations")
             .map(|i| i.parse::<u128>().unwrap_or(1));
 
-        info!("Analysis Type: {:?}", analysis_type);
         if let Some(lm) = lookup_method {
             info!("Lookup Method: {:?}", lm);
         }
@@ -100,11 +99,10 @@ fn main() -> Result<()> {
         setup_analyzer(
             lookup_method.unwrap_or(LookupMethod::None),
             iterations.unwrap_or(1),
-            analysis_type,
             verification_method.unwrap_or(VerificationMethod::None),
         )?
     };
-    run_analysis(&mut config)?;
+    run_analysis(&mut config, analysis_type)?;
 
     Ok(())
 }
@@ -183,10 +181,12 @@ fn ensure_no_conflicting_args(
 fn setup_analyzer(
     lookup_method: LookupMethod,
     iterations: u128,
-    analysis_type: AnalyzerType,
     verification_method: VerificationMethod,
 ) -> anyhow::Result<AnalyzerInput> {
-    info!("Setting up analyzer with LookupMethod: {:?}, Iterations: {}, AnalysisType: {:?}, VerificationMethod: {:?}", lookup_method, iterations, analysis_type, verification_method);
+    info!(
+        "Setting up analyzer with LookupMethod: {:?}, Iterations: {}, VerificationMethod: {:?}",
+        lookup_method, iterations, verification_method
+    );
     Ok(AnalyzerInput {
         verification_method,
         verification_input: VerificationInput {
@@ -197,20 +197,18 @@ fn setup_analyzer(
     })
 }
 
-fn run_analysis(analyzer_input: &mut AnalyzerInput) -> anyhow::Result<()> {
-    let circuit =
-        sample_circuits::bit_decomposition::two_bit_decomp::TwoBitDecompCircuit::<Fr>::default();
+fn run_analysis(
+    analyzer_input: &mut AnalyzerInput,
+    analysis_type: AnalyzerType,
+) -> anyhow::Result<()> {
+    let circuit = sample_circuits::copy_constraint::copy_constraint_from_fixed::SampleCircuit::<Fr>(
+        PhantomData,
+    );
     let k = 11;
 
     // Start timer for Analyzer::new
     let start_new = Instant::now();
-    let mut analyzer = Analyzer::new(
-        &circuit,
-        k,
-        AnalyzerType::UnderconstrainedCircuit,
-        Some(analyzer_input),
-    )
-    .unwrap();
+    let mut analyzer = Analyzer::new(&circuit, k, analysis_type, Some(analyzer_input)).unwrap();
 
     // End timer and print elapsed time
     let duration_new = start_new.elapsed();

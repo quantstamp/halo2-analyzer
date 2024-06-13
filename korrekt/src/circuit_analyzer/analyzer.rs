@@ -48,6 +48,8 @@ pub struct Analyzer<F: AnalyzableField> {
     pub prime: String,
     pub all_variables: HashSet<String>,
     pub smt_file: Option<File>,
+    pub cycle_abs_value: HashMap<String, AbsResult>,
+    pub cycle_big_int_value: HashMap<String, BigInt>,
 }
 
 #[derive(Debug)]
@@ -105,8 +107,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             .unwrap()
             .to_string();
         let analyzable = Analyzable::config_and_synthesize(circuit, k)?;
-        let (permutation, instance_cells, cell_to_cycle_head) =
-            Analyzer::<F>::extract_permutations(&analyzable.permutation);
+
         // Convert fixed to an equivalent matrix with BigInt type instead of CellValue
         let mut fixed = Vec::new();
         for col in analyzable.fixed.iter() {
@@ -138,7 +139,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
             fixed.push(new_col);
         }
-
+        // TODO: Add the Fixed Permutations to SMT Solver: ZKR-4188
+        let (permutation, instance_cells, cell_to_cycle_head, cycle_abs_value, cycle_big_int_value) =
+            Analyzer::<F>::extract_permutations(&analyzable.permutation, &fixed);
         let mut analyzer = Analyzer {
             cs: analyzable.cs,
             regions: analyzable.regions,
@@ -155,6 +158,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             prime,
             all_variables: HashSet::new(),
             smt_file: None,
+            cycle_abs_value: cycle_abs_value,
+            cycle_big_int_value,
         };
 
         fs::create_dir_all("src/output/").unwrap();
@@ -253,28 +258,33 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             {
                 let (region_begin, region_end) = region.rows.unwrap();
                 let selectors = region.enabled_selectors.keys().cloned().collect();
-                for poly in gate.polynomials() {
-                    let res = abstract_expr::eval_abstract(
+                for row_num in 0..region_end - region_begin + 1 {
+                    for poly in gate.polynomials() {
+                        let res = abstract_expr::eval_abstract(
                         poly,
                         &selectors,
                         region_begin,
                         region_end,
+                        row_num as i32,
                         &self.fixed,
+                        &self.cell_to_cycle_head,
+                        &self.cycle_abs_value,
                     )
                     .with_context(|| format!(
                         "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
                         region_begin, region_end
                     ))?;
-                    if res != AbsResult::Zero {
-                        used = true;
-                        break 'region_search;
+                        if res != AbsResult::Zero {
+                            used = true;
+                            break 'region_search;
+                        }
                     }
                 }
             }
 
             if !used {
                 count += 1;
-                self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors in regions)", gate.name()));
+                self.log.push(format!("unused gate: \"{}\" (consider removing the gate or checking selectors or fixed assignments in regions)", gate.name()));
             }
         }
         println!("Finished analysis: {} unused gates found.", count);
@@ -351,24 +361,37 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 match reg_column.column_type {
                     Any::Fixed => continue,
                     _ => {
-                        for gate in self.cs.gates.iter() {
-                            for poly in gate.polynomials() {
-                                let advices = abstract_expr::extract_columns(poly);
-                                let eval = abstract_expr::eval_abstract(
+                        for row_num in 0..region_end - region_begin + 1 {
+                            for gate in self.cs.gates.iter() {
+                                for poly in gate.polynomials() {
+                                    println!("poly: {:?}", poly);
+                                    let advices = abstract_expr::extract_columns(poly);
+                                    let eval = abstract_expr::eval_abstract(
                                     poly,
                                     &selectors,
                                     region_begin,
                                     region_end,
+                                    row_num as i32,
                                     &self.fixed,
+                                    &self.cell_to_cycle_head,
+                                    &self.cycle_abs_value,
                                 )
                                 .with_context(|| format!(
                                     "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
                                     region_begin, region_end
                                 ))?;
-                                if eval != AbsResult::Zero
-                                    && advices.contains(&(reg_column, Rotation(rotation as i32)))
-                                {
-                                    used = true;
+                                    println!("eval: {:?}", eval);
+
+                                    if eval != AbsResult::Zero
+                                        && advices
+                                            .contains(&(reg_column, Rotation(rotation as i32)))
+                                    {
+                                        used = true;
+                                    } else {
+                                        println!("advices: {:?}", advices);
+                                        println!("reg_column: {:?}", reg_column);
+                                        println!("rotation: {:?}", Rotation(rotation as i32));
+                                    }
                                 }
                             }
                         }
@@ -397,16 +420,21 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
     pub fn extract_permutations(
         permutation: &permutation::keygen::Assembly,
+        fixed: &Vec<Vec<BigInt>>,
     ) -> (
         HashMap<String, String>,
         HashMap<String, i64>,
         HashMap<String, String>,
+        HashMap<String, AbsResult>,
+        HashMap<String, BigInt>,
     ) {
         let mut pairs = HashMap::<String, String>::new();
         let mut instances = HashMap::<String, i64>::new();
         let mut cycles = Vec::<Vec<String>>::new();
         let mut num_of_cycles = 0;
         let mut cell_to_cycle_head = HashMap::<String, String>::new();
+        let mut cycle_abs_value: HashMap<String, AbsResult> = HashMap::new();
+        let mut cycle_bigint_value: HashMap<String, BigInt> = HashMap::new();
 
         for col in 0..permutation.sizes.len() {
             for row in 0..permutation.sizes[col].len() {
@@ -418,14 +446,24 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     let mut cycle_row = row;
                     while cycle_length > 1 {
                         let mut is_instance: bool = false;
+                        let mut left_is_fixed: bool = false;
+                        let mut left_abs = AbsResult::Variable;
+                        let mut left_big_int_val = BigInt::from(0);
+                        let mut right_is_fixed: bool = false;
+                        let mut right_abs = AbsResult::Variable;
+                        let mut right_big_int_val = BigInt::from(0);
                         let left_cell = permutation.columns[cycle_col];
+
                         #[cfg(any(
                             feature = "use_zcash_halo2_proofs",
                             feature = "use_pse_v1_halo2_proofs",
                         ))]
                         let left_column_abr = match left_cell.column_type() {
                             Any::Advice => 'A',
-                            Any::Fixed => 'F',
+                            Any::Fixed => {
+                                left_is_fixed = true;
+                                'F'
+                            }
                             Any::Instance => {
                                 is_instance = true;
                                 'I'
@@ -444,10 +482,17 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 'I'
                             }
                         };
-
                         let left_column_index = left_cell.index;
-                        let left =
-                            format!("{}-{}-{}", left_column_abr, left_column_index, cycle_row);
+                        let mut left = String::new();
+                        left = format!("{}-{}-{}", left_column_abr, left_column_index, cycle_row);
+                        if left_is_fixed {
+                            left_big_int_val = fixed[left_column_index][cycle_row].clone();
+                            if left_big_int_val.sign() == Sign::NoSign {
+                                left_abs = AbsResult::Zero;
+                            } else {
+                                left_abs = AbsResult::NonZero;
+                            }
+                        }
                         if is_instance {
                             instances.insert(left.clone(), 0);
                         }
@@ -461,7 +506,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         ))]
                         let right_column_abr = match right_cell.column_type() {
                             Any::Advice => 'A',
-                            Any::Fixed => 'F',
+                            Any::Fixed => {
+                                right_is_fixed = true;
+                                'F'
+                            }
                             Any::Instance => {
                                 is_instance = true;
                                 'I'
@@ -481,10 +529,19 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             }
                         };
                         let right_column_index = right_cell.index;
-                        let right = format!(
+                        let mut right = String::new();
+                        right = format!(
                             "{}-{}-{}",
                             right_column_abr, right_column_index, right_cell_row
                         );
+                        if right_is_fixed {
+                            right_big_int_val = fixed[right_column_index][right_cell_row].clone();
+                            if right_big_int_val.sign() == Sign::NoSign {
+                                right_abs = AbsResult::Zero;
+                            } else {
+                                right_abs = AbsResult::NonZero;
+                            }
+                        }
                         if is_instance {
                             instances.insert(right.clone(), 0);
                         }
@@ -495,9 +552,21 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         }
                         cycle.push(right.clone());
                         if is_instance {
-                            cell_to_cycle_head.insert(left.clone(), right);
+                            cell_to_cycle_head.insert(left.clone(), right.clone());
+                            cell_to_cycle_head.insert(right.clone(), right.clone());
                         } else {
-                            cell_to_cycle_head.insert(right, left);
+                            cell_to_cycle_head.insert(right.clone(), left.clone());
+                            cell_to_cycle_head.insert(left.clone(), left.clone());
+                        }
+
+                        if right_is_fixed {
+                            cycle_abs_value.insert(cell_to_cycle_head[&right].clone(), right_abs);
+                            cycle_bigint_value
+                                .insert(cell_to_cycle_head[&right].clone(), right_big_int_val);
+                        } else if left_is_fixed {
+                            cycle_abs_value.insert(cell_to_cycle_head[&left].clone(), left_abs);
+                            cycle_bigint_value
+                                .insert(cell_to_cycle_head[&left].clone(), left_big_int_val);
                         }
                         cycle_col = right_cell_col;
                         cycle_row = right_cell_row;
@@ -507,7 +576,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
             }
         }
-        (pairs, instances, cell_to_cycle_head)
+        (
+            pairs,
+            instances,
+            cell_to_cycle_head,
+            cycle_abs_value,
+            cycle_bigint_value,
+        )
     }
 
     pub fn extract_lookups(
@@ -684,16 +759,24 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 let col = fixed_query.column_index;
                 let row = (fixed_query.rotation.0 + row_num) as usize + region_begin;
 
-                let t = &fixed[col][row];
-                let term = format!("(as ff{:?} F)", t);
+                if col < fixed.len() && row < fixed[0].len() {
+                    let t = &fixed[col][row];
+                    let term = format!("(as ff{:?} F)", t);
 
-                if t.sign() == Sign::NoSign {
-                    is_zero_expression = IsZeroExpression::Zero;
-                } else if *t == BigInt::from(1) {
-                    is_zero_expression = IsZeroExpression::One;
+                    if t.sign() == Sign::NoSign {
+                        is_zero_expression = IsZeroExpression::Zero;
+                    } else if *t == BigInt::from(1) {
+                        is_zero_expression = IsZeroExpression::One;
+                    }
+
+                    (term, NodeType::Fixed, is_zero_expression)
+                } else {
+                    (
+                        "as ff0 F".to_owned(),
+                        NodeType::Fixed,
+                        IsZeroExpression::Zero,
+                    )
                 }
-
-                (term, NodeType::Fixed, is_zero_expression)
             }
             Expression::Advice(advice_query) => {
                 let term = format!(
