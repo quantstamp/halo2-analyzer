@@ -133,9 +133,7 @@ mod tests {
 
     #[test]
     fn no_selector_test() {
-        let circuit =
-            sample_circuits::simple::no_selector::MulCircuit::<Fr>::default(
-            );
+        let circuit = sample_circuits::simple::no_selector::MulCircuit::<Fr>::default();
         let k: u32 = 3;
 
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
@@ -157,13 +155,11 @@ mod tests {
 
         assert!(analyzer.instance_cells.clone().len().eq(&2));
 
-        
         let output_status = analyzer
             .analyze_underconstrained(&analyzer_input)
             .unwrap()
             .output_status;
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
-        
     }
 
     #[test]
@@ -611,6 +607,19 @@ mod tests {
         println!("output_status: {:?}", output_status);
         assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
     }
+
+    #[test]
+    fn analyze_underconstrained_fibonacci_fixed_init_test() {
+        let circuit = sample_circuits::copy_constraint::copy_constraint_from_fixed::SampleCircuit::<
+            Fr,
+        >(PhantomData);
+        let k: u32 = 11;
+
+        let mut analyzer = Analyzer::new(&circuit, k, AnalyzerType::UnusedColumns, None).unwrap();
+        let output_status = analyzer.analyze_unused_columns().unwrap().output_status;
+        assert!(output_status.eq(&AnalyzerOutputStatus::UnusedColumns));
+        assert!(analyzer.log().len().gt(&0))
+    }
     #[test]
     fn analyze_underconstrained_single_lookup_test() {
         let circuit =
@@ -899,6 +908,7 @@ mod tests {
             .analyze_underconstrained(&analyzer_input)
             .unwrap()
             .output_status;
+        println!("output_status: {:?}", output_status);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
 }

@@ -8,12 +8,12 @@ use anyhow::anyhow;
 use anyhow::{Context, Result};
 use num::BigInt;
 use num_bigint::Sign;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 // abstract interpretation of expressions
 
 // simplest possible abstract domain for expressions
-#[derive(Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone, Copy)]
 pub enum AbsResult {
     Variable,
     NonZero,
@@ -74,9 +74,12 @@ pub fn eval_abstract<F: AnalyzableField>(
     selectors: &HashSet<Selector>,
     region_begin: usize,
     region_end: usize,
+    row_num: i32,
     fixed: &Vec<Vec<BigInt>>,
+    cell_to_cycle_head: &HashMap<String, String>,
+    cycle_abs_value: &HashMap<String, AbsResult>,
 ) -> Result<AbsResult> {
-    match expr {
+    let evaluation = match expr {
         Expression::Constant(v) => {
             if v.is_zero().into() {
                 Ok(AbsResult::Zero)
@@ -90,24 +93,64 @@ pub fn eval_abstract<F: AnalyzableField>(
         },
         Expression::Fixed(fixed_query) => {
             let col = fixed_query.column_index;
-            let row = (fixed_query.rotation.0) as usize + region_begin;
-            if fixed[col][row].sign() == Sign::NoSign {
-                Ok(AbsResult::Zero)
+            let row = (fixed_query.rotation.0 + row_num) as usize + region_begin;
+            if col < fixed.len() && row < fixed[0].len() {
+                if fixed[col][row].sign() == Sign::NoSign {
+                    Ok(AbsResult::Zero)
+                } else {
+                    Ok(AbsResult::Variable)
+                }
             } else {
                 Ok(AbsResult::Variable)
             }
         }
-        Expression::Advice { .. } => Ok(AbsResult::Variable),
-        Expression::Instance { .. } => Ok(AbsResult::Variable),
-        Expression::Negated(expr) => {
-            eval_abstract(expr, selectors, region_begin, region_end, fixed)
+        Expression::Advice(advice_query) => {
+            let term = format!(
+                "A-{}-{}",
+                advice_query.column_index,
+                advice_query.rotation.0 + row_num + region_begin as i32
+            );
+            //println!("term: {:?}", term);
+            //println!("cell_to_cycle_head: {:?}", cell_to_cycle_head);
+            if cell_to_cycle_head.contains_key(&term) {
+                if cycle_abs_value.contains_key(&cell_to_cycle_head[&term.clone()]) {
+                    //println!("cycle_abs_value[&cell_to_cycle_head[&term]]: {:?}", cycle_abs_value[&cell_to_cycle_head[&term]]);
+                    return Ok(cycle_abs_value[&cell_to_cycle_head[&term]]);
+                }
+            }
+
+            Ok(AbsResult::Variable)
         }
+        Expression::Instance(instance_query) => {
+            let term = format!(
+                "I-{}-{}",
+                instance_query.column_index,
+                instance_query.rotation.0 + row_num + region_begin as i32
+            );
+            if cell_to_cycle_head.contains_key(&term) {
+                if cycle_abs_value.contains_key(&cell_to_cycle_head[&term.clone()]) {
+                    return Ok(cycle_abs_value[&cell_to_cycle_head[&term]]);
+                }
+            }
+
+            Ok(AbsResult::Variable)
+        }
+        Expression::Negated(expr) => eval_abstract(
+            expr,
+            selectors,
+            region_begin,
+            region_end,
+            row_num,
+            fixed,
+            cell_to_cycle_head,
+            cycle_abs_value,
+        ),
         Expression::Sum(left, right) => {
-            let res1 = eval_abstract(left, selectors,region_begin,region_end,fixed).with_context(|| format!(
+            let res1 = eval_abstract(left, selectors,region_begin,region_end, row_num, fixed, cell_to_cycle_head, cycle_abs_value).with_context(|| format!(
                                     "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
                                     region_begin, region_end
                                 ))?;
-            let res2 = eval_abstract(right, selectors,region_begin,region_end,fixed).with_context(|| format!(
+            let res2 = eval_abstract(right, selectors,region_begin,region_end, row_num, fixed, cell_to_cycle_head, cycle_abs_value).with_context(|| format!(
                                     "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
                                     region_begin, region_end
                                 ))?;
@@ -121,11 +164,11 @@ pub fn eval_abstract<F: AnalyzableField>(
             }
         }
         Expression::Product(left, right) => {
-            let res1 = eval_abstract(left, selectors,region_begin,region_end,fixed).with_context(|| format!(
+            let res1 = eval_abstract(left, selectors,region_begin,region_end, row_num, fixed, cell_to_cycle_head, cycle_abs_value).with_context(|| format!(
                                     "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
                                     region_begin, region_end
                                 ))?;
-            let res2 = eval_abstract(right, selectors,region_begin,region_end,fixed).with_context(|| format!(
+            let res2 = eval_abstract(right, selectors,region_begin,region_end, row_num, fixed, cell_to_cycle_head, cycle_abs_value).with_context(|| format!(
                                     "Failed to run abstract evaluation for polynomial at region from row: {} to {}.",
                                     region_begin, region_end
                                 ))?;
@@ -140,7 +183,16 @@ pub fn eval_abstract<F: AnalyzableField>(
             if scale.is_zero().into() {
                 Ok(AbsResult::Zero)
             } else {
-                eval_abstract(expr, selectors, region_begin, region_end, fixed)
+                eval_abstract(
+                    expr,
+                    selectors,
+                    region_begin,
+                    region_end,
+                    row_num,
+                    fixed,
+                    cell_to_cycle_head,
+                    cycle_abs_value,
+                )
             }
         }
         #[cfg(any(
@@ -151,5 +203,6 @@ pub fn eval_abstract<F: AnalyzableField>(
         Expression::Challenge(_) => Err(anyhow!(
             "Challenge expression in abstract evaluation resulted in Invalid Expression"
         )),
-    }
+    };
+    evaluation
 }
