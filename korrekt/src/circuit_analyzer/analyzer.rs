@@ -752,7 +752,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 let col = fixed_query.column_index;
                 let row = (fixed_query.rotation.0 + row_num) as usize + region_begin;
 
-                if col < fixed.len() && row < fixed[0].len() {
+                if col < fixed.len() && row < fixed[col].len() {
                     let t = &fixed[col][row];
                     let term = format!("(as ff{:?} F)", t);
 
