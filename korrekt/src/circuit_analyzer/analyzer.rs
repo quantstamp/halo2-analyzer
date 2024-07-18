@@ -134,7 +134,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
             fixed.push(new_col);
         }
-        // TODO: Add the Fixed Permutations to SMT Solver: ZKR-4188
         let (permutation, instance_cells, cell_to_cycle_head, cycle_abs_value, cycle_bigint_value) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation, &fixed);
         let mut analyzer = Analyzer {
@@ -1252,7 +1251,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.cycle_bigint_value,
                                     &mut new_variables,
                                 );
-
+                                // TODO: Distinguish the zero polynomial due to disabled selector from the zero polynomial due to the actual polynomial being zero: ZKR-4661
                                 if !matches!(is_zero, IsZeroExpression::Zero) {
                                     let diff: HashSet<String> = new_variables
                                         .difference(&self.all_variables)
