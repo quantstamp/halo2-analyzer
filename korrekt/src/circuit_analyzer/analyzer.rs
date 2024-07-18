@@ -49,7 +49,7 @@ pub struct Analyzer<F: AnalyzableField> {
     pub all_variables: HashSet<String>,
     pub smt_file: Option<File>,
     pub cycle_abs_value: HashMap<String, AbsResult>,
-    pub cycle_big_int_value: HashMap<String, BigInt>,
+    pub cycle_bigint_value: HashMap<String, BigInt>,
 }
 
 #[derive(Debug)]
@@ -129,10 +129,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         new_col.push(t);
                     }
                     CellValue::Unassigned => {
-                        should_add = false; // Stop adding after encountering the first Unassigned
+                        new_col.push(BigInt::from(0));
                     }
                     CellValue::Poison(_) => {
-                        should_add = false; // Stop adding after encountering the first Poison
+                        new_col.push(BigInt::from(0));
                     }
                 }
             }
@@ -140,7 +140,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             fixed.push(new_col);
         }
         // TODO: Add the Fixed Permutations to SMT Solver: ZKR-4188
-        let (permutation, instance_cells, cell_to_cycle_head, cycle_abs_value, cycle_big_int_value) =
+        let (permutation, instance_cells, cell_to_cycle_head, cycle_abs_value, cycle_bigint_value) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation, &fixed);
         let mut analyzer = Analyzer {
             cs: analyzable.cs,
@@ -159,7 +159,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             all_variables: HashSet::new(),
             smt_file: None,
             cycle_abs_value: cycle_abs_value,
-            cycle_big_int_value,
+            cycle_bigint_value,
         };
 
         fs::create_dir_all("src/output/").unwrap();
@@ -194,14 +194,29 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             for permutation in &analyzer.permutation {
                 let mut permutation_r = permutation.0.to_owned();
                 let mut permutation_l = permutation.1.to_owned();
+                let mut r_is_fixed = false;
+                let mut l_is_fixed = false;
                 if analyzer
                     .cell_to_cycle_head
                     .contains_key(&permutation.0.to_owned())
                 {
-                    permutation_r = analyzer.cell_to_cycle_head[permutation.0].to_owned();
+                    if analyzer
+                        .cycle_abs_value
+                        .contains_key(&analyzer.cell_to_cycle_head[&permutation.0.to_owned()])
+                    {
+                        r_is_fixed = true;
+                        permutation_r = format!(
+                            "(as ff{:?} F)",
+                            analyzer.cycle_bigint_value
+                                [&analyzer.cell_to_cycle_head[permutation.0]]
+                                .to_owned()
+                        );
+                    } else {
+                        permutation_r = analyzer.cell_to_cycle_head[permutation.0].to_owned();
+                    }
                 }
 
-                if !analyzer.all_variables.contains(&permutation_r) {
+                if !analyzer.all_variables.contains(&permutation_r) && !r_is_fixed {
                     analyzer.all_variables.insert(permutation_r.clone());
 
                     printer.write_var(permutation_r.to_owned());
@@ -210,11 +225,24 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     .cell_to_cycle_head
                     .contains_key(&permutation.1.to_owned())
                 {
-                    permutation_l = analyzer.cell_to_cycle_head[permutation.1].to_owned();
+                    if analyzer
+                        .cycle_abs_value
+                        .contains_key(&analyzer.cell_to_cycle_head[&permutation.1.to_owned()])
+                    {
+                        l_is_fixed = true;
+                        permutation_l = format!(
+                            "(as ff{:?} F)",
+                            analyzer.cycle_bigint_value
+                                [&analyzer.cell_to_cycle_head[permutation.1]]
+                                .to_owned()
+                        );
+                    } else {
+                        permutation_l = analyzer.cell_to_cycle_head[permutation.1].to_owned();
+                    }
                 }
 
                 if !permutation_l.eq(&permutation_r) {
-                    if !analyzer.all_variables.contains(&permutation_l) {
+                    if !analyzer.all_variables.contains(&permutation_l) && !l_is_fixed {
                         analyzer.all_variables.insert(permutation_l.clone());
                         printer.write_var(permutation_l.to_owned());
                     }
@@ -476,8 +504,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             }
                         };
                         let left_column_index = left_cell.index;
-                        let mut left = String::new();
-                        left = format!("{}-{}-{}", left_column_abr, left_column_index, cycle_row);
+                        let left =
+                            format!("{}-{}-{}", left_column_abr, left_column_index, cycle_row);
                         if left_is_fixed {
                             left_big_int_val = fixed[left_column_index][cycle_row].clone();
                             if left_big_int_val.sign() == Sign::NoSign {
@@ -522,8 +550,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             }
                         };
                         let right_column_index = right_cell.index;
-                        let mut right = String::new();
-                        right = format!(
+                        let right = format!(
                             "{}-{}-{}",
                             right_column_abr, right_column_index, right_cell_row
                         );
@@ -707,7 +734,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         es: &HashMap<Selector, Vec<usize>>,
         fixed: &Vec<Vec<BigInt>>,
         cell_to_cycle_head: &HashMap<String, String>,
-        all_variables: &mut HashSet<String>,
+        cycle_bigint_value: &HashMap<String, BigInt>,
+        new_variables: &mut HashSet<String>,
     ) -> (String, NodeType, IsZeroExpression) {
         let mut is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
@@ -718,7 +746,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
                 if constant_decimal_value.sign() == Sign::NoSign {
                     return (
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Constant,
                         IsZeroExpression::Zero,
                     );
@@ -742,7 +770,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     )
                 } else {
                     (
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         IsZeroExpression::Zero,
                     )
@@ -765,7 +793,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     (term, NodeType::Fixed, is_zero_expression)
                 } else {
                     (
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         IsZeroExpression::Zero,
                     )
@@ -778,13 +806,20 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     advice_query.rotation.0 + row_num + region_begin as i32
                 );
                 let mut t = term.clone();
+                let mut t_is_fixed = false;
                 if cell_to_cycle_head.contains_key(&term) {
-                    t = cell_to_cycle_head[&term.clone()].to_string();
+                    if cycle_bigint_value.contains_key(&cell_to_cycle_head[&term]) {
+                        t_is_fixed = true;
+                        t = format!(
+                            "(as ff{:?} F)",
+                            cycle_bigint_value[&cell_to_cycle_head[&term]].to_owned()
+                        );
+                    } else {
+                        t = cell_to_cycle_head[&term.clone()].to_string();
+                    }
                 }
-
-                if !all_variables.contains(&t) {
-                    all_variables.insert(t.clone());
-                    printer.write_var(t.to_string());
+                if !t_is_fixed {
+                    new_variables.insert(t.clone());
                 }
                 (t.to_string(), NodeType::Advice, is_zero_expression)
             }
@@ -801,11 +836,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
-                    all_variables,
+                    cycle_bigint_value,
+                    new_variables,
                 );
                 if matches!(is_zero_expression, IsZeroExpression::Zero) {
                     return (
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         IsZeroExpression::Zero,
                     );
@@ -831,7 +867,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
-                    all_variables,
+                    cycle_bigint_value,
+                    new_variables,
                 );
                 let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     b,
@@ -842,14 +879,15 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
-                    all_variables,
+                    cycle_bigint_value,
+                    new_variables,
                 );
 
                 if matches!(left_is_zero, IsZeroExpression::Zero)
                     && matches!(right_is_zero, IsZeroExpression::Zero)
                 {
                     return (
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         IsZeroExpression::Zero,
                     );
@@ -874,7 +912,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
-                    all_variables,
+                    cycle_bigint_value,
+                    new_variables,
                 );
                 let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     b,
@@ -885,14 +924,15 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
-                    all_variables,
+                    cycle_bigint_value,
+                    new_variables,
                 );
 
                 if matches!(left_is_zero, IsZeroExpression::Zero)
                     || matches!(right_is_zero, IsZeroExpression::Zero)
                 {
                     return (
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         IsZeroExpression::Zero,
                     );
@@ -930,7 +970,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
-                    all_variables,
+                    cycle_bigint_value,
+                    new_variables,
                 );
                 let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     _poly,
@@ -941,13 +982,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     es,
                     fixed,
                     cell_to_cycle_head,
-                    all_variables,
+                    cycle_bigint_value,
+                    new_variables,
                 );
                 if matches!(left_is_zero, IsZeroExpression::Zero)
                     || matches!(right_is_zero, IsZeroExpression::Zero)
                 {
                     return (
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         IsZeroExpression::Zero,
                     );
@@ -991,7 +1033,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         es: &HashMap<Selector, Vec<usize>>,
         fixed: &Vec<Vec<BigInt>>,
         cell_to_cycle_head: &HashMap<String, String>,
-        all_variables: &mut HashSet<String>,
+        new_variables: &mut HashSet<String>,
     ) -> Result<(String, NodeType, String, IsZeroExpression)> {
         let is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
@@ -1008,7 +1050,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     ))
                 } else {
                     Ok((
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         "0".to_owned(),
                         IsZeroExpression::Zero,
@@ -1022,7 +1064,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 let t = &fixed[col][row];
                 if t.sign() == Sign::NoSign {
                     return Ok((
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         "0".to_owned(),
                         IsZeroExpression::Zero,
@@ -1049,10 +1091,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 if cell_to_cycle_head.contains_key(&term) {
                     t = cell_to_cycle_head[&term.clone()].to_string();
                 }
-                if !all_variables.contains(&t) {
-                    all_variables.insert(t.clone());
-                    printer.write_var(t.to_string());
-                }
+
+                new_variables.insert(t.clone());
                 Ok((
                     t.to_string(),
                     NodeType::Advice,
@@ -1070,10 +1110,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 if cell_to_cycle_head.contains_key(&term) {
                     t = cell_to_cycle_head[&term.clone()].to_string();
                 }
-                if !all_variables.contains(&t) {
-                    all_variables.insert(t.clone());
-                    printer.write_var(t.to_string());
-                }
+                new_variables.insert(t.clone());
                 Ok((
                     t.to_string(),
                     NodeType::Advice,
@@ -1099,7 +1136,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                        all_variables,
+                        new_variables,
                     ).with_context(|| format!("Failed to decompose the left side of the Product expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                 let (node_str_right, node_type_right, variable_right, right_is_zero) =
                     Self::decompose_lookup_expression(
@@ -1111,7 +1148,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         es,
                         fixed,
                         cell_to_cycle_head,
-                        all_variables,
+                        new_variables,
                     ).with_context(|| format!("Failed to decompose the right side of the Product expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                 if matches!(node_type_left, NodeType::Invalid) {
                     return Err(anyhow!("Left side of the Product expression evaluated to an invalid type. Check the expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
@@ -1132,7 +1169,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     || matches!(right_is_zero, IsZeroExpression::Zero)
                 {
                     return Ok((
-                        "as ff0 F".to_owned(),
+                        "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         "0".to_owned(),
                         IsZeroExpression::Zero,
@@ -1192,9 +1229,17 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 if self.selectors.is_empty() || !region.enabled_selectors.is_empty() {
                     let (region_begin, region_end) = region.rows.unwrap();
                     for row_num in 0..region_end - region_begin + 1 {
+                        let contains_t = region
+                            .enabled_selectors
+                            .values()
+                            .any(|vec| vec.contains(&(row_num + region_begin)));
+                        if !contains_t && !self.selectors.is_empty() {
+                            continue;
+                        }
                         for gate in self.cs.gates.iter() {
                             for poly in &gate.polys {
-                                let (node_str, _, _) = Self::decompose_expression(
+                                let mut new_variables = HashSet::new();
+                                let (node_str, _, is_zero) = Self::decompose_expression(
                                     poly,
                                     printer,
                                     region_begin,
@@ -1203,15 +1248,27 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &region.enabled_selectors,
                                     &self.fixed,
                                     &self.cell_to_cycle_head,
-                                    &mut self.all_variables,
+                                    &self.cycle_bigint_value,
+                                    &mut new_variables,
                                 );
 
-                                printer.write_assert(
-                                    node_str,
-                                    "0".to_owned(),
-                                    NodeType::Poly,
-                                    Operation::Equal,
-                                );
+                                if !matches!(is_zero, IsZeroExpression::Zero) {
+                                    let diff: HashSet<String> = new_variables
+                                        .difference(&self.all_variables)
+                                        .cloned()
+                                        .collect();
+                                    for element in diff {
+                                        self.all_variables.insert(element.clone());
+                                        printer.write_var(element.to_string());
+                                    }
+
+                                    printer.write_assert(
+                                        node_str,
+                                        "0".to_owned(),
+                                        NodeType::Poly,
+                                        Operation::Equal,
+                                    );
+                                }
                             }
                         }
                     }
@@ -1247,6 +1304,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let mut zero_lookup_expressions = Vec::new();
                         let mut cons_str_vec = Vec::new();
                         for poly in &lookup.input_expressions {
+                            let mut new_variables = HashSet::new();
                             let (node_str, _, is_zero) = Self::decompose_expression(
                                 poly,
                                 printer,
@@ -1256,9 +1314,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &region.enabled_selectors,
                                 &self.fixed,
                                 &self.cell_to_cycle_head,
-                                &mut self.all_variables,
+                                &self.cycle_bigint_value,
+                                &mut new_variables,
                             );
                             if !matches!(is_zero, IsZeroExpression::Zero) {
+                                let diff: HashSet<String> = new_variables
+                                    .difference(&self.all_variables)
+                                    .cloned()
+                                    .collect();
+                                for element in diff {
+                                    self.all_variables.insert(element.clone());
+                                    printer.write_var(element.to_string());
+                                }
                                 cons_str_vec.push(node_str);
                                 zero_lookup_expressions.push(true);
                             } else {
@@ -1453,6 +1520,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             feature = "use_pse_v1_halo2_proofs",
                         ))]
                         for poly in &lookup.input_expressions {
+                            let mut new_variables = HashSet::new();
                             // Decompose the lookup input expressions and return the SMT compatible decomposed expression and the variable name.
                             let (node_str, _, var, is_zero) = Self::decompose_lookup_expression(
                                 poly,
@@ -1463,10 +1531,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &region.enabled_selectors,
                                 &self.fixed,
                                 &self.cell_to_cycle_head,
-                                &mut self.all_variables,
+                                &mut new_variables,
                             )
                         .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                             if !matches!(is_zero, IsZeroExpression::Zero) {
+                                let diff: HashSet<String> = new_variables
+                                    .difference(&self.all_variables)
+                                    .cloned()
+                                    .collect();
+                                for element in diff {
+                                    self.all_variables.insert(element.clone());
+                                    printer.write_var(element.to_string());
+                                }
                                 cons_str_vec.push(node_str);
                                 if !var.is_empty() {
                                     lookup_arg_cells.push(var);
@@ -1700,10 +1776,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
                 // No need to do the lookup as they are already constrained in SMT solver where uninterpreted functions are not used for lookups.
                 if !matches!(analyzer_input.lookup_method, LookupMethod::Uninterpreted) {
-                    info!("Model {} to be checked:", i);
-                    for r in &model.result {
-                        info!("{} : {}", r.1.name, r.1.value.element)
-                    }
                     valid_model_lookeded_up = true;
                 }
                 // if using uninterpreted function, we need to check if the model is valid by performing the lookup.
@@ -1765,7 +1837,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 .get_assert(
                                     result_from_model.name.clone(),
                                     result_from_model.value.element.clone(),
-                                    NodeType::Instance,
+                                    NodeType::Advice,
                                     Operation::NotEqual,
                                 )
                                 .context("Failled to generate assert!")?;
@@ -1858,6 +1930,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     }
                 }
                 let mut neg_model = "".to_owned();
+
+                if negated_model_variable_assignments.is_empty() {
+                    continue;
+                }
                 for var in negated_model_variable_assignments.iter() {
                     neg_model.push_str(var);
                 }

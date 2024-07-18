@@ -59,17 +59,6 @@ impl<F: Field> FibonacciChip<F> {
             let c = meta.query_advice(col_c, Rotation::cur());
             vec![s * (a + b - c)]
         });
-        meta.lookup(|meta| {
-            let s = meta.query_selector(s_xor);
-            let lhs = meta.query_advice(col_a, Rotation::cur());
-            let rhs = meta.query_advice(col_b, Rotation::cur());
-            let out = meta.query_advice(col_c, Rotation::cur());
-            vec![
-                (s.clone() * lhs, xor_table[0]),
-                (s.clone() * rhs, xor_table[1]),
-                (s * out, xor_table[2]),
-            ]
-        });
 
         meta.lookup(|meta| {
             let s = meta.query_selector(s_xor);
@@ -157,6 +146,8 @@ impl<F: Field> FibonacciChip<F> {
                     0,
                     || a_cell.value().copied() + b_cell.value(),
                 )?;
+
+                self.config.s_add.enable(&mut region, 1)?;
 
                 // assign the rest of rows
                 for row in 2..nrows {
