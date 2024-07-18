@@ -1,7 +1,7 @@
 // ANCHOR: full
 use std::{marker::PhantomData, net::IpAddr};
 
-use zcash_halo2_proofs::{
+use scroll_halo2_proofs::{
     circuit::{layouter, AssignedCell, Layouter, SimpleFloorPlanner, Value},
     dev::MockProver,
     plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Selector},
@@ -83,8 +83,6 @@ impl<F: PrimeField> ArithmeticChip<F> {
 
                 // force input = w0
                 region.constrain_equal(w0.cell(), input.cell())?;
-                //println!("input is: {:?}", input);
-                c0.copy_advice(|| "annotation", &mut region, self.advice, 0)?;
                 self.q_fix.enable(&mut region, 0)?;
                 Ok(())
             },
@@ -179,7 +177,7 @@ impl<F: PrimeField> ArithmeticChip<F> {
         // if q_fix = 1: c0 = w0
         meta.create_gate("fixed", |meta| {
             let w0 = meta.query_advice(advice, Rotation::cur());
-            let c0 = meta.query_fixed(fixed);
+            let c0 = meta.query_fixed(fixed, Rotation::cur());
             let q_fix = meta.query_selector(q_fix);
             vec![q_fix * (w0 - c0)]
         });
@@ -247,7 +245,6 @@ impl<F: PrimeField> Circuit<F> for TestCircuit<F> {
 
         // this will allow us to have equality constraints
         meta.enable_equality(advice);
-        meta.enable_equality(fixed);
 
         let arith = ArithmeticChip::configure(meta, advice, fixed);
 

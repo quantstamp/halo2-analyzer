@@ -112,13 +112,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         let mut fixed = Vec::new();
         for col in analyzable.fixed.iter() {
             let mut new_col = Vec::new();
-            let mut should_add = true; // A flag to determine whether to keep adding cells to new_col
 
             for cell in col.iter() {
-                if !should_add {
-                    break;
-                }
-
                 match cell {
                     CellValue::Assigned(fixed_val) => {
                         let t = BigInt::from_str_radix(
@@ -497,7 +492,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         ))]
                         let left_column_abr = match left_cell.column_type() {
                             Any::Advice(_) => 'A',
-                            Any::Fixed => 'F',
+                            Any::Fixed => {
+                                left_is_fixed = true;
+                                'F'
+                            }
                             Any::Instance => {
                                 is_instance = true;
                                 'I'
@@ -543,7 +541,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         ))]
                         let right_column_abr = match right_cell.column_type() {
                             Any::Advice(_) => 'A',
-                            Any::Fixed => 'F',
+                            Any::Fixed => {
+                                right_is_fixed = true;
+                                'F'
+                            }
                             Any::Instance => {
                                 is_instance = true;
                                 'I'
@@ -1552,6 +1553,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         #[cfg(any(feature = "use_scroll_halo2_proofs",))]
                         for polys in &lookup.1.inputs {
                             for poly in polys {
+                                let mut new_variables = HashSet::new();
                                 let (node_str, _, var, is_zero) =
                                     Self::decompose_lookup_expression(
                                         poly,
@@ -1562,10 +1564,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         &region.enabled_selectors,
                                         &self.fixed,
                                         &self.cell_to_cycle_head,
-                                        &mut self.all_variables,
+                                        &mut new_variables,
                                     )
                                     .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
                                 if !matches!(is_zero, IsZeroExpression::Zero) {
+                                    let diff: HashSet<String> = new_variables
+                                        .difference(&self.all_variables)
+                                        .cloned()
+                                        .collect();
+                                    for element in diff {
+                                        self.all_variables.insert(element.clone());
+                                        printer.write_var(element.to_string());
+                                    }
                                     cons_str_vec.push(node_str);
                                     if !var.is_empty() {
                                         lookup_arg_cells.push(var);
@@ -1667,6 +1677,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let mut cons_str_vec = Vec::new();
                         for polys in &lookup.1.inputs {
                             for poly in polys {
+                                let mut new_variables = HashSet::new();
                                 let (node_str, _, is_zero) = Self::decompose_expression(
                                     &poly,
                                     printer,
@@ -1676,9 +1687,18 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &region.enabled_selectors,
                                     &self.fixed,
                                     &self.cell_to_cycle_head,
-                                    &mut self.all_variables,
+                                    &self.cycle_bigint_value,
+                                    &mut new_variables,
                                 );
                                 if !matches!(is_zero, IsZeroExpression::Zero) {
+                                    let diff: HashSet<String> = new_variables
+                                        .difference(&self.all_variables)
+                                        .cloned()
+                                        .collect();
+                                    for element in diff {
+                                        self.all_variables.insert(element.clone());
+                                        printer.write_var(element.to_string());
+                                    }
                                     cons_str_vec.push(node_str.clone());
                                     zero_lookup_expressions.push(true);
                                 } else {

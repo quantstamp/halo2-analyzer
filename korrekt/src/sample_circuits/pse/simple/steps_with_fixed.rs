@@ -1,7 +1,7 @@
 // ANCHOR: full
 use std::{marker::PhantomData, net::IpAddr};
 
-use zcash_halo2_proofs::{
+use pse_halo2_proofs::{
     circuit::{layouter, AssignedCell, Layouter, SimpleFloorPlanner, Value},
     dev::MockProver,
     plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Selector},
@@ -179,7 +179,7 @@ impl<F: PrimeField> ArithmeticChip<F> {
         // if q_fix = 1: c0 = w0
         meta.create_gate("fixed", |meta| {
             let w0 = meta.query_advice(advice, Rotation::cur());
-            let c0 = meta.query_fixed(fixed);
+            let c0 = meta.query_fixed(fixed, Rotation::cur());
             let q_fix = meta.query_selector(q_fix);
             vec![q_fix * (w0 - c0)]
         });

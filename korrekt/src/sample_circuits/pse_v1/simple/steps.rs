@@ -1,23 +1,16 @@
 // ANCHOR: full
 use std::{marker::PhantomData, net::IpAddr};
 
-use zcash_halo2_proofs::{
-    circuit::{layouter, AssignedCell, Layouter, SimpleFloorPlanner, Value},
-    dev::MockProver,
-    plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Expression, Fixed, Selector},
-    poly::Rotation,
-};
-
-use ff::{Field, PrimeField};
+use crate::circuit_analyzer::halo2_proofs_libs::*;
 
 // ANCHOR: witness
-pub struct TestCircuit<F: Field> {
+pub struct TestCircuit<F: FieldExt> {
     _ph: PhantomData<F>,
     a: Value<F>, // secret
     b: Value<F>, // secret
 }
 
-impl<Fr: PrimeField> Default for TestCircuit<Fr> {
+impl<Fr: FieldExt> Default for TestCircuit<Fr> {
     fn default() -> Self {
         TestCircuit {
             _ph: PhantomData,
@@ -29,7 +22,7 @@ impl<Fr: PrimeField> Default for TestCircuit<Fr> {
 // ANCHOR_END: witness
 
 #[derive(Clone, Debug)]
-pub struct TestConfig<F: PrimeField> {
+pub struct TestConfig<F: FieldExt> {
     _ph: PhantomData<F>,
     advice: Column<Advice>,
     fixed: Column<Fixed>,
@@ -37,7 +30,7 @@ pub struct TestConfig<F: PrimeField> {
 }
 
 #[derive(Debug, Clone)]
-struct ArithmeticChip<F: PrimeField> {
+struct ArithmeticChip<F: FieldExt> {
     q_add: Selector,
     q_mul: Selector,
     q_fix: Selector,
@@ -46,7 +39,7 @@ struct ArithmeticChip<F: PrimeField> {
     _ph: PhantomData<F>,
 }
 
-impl<F: PrimeField> ArithmeticChip<F> {
+impl<F: FieldExt> ArithmeticChip<F> {
     // allocate a new unconstrained value
     fn free(
         &self,
@@ -83,8 +76,6 @@ impl<F: PrimeField> ArithmeticChip<F> {
 
                 // force input = w0
                 region.constrain_equal(w0.cell(), input.cell())?;
-                //println!("input is: {:?}", input);
-                c0.copy_advice(|| "annotation", &mut region, self.advice, 0)?;
                 self.q_fix.enable(&mut region, 0)?;
                 Ok(())
             },
@@ -179,7 +170,7 @@ impl<F: PrimeField> ArithmeticChip<F> {
         // if q_fix = 1: c0 = w0
         meta.create_gate("fixed", |meta| {
             let w0 = meta.query_advice(advice, Rotation::cur());
-            let c0 = meta.query_fixed(fixed);
+            let c0 = meta.query_fixed(fixed, Rotation::cur());
             let q_fix = meta.query_selector(q_fix);
             vec![q_fix * (w0 - c0)]
         });
@@ -229,7 +220,7 @@ impl<F: PrimeField> ArithmeticChip<F> {
     }
 }
 
-impl<F: PrimeField> Circuit<F> for TestCircuit<F> {
+impl<F: FieldExt> Circuit<F> for TestCircuit<F> {
     type Config = TestConfig<F>;
     type FloorPlanner = SimpleFloorPlanner;
 
@@ -247,7 +238,6 @@ impl<F: PrimeField> Circuit<F> for TestCircuit<F> {
 
         // this will allow us to have equality constraints
         meta.enable_equality(advice);
-        meta.enable_equality(fixed);
 
         let arith = ArithmeticChip::configure(meta, advice, fixed);
 
