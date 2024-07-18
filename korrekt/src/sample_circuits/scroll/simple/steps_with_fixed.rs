@@ -83,7 +83,6 @@ impl<F: PrimeField> ArithmeticChip<F> {
 
                 // force input = w0
                 region.constrain_equal(w0.cell(), input.cell())?;
-                //println!("input is: {:?}", input);
                 c0.copy_advice(|| "annotation", &mut region, self.advice, 0)?;
                 self.q_fix.enable(&mut region, 0)?;
                 Ok(())
