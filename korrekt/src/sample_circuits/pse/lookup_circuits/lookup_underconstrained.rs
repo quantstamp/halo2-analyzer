@@ -146,6 +146,8 @@ impl<F: PrimeField> FibonacciChip<F> {
                     || a_cell.value().copied() + b_cell.value(),
                 )?;
 
+                self.config.s_add.enable(&mut region, 1)?;
+
                 // assign the rest of rows
                 for row in 2..nrows {
                     b_cell.copy_advice(|| "a", &mut region, self.config.advice[0], row)?;

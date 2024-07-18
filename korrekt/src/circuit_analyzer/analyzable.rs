@@ -207,7 +207,13 @@ impl<F: AnalyzableField> Assignment<F> for Analyzable<F> {
 
         if let Some(region) = self.current_region.as_mut() {
             region.update_extent(column.into(), row);
-            #[cfg(any(feature = "use_pse_halo2_proofs", feature = "use_pse_v1_halo2_proofs"))]
+            #[cfg(any(feature = "use_zcash_halo2_proofs",))]
+            region.cells.push((column.into(), row));
+            #[cfg(any(
+                feature = "use_pse_halo2_proofs",
+                feature = "use_pse_v1_halo2_proofs",
+                feature = "use_scroll_halo2_proofs",
+            ))]
             region
                 .cells
                 .entry((column.into(), row))

@@ -110,11 +110,8 @@ pub fn eval_abstract<F: AnalyzableField>(
                 advice_query.column_index,
                 advice_query.rotation.0 + row_num + region_begin as i32
             );
-            //println!("term: {:?}", term);
-            //println!("cell_to_cycle_head: {:?}", cell_to_cycle_head);
             if cell_to_cycle_head.contains_key(&term) {
                 if cycle_abs_value.contains_key(&cell_to_cycle_head[&term.clone()]) {
-                    //println!("cycle_abs_value[&cell_to_cycle_head[&term]]: {:?}", cycle_abs_value[&cell_to_cycle_head[&term]]);
                     return Ok(cycle_abs_value[&cell_to_cycle_head[&term]]);
                 }
             }
