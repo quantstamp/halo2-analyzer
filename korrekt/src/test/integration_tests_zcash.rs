@@ -913,9 +913,10 @@ mod tests {
     }
     #[test]
     fn analyze_underconstrained_zero_fixed() {
-        let circuit = sample_circuits::simple::zero_with_fixed::FixedWithZeroCircuit::<Fr>::default();
+        let circuit =
+            sample_circuits::simple::zero_with_fixed::FixedWithZeroCircuit::<Fr>::default();
         let k = 11;
-       
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {
@@ -943,9 +944,10 @@ mod tests {
 
     #[test]
     fn analyze_underconstrained_zero_with_fixed_in_poly() {
-        let circuit = sample_circuits::simple::zero_with_fixed_in_poly::FixedWithZeroCircuit::<Fr>::default();
+        let circuit =
+            sample_circuits::simple::zero_with_fixed_in_poly::FixedWithZeroCircuit::<Fr>::default();
         let k = 11;
-       
+
         let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
             verification_method: VerificationMethod::Random,
             verification_input: VerificationInput {

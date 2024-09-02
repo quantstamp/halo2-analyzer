@@ -18,9 +18,7 @@ pub struct FixedWithZeroCircuitConfig {
 
 impl<F: Field> Default for FixedWithZeroCircuit<F> {
     fn default() -> Self {
-        FixedWithZeroCircuit {
-            _ph: PhantomData,
-        }
+        FixedWithZeroCircuit { _ph: PhantomData }
     }
 }
 
@@ -64,7 +62,12 @@ impl<F: Field> Circuit<F> for FixedWithZeroCircuit<F> {
                 |mut region| {
                     config.s.enable(&mut region, 0)?;
 
-                    let out = region.assign_fixed(|| "f1", config.f, 0, || Value::known(F::from_u128(2)))?;//Value::known(F::ZERO))?;
+                    let out = region.assign_fixed(
+                        || "f1",
+                        config.f,
+                        0,
+                        || Value::known(F::from_u128(2)),
+                    )?; //Value::known(F::ZERO))?;
 
                     Ok(out)
                 },

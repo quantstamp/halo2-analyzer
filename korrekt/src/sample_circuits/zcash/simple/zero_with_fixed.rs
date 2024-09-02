@@ -18,9 +18,7 @@ pub struct FixedWithZeroCircuitConfig {
 
 impl<F: Field> Default for FixedWithZeroCircuit<F> {
     fn default() -> Self {
-        FixedWithZeroCircuit {
-            _ph: PhantomData,
-        }
+        FixedWithZeroCircuit { _ph: PhantomData }
     }
 }
 
@@ -75,8 +73,6 @@ impl<F: Field> Circuit<F> for FixedWithZeroCircuit<F> {
                     let out = region.constrain_equal(b1.cell(), f1.cell())?;
 
                     let out = region.constrain_equal(b3.cell(), f2.cell())?;
-
-
 
                     Ok(out)
                 },
