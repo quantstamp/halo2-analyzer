@@ -911,4 +911,63 @@ mod tests {
         println!("output_status: {:?}", output_status);
         assert!(output_status.eq(&AnalyzerOutputStatus::NotUnderconstrainedLocal));
     }
+    #[test]
+    fn analyze_underconstrained_zero_fixed() {
+        let circuit = sample_circuits::simple::zero_with_fixed::FixedWithZeroCircuit::<Fr>::default();
+        let k = 11;
+       
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instance_cells: HashMap::new(),
+                iterations: 5,
+            },
+            lookup_method: LookupMethod::InlineConstraints,
+        };
+
+        let mut analyzer = Analyzer::new(
+            &circuit,
+            k,
+            AnalyzerType::UnderconstrainedCircuit,
+            Some(&analyzer_input),
+        )
+        .unwrap();
+
+        let output_status = analyzer
+            .analyze_underconstrained(&analyzer_input)
+            .unwrap()
+            .output_status;
+        println!("output_status: {:?}", output_status);
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    }
+
+    #[test]
+    fn analyze_underconstrained_zero_with_fixed_in_poly() {
+        let circuit = sample_circuits::simple::zero_with_fixed_in_poly::FixedWithZeroCircuit::<Fr>::default();
+        let k = 11;
+       
+        let analyzer_input: analyzer_io_type::AnalyzerInput = analyzer_io_type::AnalyzerInput {
+            verification_method: VerificationMethod::Random,
+            verification_input: VerificationInput {
+                instance_cells: HashMap::new(),
+                iterations: 5,
+            },
+            lookup_method: LookupMethod::InlineConstraints,
+        };
+
+        let mut analyzer = Analyzer::new(
+            &circuit,
+            k,
+            AnalyzerType::UnderconstrainedCircuit,
+            Some(&analyzer_input),
+        )
+        .unwrap();
+
+        let output_status = analyzer
+            .analyze_underconstrained(&analyzer_input)
+            .unwrap()
+            .output_status;
+        println!("output_status: {:?}", output_status);
+        assert!(output_status.eq(&AnalyzerOutputStatus::Underconstrained));
+    }
 }
