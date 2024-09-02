@@ -44,7 +44,6 @@ impl<F: Field> Circuit<F> for FixedWithZeroCircuit<F> {
             let f = meta.query_fixed(f);
             let b3 = meta.query_advice(a, Rotation::next());
             let selector = meta.query_selector(s);
-            // b0 * (1-b0)
             vec![selector * (b1 * f - b3)]
         });
 
@@ -67,7 +66,7 @@ impl<F: Field> Circuit<F> for FixedWithZeroCircuit<F> {
                         config.f,
                         0,
                         || Value::known(F::from_u128(2)),
-                    )?; //Value::known(F::ZERO))?;
+                    )?;
 
                     Ok(out)
                 },
