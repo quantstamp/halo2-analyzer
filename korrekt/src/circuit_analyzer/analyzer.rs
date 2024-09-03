@@ -50,6 +50,7 @@ pub struct Analyzer<F: AnalyzableField> {
     pub smt_file: Option<File>,
     pub cycle_abs_value: HashMap<String, AbsResult>,
     pub cycle_bigint_value: HashMap<String, BigInt>,
+    pub selector_indices: HashSet<usize>,
 }
 
 #[derive(Debug)]
@@ -75,6 +76,7 @@ pub enum Operation {
 
 #[derive(Debug)]
 pub enum IsZeroExpression {
+    ZeroSelector,
     Zero,
     One,
     NonZero,
@@ -134,6 +136,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
             fixed.push(new_col);
         }
+
+        let mut selector_indices = HashSet::new();
+        for selector in &analyzable.cs.selector_map {
+            selector_indices.insert(selector.index);
+        }
         let (permutation, instance_cells, cell_to_cycle_head, cycle_abs_value, cycle_bigint_value) =
             Analyzer::<F>::extract_permutations(&analyzable.permutation, &fixed);
         let mut analyzer = Analyzer {
@@ -154,6 +161,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
             smt_file: None,
             cycle_abs_value: cycle_abs_value,
             cycle_bigint_value,
+            selector_indices,
         };
 
         fs::create_dir_all("src/output/").unwrap();
@@ -736,6 +744,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
         cell_to_cycle_head: &HashMap<String, String>,
         cycle_bigint_value: &HashMap<String, BigInt>,
         new_variables: &mut HashSet<String>,
+        selector_indices: &HashSet<usize>,
     ) -> (String, NodeType, IsZeroExpression) {
         let mut is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
@@ -772,7 +781,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     (
                         "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
-                        IsZeroExpression::Zero,
+                        IsZeroExpression::ZeroSelector,
                     )
                 }
             }
@@ -785,7 +794,11 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     let term = format!("(as ff{:?} F)", t);
 
                     if t.sign() == Sign::NoSign {
-                        is_zero_expression = IsZeroExpression::Zero;
+                        if selector_indices.contains(&col) {
+                            is_zero_expression = IsZeroExpression::ZeroSelector;
+                        } else {
+                            is_zero_expression = IsZeroExpression::Zero;
+                        }
                     } else if *t == BigInt::from(1) {
                         is_zero_expression = IsZeroExpression::One;
                     }
@@ -838,12 +851,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     cell_to_cycle_head,
                     cycle_bigint_value,
                     new_variables,
+                    selector_indices,
                 );
-                if matches!(is_zero_expression, IsZeroExpression::Zero) {
+                if matches!(is_zero_expression, IsZeroExpression::ZeroSelector) {
                     return (
                         "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
-                        IsZeroExpression::Zero,
+                        IsZeroExpression::ZeroSelector,
                     );
                 }
                 let term = if (matches!(node_type, NodeType::Advice)
@@ -869,6 +883,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     cell_to_cycle_head,
                     cycle_bigint_value,
                     new_variables,
+                    selector_indices,
                 );
                 let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     b,
@@ -881,15 +896,16 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     cell_to_cycle_head,
                     cycle_bigint_value,
                     new_variables,
+                    selector_indices,
                 );
 
-                if matches!(left_is_zero, IsZeroExpression::Zero)
-                    && matches!(right_is_zero, IsZeroExpression::Zero)
+                if matches!(left_is_zero, IsZeroExpression::ZeroSelector)
+                    && matches!(right_is_zero, IsZeroExpression::ZeroSelector)
                 {
                     return (
                         "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
-                        IsZeroExpression::Zero,
+                        IsZeroExpression::ZeroSelector,
                     );
                 }
 
@@ -914,6 +930,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     cell_to_cycle_head,
                     cycle_bigint_value,
                     new_variables,
+                    selector_indices,
                 );
                 let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     b,
@@ -926,15 +943,16 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     cell_to_cycle_head,
                     cycle_bigint_value,
                     new_variables,
+                    selector_indices,
                 );
 
-                if matches!(left_is_zero, IsZeroExpression::Zero)
-                    || matches!(right_is_zero, IsZeroExpression::Zero)
+                if matches!(left_is_zero, IsZeroExpression::ZeroSelector)
+                    || matches!(right_is_zero, IsZeroExpression::ZeroSelector)
                 {
                     return (
                         "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
-                        IsZeroExpression::Zero,
+                        IsZeroExpression::ZeroSelector,
                     );
                 } else if matches!(left_is_zero, IsZeroExpression::One)
                     && matches!(right_is_zero, IsZeroExpression::One)
@@ -972,6 +990,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     cell_to_cycle_head,
                     cycle_bigint_value,
                     new_variables,
+                    selector_indices,
                 );
                 let (node_str_right, node_type_right, right_is_zero) = Self::decompose_expression(
                     _poly,
@@ -984,14 +1003,15 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     cell_to_cycle_head,
                     cycle_bigint_value,
                     new_variables,
+                    selector_indices,
                 );
-                if matches!(left_is_zero, IsZeroExpression::Zero)
-                    || matches!(right_is_zero, IsZeroExpression::Zero)
+                if matches!(left_is_zero, IsZeroExpression::ZeroSelector)
+                    || matches!(right_is_zero, IsZeroExpression::ZeroSelector)
                 {
                     return (
                         "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
-                        IsZeroExpression::Zero,
+                        IsZeroExpression::ZeroSelector,
                     );
                 } else if matches!(left_is_zero, IsZeroExpression::One)
                     && matches!(right_is_zero, IsZeroExpression::One)
@@ -1053,7 +1073,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         "0".to_owned(),
-                        IsZeroExpression::Zero,
+                        IsZeroExpression::ZeroSelector,
                     ))
                 }
             }
@@ -1165,14 +1185,14 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     }
                 }
 
-                if matches!(left_is_zero, IsZeroExpression::Zero)
-                    || matches!(right_is_zero, IsZeroExpression::Zero)
+                if matches!(left_is_zero, IsZeroExpression::ZeroSelector)
+                    || matches!(right_is_zero, IsZeroExpression::ZeroSelector)
                 {
                     return Ok((
                         "(as ff0 F)".to_owned(),
                         NodeType::Fixed,
                         "0".to_owned(),
-                        IsZeroExpression::Zero,
+                        IsZeroExpression::ZeroSelector,
                     ));
                 } else if matches!(left_is_zero, IsZeroExpression::One)
                     && matches!(right_is_zero, IsZeroExpression::One)
@@ -1250,9 +1270,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.cell_to_cycle_head,
                                     &self.cycle_bigint_value,
                                     &mut new_variables,
+                                    &self.selector_indices,
                                 );
-                                // TODO: Distinguish the zero polynomial due to disabled selector from the zero polynomial due to the actual polynomial being zero: ZKR-4661
-                                if !matches!(is_zero, IsZeroExpression::Zero) {
+
+                                if !matches!(is_zero, IsZeroExpression::ZeroSelector) {
                                     let diff: HashSet<String> = new_variables
                                         .difference(&self.all_variables)
                                         .cloned()
@@ -1316,8 +1337,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &self.cell_to_cycle_head,
                                 &self.cycle_bigint_value,
                                 &mut new_variables,
+                                &self.selector_indices,
                             );
-                            if !matches!(is_zero, IsZeroExpression::Zero) {
+                            if !matches!(is_zero, IsZeroExpression::ZeroSelector) {
                                 let diff: HashSet<String> = new_variables
                                     .difference(&self.all_variables)
                                     .cloned()
@@ -1534,7 +1556,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                 &mut new_variables,
                             )
                         .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
-                            if !matches!(is_zero, IsZeroExpression::Zero) {
+                            if !matches!(is_zero, IsZeroExpression::ZeroSelector) {
                                 let diff: HashSet<String> = new_variables
                                     .difference(&self.all_variables)
                                     .cloned()
@@ -1566,7 +1588,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         &mut new_variables,
                                     )
                                     .with_context(|| format!("Failed to decompose lookup input expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
-                                if !matches!(is_zero, IsZeroExpression::Zero) {
+                                if !matches!(is_zero, IsZeroExpression::ZeroSelector) {
                                     let diff: HashSet<String> = new_variables
                                         .difference(&self.all_variables)
                                         .cloned()
@@ -1688,8 +1710,9 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.cell_to_cycle_head,
                                     &self.cycle_bigint_value,
                                     &mut new_variables,
+                                    &self.selector_indices,
                                 );
-                                if !matches!(is_zero, IsZeroExpression::Zero) {
+                                if !matches!(is_zero, IsZeroExpression::ZeroSelector) {
                                     let diff: HashSet<String> = new_variables
                                         .difference(&self.all_variables)
                                         .cloned()
