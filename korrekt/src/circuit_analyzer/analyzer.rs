@@ -1057,9 +1057,35 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     ) -> Result<(String, NodeType, String, IsZeroExpression)> {
         let is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
-            Expression::Constant(_) => Err(anyhow!(
-                "Constant expression in lookup expression is invalid."
-            )),
+            Expression::Constant(a) => {
+                let constant_decimal_value =
+                    BigInt::from_str_radix(format!("{:?}", a).strip_prefix("0x").unwrap(), 16)
+                        .unwrap();
+
+                if constant_decimal_value.sign() == Sign::NoSign {
+                    return Ok((
+                        "(as ff0 F)".to_owned(),
+                        NodeType::Constant,
+                        constant_decimal_value.to_string(),
+                        IsZeroExpression::Zero,
+                    ));
+                } else if constant_decimal_value == BigInt::from(1) {
+                    return Ok((
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Constant,
+                        constant_decimal_value.to_string(),
+                        IsZeroExpression::One,
+                    ));
+                }
+
+                let term = format!("(as ff{:?} F)", constant_decimal_value);
+                Ok((
+                    term,
+                    NodeType::Constant,
+                    constant_decimal_value.to_string(),
+                    is_zero_expression,
+                ))
+            }
             Expression::Selector(a) => {
                 if es.contains_key(a) {
                     Ok((
@@ -1138,12 +1164,94 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     is_zero_expression,
                 ))
             }
-            Expression::Negated(_) => Err(anyhow!(
-                "Negated expression in lookup expression is invalid."
-            )),
+            Expression::Negated(poly) => {
+                let (node_str, node_type, _, _) = Self::decompose_lookup_expression(
+                    poly,
+                    printer,
+                    region_begin,
+                    region_end,
+                    row_num,
+                    es,
+                    fixed,
+                    cell_to_cycle_head,
+                    new_variables,
+                )
+                .with_context(|| {
+                    format!(
+                        "Failed to decompose negated within region from row: {} to {}, at row: {}",
+                        region_begin, region_end, row_num
+                    )
+                })?;
+                if matches!(is_zero_expression, IsZeroExpression::ZeroSelector) {
+                    return Ok((
+                        "(as ff0 F)".to_owned(),
+                        NodeType::Fixed,
+                        String::from(""),
+                        IsZeroExpression::ZeroSelector,
+                    ));
+                }
+                let term = if (matches!(node_type, NodeType::Advice)
+                    || matches!(node_type, NodeType::Instance)
+                    || matches!(node_type, NodeType::Fixed)
+                    || matches!(node_type, NodeType::Constant))
+                {
+                    format!("ff.neg {}", node_str)
+                } else {
+                    format!("ff.neg ({})", node_str)
+                };
+                Ok((
+                    term,
+                    NodeType::Negated,
+                    String::from(""),
+                    is_zero_expression,
+                ))
+            }
 
-            Expression::Sum(_, _) => {
-                Err(anyhow!("Sum expression in lookup expression is invalid."))
+            Expression::Sum(a, b) => {
+                let (node_str_left, node_type_left, _, left_is_zero) =
+                    Self::decompose_lookup_expression(
+                        a,
+                        printer,
+                        region_begin,
+                        region_end,
+                        row_num,
+                        es,
+                        fixed,
+                        cell_to_cycle_head,
+                        new_variables,
+                    ).with_context(|| format!("Failed to decompose the left side of the Sum expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
+                let (node_str_right, node_type_right, _, right_is_zero) =
+                    Self::decompose_lookup_expression(
+                        b,
+                        printer,
+                        region_begin,
+                        region_end,
+                        row_num,
+                        es,
+                        fixed,
+                        cell_to_cycle_head,
+                        new_variables,
+                    ).with_context(|| format!("Failed to decompose the right side of the Sum expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
+
+                if matches!(left_is_zero, IsZeroExpression::ZeroSelector)
+                    && matches!(right_is_zero, IsZeroExpression::ZeroSelector)
+                {
+                    return Ok((
+                        "(as ff0 F)".to_owned(),
+                        NodeType::Fixed,
+                        "0".to_owned(),
+                        IsZeroExpression::ZeroSelector,
+                    ));
+                }
+
+                let term = printer.write_term(
+                    "add".to_owned(),
+                    node_str_left,
+                    node_type_left,
+                    node_str_right,
+                    node_type_right,
+                );
+                Ok((term, NodeType::Add, String::from(""), is_zero_expression))
             }
             Expression::Product(a, b) => {
                 let (node_str_left, node_type_left, variable_left, left_is_zero) =
@@ -1219,9 +1327,73 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
                 Ok((term, NodeType::Mult, var, is_zero_expression))
             }
-            Expression::Scaled(_poly, _) => Err(anyhow!(
-                "Scaled expression in lookup expression is invalid."
-            )),
+            Expression::Scaled(poly, c) => {
+                // convering the field element into an expression constant and recurse.
+                let (node_str_left, node_type_left, _, left_is_zero) = Self::decompose_lookup_expression(
+                    &Expression::Constant(*c),
+                    printer,
+                        region_begin,
+                        region_end,
+                        row_num,
+                        es,
+                        fixed,
+                        cell_to_cycle_head,
+                        new_variables,
+                    ).with_context(|| format!("Failed to decompose the constant part of the Scaled expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
+                let (node_str_right, node_type_right, _, right_is_zero) =
+                    Self::decompose_lookup_expression(
+                        poly,
+                        printer,
+                        region_begin,
+                        region_end,
+                        row_num,
+                        es,
+                        fixed,
+                        cell_to_cycle_head,
+                        new_variables,
+                    ).with_context(|| format!("Failed to decompose the polynomila part of the Scaled expression within region from row: {} to {}, at row: {}", region_begin, region_end, row_num))?;
+                if matches!(left_is_zero, IsZeroExpression::ZeroSelector)
+                    || matches!(right_is_zero, IsZeroExpression::ZeroSelector)
+                {
+                    return Ok((
+                        "(as ff0 F)".to_owned(),
+                        NodeType::Fixed,
+                        "0".to_owned(),
+                        IsZeroExpression::ZeroSelector,
+                    ));
+                } else if matches!(left_is_zero, IsZeroExpression::One)
+                    && matches!(right_is_zero, IsZeroExpression::One)
+                {
+                    return Ok((
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Fixed,
+                        String::from(""),
+                        IsZeroExpression::One,
+                    ));
+                } else if matches!(left_is_zero, IsZeroExpression::One) {
+                    return Ok((
+                        node_str_right,
+                        node_type_right,
+                        String::from(""),
+                        right_is_zero,
+                    ));
+                } else if matches!(right_is_zero, IsZeroExpression::One) {
+                    return Ok((
+                        node_str_left,
+                        node_type_left,
+                        String::from(""),
+                        left_is_zero,
+                    ));
+                }
+                let term = printer.write_term(
+                    "mul".to_owned(),
+                    node_str_left,
+                    node_type_left,
+                    node_str_right,
+                    node_type_right,
+                );
+                Ok((term, NodeType::Scaled, String::from(""), is_zero_expression))
+            }
             #[cfg(any(
                 feature = "use_pse_halo2_proofs",
                 feature = "use_axiom_halo2_proofs",
@@ -1326,7 +1498,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let mut cons_str_vec = Vec::new();
                         for poly in &lookup.input_expressions {
                             let mut new_variables = HashSet::new();
-                            let (node_str, _, is_zero) = Self::decompose_expression(
+                            let (node_str, node_type, is_zero) = Self::decompose_expression(
                                 poly,
                                 printer,
                                 region_begin,
@@ -1348,7 +1520,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     self.all_variables.insert(element.clone());
                                     printer.write_var(element.to_string());
                                 }
-                                cons_str_vec.push(node_str);
+                                cons_str_vec.push((node_str, node_type));
                                 zero_lookup_expressions.push(true);
                             } else {
                                 zero_lookup_expressions.push(false);
@@ -1381,7 +1553,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     fn extract_lookup_constraints(
         &self,
         col_indices: Vec<usize>,
-        cons_str_vec: Option<Vec<String>>,
+        cons_str_vec: Option<Vec<(String, NodeType)>>,
         printer: &mut smt::Printer<File>,
         zero_lookup_expressions: Option<Vec<bool>>,
     ) -> Result<String, anyhow::Error> {
@@ -1396,15 +1568,21 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     continue;
                 }
                 // Define cons_str outside the match to extend its lifetime
-                let default_str = format!("x_{} ", col);
+                let default_str = (format!("x_{} ", col), NodeType::Advice);
                 let cons_str = match &cons_str_vec {
                     Some(vec) => &vec[col],
                     None => &default_str,
                 };
 
                 let t = format!("{:?}", self.fixed[col_indices[col]][row]);
+                let mut poly = cons_str.0.clone();
+                if !matches!(cons_str.1, NodeType::Advice)
+                    && !matches!(cons_str.1, NodeType::Instance)
+                {
+                    poly = format!("({})", cons_str.0.clone());
+                }
                 let sa = printer
-                    .get_assert(cons_str.clone(), t, NodeType::Advice, Operation::Equal)
+                    .get_assert(poly, t, NodeType::Advice, Operation::Equal)
                     .context("Failed to generate assert!")?;
                 equalities.push(sa);
             }
@@ -1699,7 +1877,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         for polys in &lookup.1.inputs {
                             for poly in polys {
                                 let mut new_variables = HashSet::new();
-                                let (node_str, _, is_zero) = Self::decompose_expression(
+                                let (node_str, node_type, is_zero) = Self::decompose_expression(
                                     &poly,
                                     printer,
                                     region_begin,
@@ -1721,7 +1899,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         self.all_variables.insert(element.clone());
                                         printer.write_var(element.to_string());
                                     }
-                                    cons_str_vec.push(node_str.clone());
+                                    cons_str_vec.push((node_str.clone(), node_type));
                                     zero_lookup_expressions.push(true);
                                 } else {
                                     zero_lookup_expressions.push(false);
