@@ -1057,9 +1057,35 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     ) -> Result<(String, NodeType, String, IsZeroExpression)> {
         let is_zero_expression = IsZeroExpression::NonZero;
         match &poly {
-            Expression::Constant(_) => Err(anyhow!(
-                "Constant expression in lookup expression is invalid."
-            )),
+            Expression::Constant(a) => {
+                let constant_decimal_value =
+                    BigInt::from_str_radix(format!("{:?}", a).strip_prefix("0x").unwrap(), 16)
+                        .unwrap();
+
+                if constant_decimal_value.sign() == Sign::NoSign {
+                    return Ok((
+                        "(as ff0 F)".to_owned(),
+                        NodeType::Constant,
+                        constant_decimal_value.to_string(),
+                        IsZeroExpression::Zero,
+                    ));
+                } else if constant_decimal_value == BigInt::from(1) {
+                    return Ok((
+                        "(as ff1 F)".to_owned(),
+                        NodeType::Constant,
+                        constant_decimal_value.to_string(),
+                        IsZeroExpression::One,
+                    ));
+                }
+
+                let term = format!("(as ff{:?} F)", constant_decimal_value);
+                Ok((
+                    term,
+                    NodeType::Constant,
+                    constant_decimal_value.to_string(),
+                    is_zero_expression,
+                ))
+            }
             Expression::Selector(a) => {
                 if es.contains_key(a) {
                     Ok((
@@ -1138,9 +1164,48 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     is_zero_expression,
                 ))
             }
-            Expression::Negated(_) => Err(anyhow!(
-                "Negated expression in lookup expression is invalid."
-            )),
+            Expression::Negated(poly) => {
+                let (node_str, node_type, variable, is_zero) = Self::decompose_lookup_expression(
+                    poly,
+                    printer,
+                    region_begin,
+                    region_end,
+                    row_num,
+                    es,
+                    fixed,
+                    cell_to_cycle_head,
+                    new_variables,
+                )
+                .with_context(|| {
+                    format!(
+                        "Failed to decompose negated within region from row: {} to {}, at row: {}",
+                        region_begin, region_end, row_num
+                    )
+                })?;
+                if matches!(is_zero_expression, IsZeroExpression::ZeroSelector) {
+                    return Ok((
+                        "(as ff0 F)".to_owned(),
+                        NodeType::Fixed,
+                        String::from(""),
+                        IsZeroExpression::ZeroSelector,
+                    ));
+                }
+                let term = if (matches!(node_type, NodeType::Advice)
+                    || matches!(node_type, NodeType::Instance)
+                    || matches!(node_type, NodeType::Fixed)
+                    || matches!(node_type, NodeType::Constant))
+                {
+                    format!("ff.neg {}", node_str)
+                } else {
+                    format!("ff.neg ({})", node_str)
+                };
+                Ok((
+                    term,
+                    NodeType::Negated,
+                    String::from(""),
+                    is_zero_expression,
+                ))
+            }
 
             Expression::Sum(_, _) => {
                 Err(anyhow!("Sum expression in lookup expression is invalid."))
@@ -1348,7 +1413,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     self.all_variables.insert(element.clone());
                                     printer.write_var(element.to_string());
                                 }
-                                cons_str_vec.push((node_str,node_type));
+                                cons_str_vec.push((node_str, node_type));
                                 zero_lookup_expressions.push(true);
                             } else {
                                 zero_lookup_expressions.push(false);
@@ -1405,7 +1470,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 let t = format!("{:?}", self.fixed[col_indices[col]][row]);
                 let mut poly = cons_str.0.clone();
                 if !matches!(cons_str.1, NodeType::Advice)
-                    && !matches!(cons_str.1, NodeType::Instance){
+                    && !matches!(cons_str.1, NodeType::Instance)
+                {
                     poly = format!("({})", cons_str.0.clone());
                 }
                 let sa = printer
