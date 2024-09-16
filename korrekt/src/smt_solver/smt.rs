@@ -152,6 +152,9 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// whether it is combined with an OR or an AND operator.
     ///
     pub fn write_assert_bool(&mut self, poly: String, op: analyzer::Operation) {
+        if poly.is_empty() {
+            return;
+        }
         if matches!(op, analyzer::Operation::Or) {
             writeln!(&mut self.writer, "(assert (or {}))", poly).unwrap();
         } else if matches!(op, analyzer::Operation::And) {
@@ -231,6 +234,9 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// representing their logical OR operation in the SMT-LIB format.
     ///
     pub fn get_or(&mut self, or_str: String) -> String {
+        if or_str.is_empty() {
+            return String::from("");
+        }
         format!("(or {})", or_str)
     }
     /// Returns a string representing a logical AND operation in the SMT-LIB format.
@@ -239,6 +245,9 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
     /// representing their logical AND operation in the SMT-LIB format.
     ///
     pub fn get_and(&mut self, or_str: String) -> String {
+        if or_str.is_empty() {
+            return String::from("");
+        }
         format!("(and {})", or_str)
     }
 }

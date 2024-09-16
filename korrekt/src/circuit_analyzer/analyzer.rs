@@ -1326,7 +1326,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         let mut cons_str_vec = Vec::new();
                         for poly in &lookup.input_expressions {
                             let mut new_variables = HashSet::new();
-                            let (node_str, _, is_zero) = Self::decompose_expression(
+                            let (node_str, node_type, is_zero) = Self::decompose_expression(
                                 poly,
                                 printer,
                                 region_begin,
@@ -1348,7 +1348,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     self.all_variables.insert(element.clone());
                                     printer.write_var(element.to_string());
                                 }
-                                cons_str_vec.push(node_str);
+                                cons_str_vec.push((node_str,node_type));
                                 zero_lookup_expressions.push(true);
                             } else {
                                 zero_lookup_expressions.push(false);
@@ -1381,7 +1381,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
     fn extract_lookup_constraints(
         &self,
         col_indices: Vec<usize>,
-        cons_str_vec: Option<Vec<String>>,
+        cons_str_vec: Option<Vec<(String, NodeType)>>,
         printer: &mut smt::Printer<File>,
         zero_lookup_expressions: Option<Vec<bool>>,
     ) -> Result<String, anyhow::Error> {
@@ -1396,15 +1396,20 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     continue;
                 }
                 // Define cons_str outside the match to extend its lifetime
-                let default_str = format!("x_{} ", col);
+                let default_str = (format!("x_{} ", col), NodeType::Advice);
                 let cons_str = match &cons_str_vec {
                     Some(vec) => &vec[col],
                     None => &default_str,
                 };
 
                 let t = format!("{:?}", self.fixed[col_indices[col]][row]);
+                let mut poly = cons_str.0.clone();
+                if !matches!(cons_str.1, NodeType::Advice)
+                    && !matches!(cons_str.1, NodeType::Instance){
+                    poly = format!("({})", cons_str.0.clone());
+                }
                 let sa = printer
-                    .get_assert(cons_str.clone(), t, NodeType::Advice, Operation::Equal)
+                    .get_assert(poly, t, NodeType::Advice, Operation::Equal)
                     .context("Failed to generate assert!")?;
                 equalities.push(sa);
             }
@@ -1699,7 +1704,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         for polys in &lookup.1.inputs {
                             for poly in polys {
                                 let mut new_variables = HashSet::new();
-                                let (node_str, _, is_zero) = Self::decompose_expression(
+                                let (node_str, node_type, is_zero) = Self::decompose_expression(
                                     &poly,
                                     printer,
                                     region_begin,
@@ -1721,7 +1726,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                         self.all_variables.insert(element.clone());
                                         printer.write_var(element.to_string());
                                     }
-                                    cons_str_vec.push(node_str.clone());
+                                    cons_str_vec.push((node_str.clone(), node_type));
                                     zero_lookup_expressions.push(true);
                                 } else {
                                     zero_lookup_expressions.push(false);
