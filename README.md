@@ -158,16 +158,16 @@ Replace `[OPTIONS]` with the desired options as described below.
 2. Run `cargo test` for the default feature flag (`use_zcash_halo2_proofs`).
 
     ```bash
-    cargo test
+    cargo test -- --test-threads=1
     ```
 
    For other versions of halo2 run `cargo test` with relevant halo2 version feature flag:
 
     ```bash
-    cargo test --no-default-features --features use_pse_halo2_proofs
-    cargo test --no-default-features --features use_axiom_halo2_proofs
-    cargo test --no-default-features --features use_scroll_halo2_proofs
-    cargo test --no-default-features --features use_pse_v1_halo2_proofs
+    cargo test --no-default-features --features use_pse_halo2_proofs -- --test-threads=1
+    cargo test --no-default-features --features use_axiom_halo2_proofs -- --test-threads=1
+    cargo test --no-default-features --features use_scroll_halo2_proofs -- --test-threads=1
+    cargo test --no-default-features --features use_pse_v1_halo2_proofs -- --test-threads=1
     ```
 
 ## For linting
