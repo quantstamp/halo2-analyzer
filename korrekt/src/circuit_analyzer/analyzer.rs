@@ -54,6 +54,14 @@ pub struct Analyzer<F: AnalyzableField> {
 }
 
 #[derive(Debug)]
+pub enum NodeCategory {
+    Variable,
+    Constant,
+    Polynomial,
+    Invalid,
+}
+
+#[derive(Debug)]
 pub enum NodeType {
     Constant,
     Advice,
@@ -66,6 +74,23 @@ pub enum NodeType {
     Poly,
     Invalid,
 }
+
+impl NodeType {
+    // Method to group node types by category (e.g., variable, constant, etc.)
+    pub fn category(&self) -> NodeCategory {
+        match self {
+            NodeType::Advice | NodeType::Instance => NodeCategory::Variable,
+            NodeType::Fixed | NodeType::Constant => NodeCategory::Constant,
+            NodeType::Mult
+            | NodeType::Add
+            | NodeType::Negated
+            | NodeType::Scaled
+            | NodeType::Poly => NodeCategory::Polynomial,
+            _ => NodeCategory::Invalid,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Operation {
     Equal,
@@ -836,8 +861,29 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                 }
                 (t.to_string(), NodeType::Advice, is_zero_expression)
             }
-            Expression::Instance(_instance_query) => {
-                ("".to_owned(), NodeType::Instance, is_zero_expression)
+            Expression::Instance(instance_query) => {
+                let term = format!(
+                    "I-{}-{}",
+                    instance_query.column_index,
+                    instance_query.rotation.0 + row_num + region_begin as i32
+                );
+                let mut t = term.clone();
+                let mut t_is_fixed = false;
+                if cell_to_cycle_head.contains_key(&term) {
+                    if cycle_bigint_value.contains_key(&cell_to_cycle_head[&term]) {
+                        t_is_fixed = true;
+                        t = format!(
+                            "(as ff{:?} F)",
+                            cycle_bigint_value[&cell_to_cycle_head[&term]].to_owned()
+                        );
+                    } else {
+                        t = cell_to_cycle_head[&term.clone()].to_string();
+                    }
+                }
+                if !t_is_fixed {
+                    new_variables.insert(t.clone());
+                }
+                (t.to_string(), NodeType::Instance, is_zero_expression)
             }
             Expression::Negated(poly) => {
                 let (node_str, node_type, is_zero_expression) = Self::decompose_expression(
@@ -860,10 +906,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         IsZeroExpression::ZeroSelector,
                     );
                 }
-                let term = if (matches!(node_type, NodeType::Advice)
-                    || matches!(node_type, NodeType::Instance)
-                    || matches!(node_type, NodeType::Fixed)
-                    || matches!(node_type, NodeType::Constant))
+                let term = if (matches!(node_type.category(), NodeCategory::Variable)
+                    || matches!(node_type.category(), NodeCategory::Constant))
                 {
                     format!("ff.neg {}", node_str)
                 } else {
@@ -1190,10 +1234,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         IsZeroExpression::ZeroSelector,
                     ));
                 }
-                let term = if (matches!(node_type, NodeType::Advice)
-                    || matches!(node_type, NodeType::Instance)
-                    || matches!(node_type, NodeType::Fixed)
-                    || matches!(node_type, NodeType::Constant))
+                let term = if (matches!(node_type.category(), NodeCategory::Variable)
+                    || matches!(node_type.category(), NodeCategory::Constant))
                 {
                     format!("ff.neg {}", node_str)
                 } else {
@@ -1431,7 +1473,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                         for gate in self.cs.gates.iter() {
                             for poly in &gate.polys {
                                 let mut new_variables = HashSet::new();
-                                let (node_str, _, is_zero) = Self::decompose_expression(
+                                let (node_str, node_type, is_zero) = Self::decompose_expression(
                                     poly,
                                     printer,
                                     region_begin,
@@ -1445,7 +1487,10 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.selector_indices,
                                 );
 
-                                if !matches!(is_zero, IsZeroExpression::ZeroSelector) {
+                                if (!matches!(is_zero, IsZeroExpression::ZeroSelector)
+                                    && !(matches!(is_zero, IsZeroExpression::Zero)
+                                        && (matches!(node_type.category(), NodeCategory::Constant))))
+                                {
                                     let diff: HashSet<String> = new_variables
                                         .difference(&self.all_variables)
                                         .cloned()
@@ -1576,8 +1621,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
                 let t = format!("{:?}", self.fixed[col_indices[col]][row]);
                 let mut poly = cons_str.0.clone();
-                if !matches!(cons_str.1, NodeType::Advice)
-                    && !matches!(cons_str.1, NodeType::Instance)
+                if !matches!(cons_str.1.category(), NodeCategory::Variable)
                 {
                     poly = format!("({})", cons_str.0.clone());
                 }
