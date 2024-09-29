@@ -1491,8 +1491,6 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     && !(matches!(is_zero, IsZeroExpression::Zero)
                                         && (matches!(node_type.category(), NodeCategory::Constant)))
                                 {
-                                    println!("node_str: {:?}", node_str);
-
                                     let diff: HashSet<String> = new_variables
                                         .difference(&self.all_variables)
                                         .cloned()
@@ -1505,7 +1503,7 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     printer.write_assert(
                                         node_str,
                                         "0".to_owned(),
-                                        NodeType::Poly,
+                                        node_type,
                                         Operation::Equal,
                                     );
                                 }

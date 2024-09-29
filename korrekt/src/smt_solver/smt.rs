@@ -122,9 +122,8 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         nt: analyzer::NodeType,
         op: analyzer::Operation,
     ) {
-        let a = if (matches!(nt, NodeType::Advice)
-            || matches!(nt, NodeType::Instance)
-            || matches!(nt, NodeType::Fixed))
+        let a = if (matches!(nt.category(), NodeCategory::Variable)
+            || matches!(nt.category(), NodeCategory::Constant))
         {
             poly
         } else {
@@ -174,9 +173,8 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         nt: analyzer::NodeType,
         op: analyzer::Operation,
     ) -> Result<String> {
-        let a = if (matches!(nt, NodeType::Advice)
-            || matches!(nt, NodeType::Instance)
-            || matches!(nt, NodeType::Fixed))
+        let a = if (matches!(nt.category(), NodeCategory::Variable)
+            || matches!(nt.category(), NodeCategory::Constant))
         {
             poly
         } else {
