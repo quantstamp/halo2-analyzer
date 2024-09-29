@@ -1487,10 +1487,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                                     &self.selector_indices,
                                 );
 
-                                if (!matches!(is_zero, IsZeroExpression::ZeroSelector)
+                                if !matches!(is_zero, IsZeroExpression::ZeroSelector)
                                     && !(matches!(is_zero, IsZeroExpression::Zero)
-                                        && (matches!(node_type.category(), NodeCategory::Constant))))
+                                        && (matches!(node_type.category(), NodeCategory::Constant)))
                                 {
+                                    println!("node_str: {:?}", node_str);
+
                                     let diff: HashSet<String> = new_variables
                                         .difference(&self.all_variables)
                                         .cloned()
