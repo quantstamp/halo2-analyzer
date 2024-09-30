@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use std::io::Write;
 
-use crate::circuit_analyzer::analyzer::{self, NodeType};
+use crate::circuit_analyzer::analyzer::{self, NodeCategory, NodeType};
 
 #[derive(Debug)]
 pub struct Printer<'a, W: 'a> {
@@ -29,20 +29,16 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         right: String,
         ntr: analyzer::NodeType,
     ) -> String {
-        let l = if (matches!(ntl, NodeType::Advice)
-            || matches!(ntl, NodeType::Instance)
-            || matches!(ntl, NodeType::Fixed)
-            || matches!(ntl, NodeType::Constant))
+        let l = if (matches!(ntl.category(), NodeCategory::Variable)
+            || matches!(ntl.category(), NodeCategory::Constant))
         {
             left
         } else {
             format!("({})", left)
         };
 
-        let r = if (matches!(ntr, NodeType::Advice)
-            || matches!(ntr, NodeType::Instance)
-            || matches!(ntr, NodeType::Fixed)
-            || matches!(ntr, NodeType::Constant))
+        let r = if (matches!(ntr.category(), NodeCategory::Variable)
+            || matches!(ntr.category(), NodeCategory::Constant))
         {
             right
         } else {
@@ -126,9 +122,8 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         nt: analyzer::NodeType,
         op: analyzer::Operation,
     ) {
-        let a = if (matches!(nt, NodeType::Advice)
-            || matches!(nt, NodeType::Instance)
-            || matches!(nt, NodeType::Fixed))
+        let a = if (matches!(nt.category(), NodeCategory::Variable)
+            || matches!(nt.category(), NodeCategory::Constant))
         {
             poly
         } else {
@@ -178,9 +173,8 @@ impl<'a, W: 'a + Write> Printer<'a, W> {
         nt: analyzer::NodeType,
         op: analyzer::Operation,
     ) -> Result<String> {
-        let a = if (matches!(nt, NodeType::Advice)
-            || matches!(nt, NodeType::Instance)
-            || matches!(nt, NodeType::Fixed))
+        let a = if (matches!(nt.category(), NodeCategory::Variable)
+            || matches!(nt.category(), NodeCategory::Constant))
         {
             poly
         } else {
