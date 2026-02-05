@@ -1994,6 +1994,8 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
 
             let mut max_iterations: u128 = 1;
 
+            let num_of_lookup_mappings = self.lookup_mappings.clone().len();
+
             // Determine the verification method and configure the analysis accordingly.
             match analyzer_input.verification_method {
                 // For specific public input, directly write assertions for each variable.
@@ -2038,14 +2040,13 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                     return Ok(result); // We can just break here.
                 }
                 // No need to do the lookup as they are already constrained in SMT solver where uninterpreted functions are not used for lookups.
-                if !matches!(analyzer_input.lookup_method, LookupMethod::Uninterpreted) {
+                if !matches!(analyzer_input.lookup_method, LookupMethod::Uninterpreted) ||  num_of_lookup_mappings == 0 {
                     valid_model_lookeded_up = true;
                 }
                 // if using uninterpreted function, we need to check if the model is valid by performing the lookup.
                 else {
                     uc_lookup_dependency = false;
                     // Lookup search to make sure all values in the model are valid.
-                    let num_of_lookup_mappings = self.lookup_mappings.clone().len();
                     for index in 0..num_of_lookup_mappings {
                         // Perform the lookup
                         let lookup_sucessful =
@@ -2129,13 +2130,12 @@ impl<'b, F: AnalyzableField> Analyzer<F> {
                             .context("Failed to solve and get model!")?;
 
                     // If using uninterpreted function, we need to check if the model is valid by performing the lookup.
-                    if matches!(analyzer_input.lookup_method, LookupMethod::Uninterpreted) {
+                    if matches!(analyzer_input.lookup_method, LookupMethod::Uninterpreted) && num_of_lookup_mappings > 0 {
                         info!("Equivalent model for the same public input!(No Lookup Constraint):");
                         for r in &model_with_constraint.result {
                             info!("{} : {}", r.1.name, r.1.value.element)
                         }
                         uc_lookup_dependency = false;
-                        let num_of_lookup_mappings = self.lookup_mappings.clone().len();
                         for index in 0..num_of_lookup_mappings {
                             // Lookup search to make sure all values in the model are valid.
                             let lookup_sucessful = Self::lookup(
